@@ -41,6 +41,12 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
           s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
+          # Supabase FunctionsHttpError otherwise hides the JSON error returned by the Edge Function.
+          s = s.replace(
+              "}catch(e){\n   console.error(e);",
+              "}catch(e){\n   console.error(e); let detail=e?.message||'Analisis gagal.'; try { const ctx=e?.context; if(ctx){ const payload=typeof ctx.clone==='function'?await ctx.clone().json():null; if(payload?.error) detail=payload.error; else if(payload?.message) detail=payload.message; } } catch(_) {};"
+          )
+          s = s.replace("escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')", "escapeHtml(detail)")
           s = s.replace('<b class="text-amber-300">Belum dikonfigurasi</b>', '<b class="text-amber-300">Backend terpasang · API key perlu diuji</b>', 1)
           p.write_text(s, encoding="utf-8")
           PY
