@@ -35,6 +35,15 @@ jobs:
           test -n "$APP_DIR"
           cp -a "$APP_DIR"/. site/
           test -s site/index.html
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("site/index.html")
+          s = p.read_text(encoding="utf-8")
+          s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
+          s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
+          s = s.replace('<b class="text-amber-300">Belum dikonfigurasi</b>', '<b class="text-amber-300">Backend terpasang · API key perlu diuji</b>', 1)
+          p.write_text(s, encoding="utf-8")
+          PY
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
