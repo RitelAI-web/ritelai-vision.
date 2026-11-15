@@ -29,5 +29,15 @@ Deno.serve(async(req)=>{
   const result=JSON.parse(txt);if(!["BUY","SELL","WAIT"].includes(String(result.signal).toUpperCase()))result.signal="WAIT";
   const {error:se}=await admin.from("analysis_history").insert({user_id:ud.user.id,asset:instrument,timeframe,result});if(se)throw se;
   const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>String(x)).slice(0,8):[]; const conf=Number(result.confidence); return reply({result:{signal:String(result.signal).toUpperCase(),summary:String(result.summary||"Analisis selesai."),entry:result.entry??null,stop_loss:result.stop_loss??null,take_profit_1:result.take_profit_1??result.take_profit??null,take_profit:result.take_profit_1??result.take_profit??null,take_profit_2:result.take_profit_2??null,risk_reward:result.risk_reward??null,confidence:Number.isFinite(conf)?Math.max(0,Math.min(100,conf)):0,trend:result.trend??null,support_resistance:result.support_resistance??null,rsi:result.rsi??null,macd:result.macd??null,volume:result.volume??null,volatility:result.volatility??null,reasoning:result.reasoning??result.summary??null,confirmation:arr(result.confirmation),warnings:arr(result.warnings),disclaimer:result.disclaimer??"Analisis berdasarkan screenshot, bukan data harga live atau jaminan hasil. Periksa kondisi pasar sebelum mengambil keputusan."}});
- }catch(e){console.error("quick-handler",e);return reply({error:e instanceof Error?e.message:"Analisis gagal."},500);}
+ }catch(e){
+  console.error("quick-handler",e);
+  const raw=e instanceof Error?e.message:"Kesalahan internal saat analisis.";
+  const safe=raw.includes("OPENAI_API_KEY")?"Kunci AI belum dipasang di Supabase > Edge Functions > Secrets (OPENAI_API_KEY).":
+   /OpenAI HTTP 401|Incorrect API key|invalid_api_key/i.test(raw)?"Kunci OpenAI tidak valid atau tidak memiliki akses. Periksa OPENAI_API_KEY di Supabase Secrets.":
+   /OpenAI HTTP 429|quota|billing/i.test(raw)?"Kuota atau billing API OpenAI habis. Periksa penggunaan dan billing akun OpenAI.":
+   /OpenAI HTTP 5\d\d|fetch failed|connection/i.test(raw)?"Layanan AI sedang tidak dapat dihubungi. Coba lagi nanti.":
+   /analysis_history|profiles|subscriptions|plans/i.test(raw)?"Database Supabase menolak proses analisis. Periksa tabel, kolom, dan izin service role.":
+   raw.slice(0,500);
+  return reply({error:safe,code:"ANALYSIS_FAILED"},500);
+ }
 });
