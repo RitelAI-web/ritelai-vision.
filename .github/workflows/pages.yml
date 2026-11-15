@@ -42,6 +42,30 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
           s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
+          old = """  }catch(e){
+   console.error(e);
+   resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
+   toast('Analisis gagal. Lihat pesan pada panel hasil.');
+  }"""
+          new = """  }catch(e){
+   console.error('RitelAI analysis error:', e);
+   let detail = e?.message || 'Analisis gagal.';
+   try {
+    const response = e?.context;
+    if(response && typeof response.clone === 'function'){
+     const raw = await response.clone().text();
+     if(raw){
+      try { const payload = JSON.parse(raw); detail = payload.error || payload.message || payload.msg || raw; }
+      catch (_) { detail = raw; }
+     }
+    }
+   } catch(readError) { console.warn('Could not read Edge Function response:', readError); }
+   resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(detail)+'</p>';
+   toast('Analisis gagal. Lihat pesan pada panel hasil.');
+  }"""
+          if old not in s:
+              raise SystemExit("Exact chart error handler not found; deployment cancelled.")
+          s = s.replace(old, new, 1)
           p.write_text(s, encoding="utf-8")
           PY
 
