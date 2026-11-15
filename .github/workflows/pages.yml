@@ -42,11 +42,10 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
           s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
-          old = """  }catch(e){
-   console.error(e);
-   resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
-   toast('Analisis gagal. Lihat pesan pada panel hasil.');
-  }"""
+          pattern = re.compile(r"(?m)^\s*\}\s*catch\(e\)\s*\{\s*console\.error\(e\);.*?^\s*\}", re.S)
+          match = pattern.search(s)
+          if not match:
+              raise SystemExit("Chart analysis catch block not found; deployment cancelled safely.")
           new = """  }catch(e){
    console.error('RitelAI analysis error:', e);
    let detail = e?.message || 'Analisis gagal.';
@@ -63,9 +62,9 @@ jobs:
    resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(detail)+'</p>';
    toast('Analisis gagal. Lihat pesan pada panel hasil.');
   }"""
-          if old not in s:
-              raise SystemExit("Exact chart error handler not found; deployment cancelled.")
-          s = s.replace(old, new, 1)
+          s, count = pattern.subn(lambda _: new, s, count=1)
+          if count != 1:
+              raise SystemExit("Failed to patch chart analysis error handler.")
           p.write_text(s, encoding="utf-8")
           PY
 
