@@ -42,12 +42,34 @@ jobs:
           s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
           s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
           # Supabase FunctionsHttpError otherwise hides the JSON error returned by the Edge Function.
-          s = s.replace(
-              "}catch(e){\n   console.error(e);",
-              "}catch(e){\n   console.error(e); let detail=e?.message||'Analisis gagal.'; try { const ctx=e?.context; if(ctx){ const payload=typeof ctx.clone==='function'?await ctx.clone().json():null; if(payload?.error) detail=payload.error; else if(payload?.message) detail=payload.message; } } catch(_) {};"
-          )
-          s = s.replace("escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')", "escapeHtml(detail)")
-          s = s.replace('<b class="text-amber-300">Belum dikonfigurasi</b>', '<b class="text-amber-300">Backend terpasang · API key perlu diuji</b>', 1)
+          old_catch = """  }catch(e){
+           console.error(e);
+           resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
+           toast('Analisis gagal. Lihat pesan pada panel hasil.');
+          }"""
+          new_catch = """  }catch(e){
+           console.error('Chart analysis failed:', e);
+           let detail = e?.message || 'Analisis gagal.';
+           try {
+             const response = e?.context;
+             if (response && typeof response.clone === 'function') {
+               const raw = await response.clone().text();
+               if (raw) {
+                 try {
+                   const payload = JSON.parse(raw);
+                   detail = payload.error || payload.message || payload.msg || raw;
+                 } catch (_) { detail = raw; }
+               }
+             }
+           } catch (diagnosticError) { console.warn('Could not read function error body:', diagnosticError); }
+           resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(detail)+'</p>';
+           toast('Analisis gagal. Lihat pesan pada panel hasil.');
+          }"""
+          if old_catch in s:
+              s = s.replace(old_catch, new_catch, 1)
+          else:
+              raise SystemExit("Expected analysis catch block was not found; refusing to publish an incomplete diagnostic patch.")
+
           p.write_text(s, encoding="utf-8")
           PY
 
