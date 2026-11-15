@@ -1,5 +1,4 @@
 name: Publish RitelAI Vision
-
 on:
   push:
     branches: [main]
@@ -31,42 +30,10 @@ jobs:
         run: |
           mkdir -p extracted site
           unzip -o RitelAI_Vision_GitHub_Ready.zip -d extracted
-          APP_DIR="$(find extracted -type f -name index.html -printf '%h\n' | head -n 1)"
+          APP_DIR="$(find extracted -type f -name index.html -printf '%h\\n' | head -n 1)"
           test -n "$APP_DIR"
           cp -a "$APP_DIR"/. site/
           test -s site/index.html
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-          p = Path("site/index.html")
-          s = p.read_text(encoding="utf-8")
-          s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
-          s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
-          pattern = re.compile(r"(?m)^\s*\}\s*catch\(e\)\s*\{\s*console\.error\(e\);.*?^\s*\}", re.S)
-          match = pattern.search(s)
-          if not match:
-              raise SystemExit("Chart analysis catch block not found; deployment cancelled safely.")
-          new = """  }catch(e){
-   console.error('RitelAI analysis error:', e);
-   let detail = e?.message || 'Analisis gagal.';
-   try {
-    const response = e?.context;
-    if(response && typeof response.clone === 'function'){
-     const raw = await response.clone().text();
-     if(raw){
-      try { const payload = JSON.parse(raw); detail = payload.error || payload.message || payload.msg || raw; }
-      catch (_) { detail = raw; }
-     }
-    }
-   } catch(readError) { console.warn('Could not read Edge Function response:', readError); }
-   resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(detail)+'</p>';
-   toast('Analisis gagal. Lihat pesan pada panel hasil.');
-  }"""
-          s, count = pattern.subn(lambda _: new, s, count=1)
-          if count != 1:
-              raise SystemExit("Failed to patch chart analysis error handler.")
-          p.write_text(s, encoding="utf-8")
-          PY
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
