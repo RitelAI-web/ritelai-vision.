@@ -18,7 +18,7 @@ Deno.serve(async(req)=>{
   if(!sub){const {data:free}=await admin.from("plans").select("name,analysis_quota").eq("code","free").eq("is_active",true).maybeSingle();quota=Number(free?.analysis_quota??0);planName=String(free?.name??"Free");}
   const since=new Date();since.setDate(since.getDate()-30);
   const {count,error:ce}=await admin.from("analysis_history").select("id",{count:"exact",head:true}).eq("user_id",ud.user.id).gte("created_at",since.toISOString());if(ce)throw ce;
-  if(!profile||(!["owner","admin"].includes(profile.role)&&quota>0&&(count??0)>=quota))return reply({error:`Kuota paket ${planName||"akun"} habis (${count}/${quota} analisis dalam 30 hari).`},403);
+  if(!profile||(!["owner","admin","super_admin"].includes(String(profile.role||"").toLowerCase())&&(count??0)>=quota))return reply({error:`Kuota paket ${planName||"akun"} habis (${count}/${quota} analisis dalam 30 hari).`},403);
   const body=await req.json(),image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
   if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
