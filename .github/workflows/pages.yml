@@ -1,4 +1,5 @@
 name: Publish RitelAI Vision
+# Rebuild to publish clearer chart-analysis error messages
 
 on:
   push:
