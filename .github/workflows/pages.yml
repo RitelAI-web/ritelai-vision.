@@ -42,28 +42,6 @@ jobs:
           s = p.read_text(encoding="utf-8")
           s = s.replace("['owner','admin']", "['owner','admin','super_admin']")
           s = s.replace("role==='owner'?'Super Admin'", "['owner','super_admin'].includes(role)?'Super Admin'")
-          # Supabase FunctionsHttpError otherwise hides the JSON error returned by the Edge Function.
-          pattern = r"  \\}catch\\(e\\)\\{\\s*console\\.error\\(e\\);.*?toast\\('Analisis gagal\\. Lihat pesan pada panel hasil\\.'\\);\\s*  \\}"
-          replacement = """  }catch(e){
-           console.error('Chart analysis failed:', e);
-           let detail = e?.message || 'Analisis gagal.';
-           try {
-             const response = e?.context;
-             if (response && typeof response.clone === 'function') {
-               const raw = await response.clone().text();
-               if (raw) {
-                 try { const payload = JSON.parse(raw); detail = payload.error || payload.message || payload.msg || raw; }
-                 catch (_) { detail = raw; }
-               }
-             }
-           } catch (diagnosticError) { console.warn('Could not read function error body:', diagnosticError); }
-           resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(detail)+'</p>';
-           toast('Analisis gagal. Lihat pesan pada panel hasil.');
-          }"""
-          s, count = re.subn(pattern, lambda _: replacement, s, count=1, flags=re.S)
-          if count != 1:
-              raise SystemExit("Could not locate chart-analysis error handler; deployment cancelled.")
-
           p.write_text(s, encoding="utf-8")
           PY
 
