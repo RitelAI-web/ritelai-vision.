@@ -22,16 +22,11 @@ jobs:
           APP_DIR="$(dirname "$(find extracted -type f -name index.html -print -quit)")"
           test -f "$APP_DIR/supabase/functions/quick-service/index.ts"
           cp -a "$APP_DIR/supabase/functions/quick-service" supabase/functions/
-      - name: Link project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       - name: Deploy functions
         run: |
-          supabase functions deploy quick-service --no-verify-jwt
-          supabase functions deploy quick-handler
-          supabase functions deploy admin-approve-payment
+          supabase functions deploy quick-service --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
+          supabase functions deploy quick-handler --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy admin-approve-payment --project-ref "$SUPABASE_PROJECT_REF"
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
