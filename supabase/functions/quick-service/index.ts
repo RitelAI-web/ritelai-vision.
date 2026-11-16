@@ -306,7 +306,7 @@ async function analyzeEvents(events: AnyRecord[]) {
 
 const NEWS_CACHE: { at: number; payload: AnyRecord } = { at: 0, payload: { items: [], errors: [] } };
 function decodeNewsXml(value: string): string {
-  return value.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+  return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
 }
 function newsTag(block: string, tag: string): string {
   const m=block.match(new RegExp("<"+tag+"(?:\\s[^>]*)?>([\\s\\S]*?)</"+tag+">","i"));
