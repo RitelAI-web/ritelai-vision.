@@ -229,7 +229,7 @@ function macroSeriesForEvent(event: AnyRecord): string[] {
   return [];
 }
 async function fetchFredHistory(seriesId: string): Promise<AnyRecord> {
-  const response = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + encodeURIComponent(seriesId), { headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(7000) });
+  const response = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + encodeURIComponent(seriesId), { headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(4000) });
   if (!response.ok) throw new Error('FRED HTTP ' + response.status);
   const csv = await response.text();
   const rows = csv.trim().split(/\\r?\\n/).slice(1).filter((line) => line && !line.endsWith(',.'));
@@ -265,7 +265,7 @@ EVENTS=${JSON.stringify(selected)}`;
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 5000 }),
-    signal: AbortSignal.timeout(45000),
+    signal: AbortSignal.timeout(12000),
   });
   const raw = await response.text();
   let data: AnyRecord;
