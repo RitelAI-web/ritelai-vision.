@@ -61,8 +61,10 @@ async function loadMarketNews(){
 if js_anchor in html and 'async function loadMarketNews()' not in html:
     html = html.replace(js_anchor, news_js + '\n' + js_anchor, 1)
 call_anchor = "const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar',assets:RITELAI_SYMBOLS}});"
-if call_anchor in html and 'await loadMarketNews();' not in html:
-    html = html.replace(call_anchor, call_anchor + 'await loadMarketNews();', 1)
+if call_anchor in html:
+    # Load RSS independently before requesting calendar data. A calendar Edge
+    # Function failure must not prevent the separate news feed from rendering.
+    html = html.replace(call_anchor, 'await loadMarketNews();\\n' + call_anchor, 1)
 
 notice = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis dikirim ke Edge Function yang aman. Hasil gambar bukan data harga live dan bukan jaminan profit.</p>'
 replacement = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis chart tersedia untuk Crypto, Forex, Komoditas, Indeks, dan Saham berdasarkan gambar yang kamu unggah. Ketersediaan harga live dan berita tiap instrumen bergantung pada sumber data terhubung. Hasil bukan jaminan profit.</p>'
