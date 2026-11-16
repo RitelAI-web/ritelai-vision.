@@ -220,7 +220,21 @@ async function createMT5Pairing(){
   const code=data?.pairing_code||data?.code||data?.data?.pairing_code;
   if(!code)throw new Error('Respons backend tidak berisi kode pairing. Periksa log mt5-bridge.');
   out.innerHTML='<div class="font-bold text-emerald-300">Kode pairing berhasil dibuat</div><div class="text-2xl font-mono tracking-widest my-2">'+escapeHtml(code)+'</div><div class="muted text-xs">Masukkan kode ini pada EA RitelAI di MT5 demo. Kode bersifat sementara; jangan bagikan ke orang lain.</div>';
- }catch(e){out.textContent='Pairing gagal: '+(e.message||'kesalahan tidak diketahui');}
+ }catch(e){
+  let detail=e?.message||'Kesalahan tidak diketahui';
+  try{
+   const response=e?.context;
+   if(response&&typeof response.clone==='function'){
+    const payload=await response.clone().json();
+    if(payload?.error)detail=payload.error;
+    if(payload?.diagnostic){
+     const d=payload.diagnostic;
+     detail+=' (langganan aktif: '+Number(d.active_subscription_count||0)+'; paket terbaca: '+(Array.isArray(d.recognized_plan_codes)&&d.recognized_plan_codes.length?d.recognized_plan_codes.join(', '):'tidak ada')+')';
+    }
+   }
+  }catch(_){}
+  out.textContent='Pairing gagal: '+detail;
+ }
  finally{btn.disabled=!mt5EliteAccess;btn.textContent='Buat kode pairing demo'}
 }
 function showAdmin(){if(!['owner','admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
