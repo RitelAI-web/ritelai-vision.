@@ -104,6 +104,25 @@ Deno.serve(async req=>{
   const {data:device,error:deviceErr}=await admin.from("mt5_devices").select("*").eq("token_hash",await sha(token)).eq("enabled",true).eq("is_demo",true).maybeSingle();
   if(error||deviceErr||!device) return reply({error:"Token terminal tidak valid atau perangkat dinonaktifkan."},401);
 
+  // Re-check entitlement for every connected-terminal operation too. Losing or
+  // downgrading from Enterprise disables the device; a previously paired EA
+  // must not keep receiving signals after the subscription is no longer active.
+  const {data:activeSub,error:activeSubErr}=await admin.from("subscriptions")
+    .select("plan_id,plans(name,code)")
+    .eq("user_id",device.user_id)
+    .eq("status","active")
+    .gt("ends_at",new Date().toISOString())
+    .order("ends_at",{ascending:false})
+    .limit(1)
+    .maybeSingle();
+  if(activeSubErr) return reply({error:"Tidak dapat memverifikasi hak akses Enterprise terminal."},503);
+  const activePlan:any=activeSub?.plans;
+  const activePlanLabel=String(activePlan?.code||activePlan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
+  if(!activePlanLabel.includes("enterprise")){
+    await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id);
+    return reply({error:"Akses MT5 dikunci. Paket Enterprise aktif diperlukan; perangkat telah dinonaktifkan."},403);
+  }
+
   if(action==="heartbeat"){
     const patch:Obj={last_seen_at:new Date().toISOString()};
     if(body.symbol) patch.symbol_name=clean(body.symbol,32);
