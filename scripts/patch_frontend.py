@@ -49,12 +49,12 @@ if 'data-tab="settings"' not in html:
 
 # Add an Investing-style economic calendar with Previous / Forecast / Actual
 # and AI scenario commentary. Values are rendered only when supplied by provider.
-macro_nav = '  <button class="navbtn" data-tab="macro-calendar" onclick="showTab(\\'macro-calendar\\',this)"><i class="fa-solid fa-calendar-days mr-1"></i>Kalender Ekonomi</button>'
+macro_nav = """  <button class="navbtn" data-tab="macro-calendar" onclick="showTab('macro-calendar',this)"><i class="fa-solid fa-calendar-days mr-1"></i>Kalender Ekonomi</button>"""
 if 'data-tab="macro-calendar"' not in html:
-    nav_anchor = '  <button class="navbtn" data-tab="history" onclick="showTab(\\'history\\',this)"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Riwayat</button>'
+    nav_anchor = """  <button class="navbtn" data-tab="history" onclick="showTab('history',this)"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Riwayat</button>"""
     if nav_anchor not in html:
         raise SystemExit("Navigation anchor for economic calendar not found")
-    html = html.replace(nav_anchor, nav_anchor + "\\n" + macro_nav, 1)
+    html = html.replace(nav_anchor, nav_anchor + "\n" + macro_nav, 1)
 
 macro_panel = """
  <section id="tab-macro-calendar" class="panel">
@@ -67,7 +67,7 @@ macro_panel = """
 if 'id="tab-macro-calendar"' not in html:
     anchor = ' <section id="tab-settings" class="panel">'
     if anchor not in html: raise SystemExit("Settings panel anchor not found")
-    html = html.replace(anchor, macro_panel + "\\n" + anchor, 1)
+    html = html.replace(anchor, macro_panel + "\n" + anchor, 1)
 
 macro_js = r'''
 function macroSafe(v){return escapeHtml(String(v==null||v===""?"—":v))}
@@ -98,9 +98,9 @@ async function loadRitelMacroCalendar(){
 if 'function loadRitelMacroCalendar()' not in html:
     js_anchor = 'function readRitelSettings(){'
     if js_anchor not in html: raise SystemExit("Settings JS anchor not found")
-    html=html.replace(js_anchor,macro_js+"\\n"+js_anchor,1)
+    html=html.replace(js_anchor,macro_js+"\n"+js_anchor,1)
 if "loadRitelMacroCalendar();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
-    html=html.replace("  applyRitelSettings();","  applyRitelSettings();\\n  loadRitelMacroCalendar();",1)
+    html=html.replace("  applyRitelSettings();","  applyRitelSettings();\n  loadRitelMacroCalendar();",1)
 
 settings_panel = '''
  <section id="tab-settings" class="panel">
