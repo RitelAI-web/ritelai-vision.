@@ -391,6 +391,7 @@ async function analyzeEvents(events: AnyRecord[]) {
 
 
 const NEWS_CACHE: { at: number; payload: AnyRecord } = { at: 0, payload: { items: [], errors: [] } };
+const CALENDAR_RESPONSE_CACHE: { at: number; payload: AnyRecord | null } = { at: 0, payload: null };
 function decodeNewsXml(value: string): string {
   return value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
 }
@@ -432,6 +433,9 @@ Deno.serve(async (request: Request) => {
   if (body?.action !== "market_calendar") {
     return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_calendar atau market_news." }, 400);
   }
+  if (CALENDAR_RESPONSE_CACHE.payload && Date.now() - CALENDAR_RESPONSE_CACHE.at < 30000) {
+    return reply({ ...CALENDAR_RESPONSE_CACHE.payload, cached: true, cacheAgeMs: Date.now() - CALENDAR_RESPONSE_CACHE.at });
+  }
 
   try {
     // Provider failures are returned as a partial 200 response so the UI can show
@@ -466,7 +470,7 @@ Deno.serve(async (request: Request) => {
       aiError = "OPENAI_API_KEY belum dikonfigurasi di Supabase Secrets.";
     }
   
-    return reply({
+    const calendarPayload = {
       status: "ok",
       generatedAt: new Date().toISOString(),
       quotes,
@@ -487,7 +491,10 @@ Deno.serve(async (request: Request) => {
         openAIConfigured: Boolean(Deno.env.get("OPENAI_API_KEY")),
       },
       disclaimer: "Harga berasal dari penyedia pihak ketiga dan tidak dijamin sama dengan harga broker. Data dapat tertunda atau tidak tersedia. Bias AI bersifat kualitatif, bukan probabilitas profit atau win rate.",
-    });
+    };
+    CALENDAR_RESPONSE_CACHE.at = Date.now();
+    CALENDAR_RESPONSE_CACHE.payload = calendarPayload;
+    return reply(calendarPayload);
   } catch (error) {
     // Never leak an unhandled provider/runtime exception as a generic non-2xx to the customer UI.
     return reply({
