@@ -27,6 +27,43 @@ elif 'id="asset"' not in html:
 elif 'optgroup label="CRYPTO"' not in html:
     raise SystemExit("Asset selector changed unexpectedly; refusing blind replacement")
 
+
+news_anchor = '<div id="marketWarnings" class="hidden rounded-lg border border-amber-800/60 bg-amber-950/20 text-amber-200 p-3 mt-3 text-[11px] leading-5"></div>'
+news_ui = news_anchor + '''
+   <div class="border-t border-slate-800 mt-5 pt-4">
+    <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-bold text-sm">Berita Pasar Global</h3><p class="muted text-[10px] mt-1">Crypto, Forex, Komoditas, Saham, Indeks, dan makroekonomi · RSS agregasi Google News</p></div><span id="newsStatus" class="pill">Memuat berita...</span></div>
+    <div id="marketNewsItems" class="grid md:grid-cols-2 gap-2 mt-3"><p class="muted text-xs">Mengambil berita terbaru...</p></div>
+   </div>'''
+if news_anchor in html and 'id="marketNewsItems"' not in html:
+    html = html.replace(news_anchor, news_ui, 1)
+
+js_anchor = 'async function loadMarketIntelligence(options={})'
+news_js = r"""
+async function loadMarketNews(){
+ const box=document.getElementById('marketNewsItems'),status=document.getElementById('newsStatus');
+ if(!box)return;
+ if(status)status.textContent='Memperbarui...';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_news'}});
+  if(error)throw error;
+  if(!data||data.status!=='ok')throw new Error(data?.error||'Feed berita tidak tersedia.');
+  const items=Array.isArray(data.items)?data.items:[];
+  if(status)status.textContent=items.length+' berita · '+(data.source||'RSS');
+  box.innerHTML=items.length?items.map(item=>{
+   const url=String(item.url||'');const safeUrl=/^https?:\/\//i.test(url)?url:'#';
+   const when=item.publishedAt?new Date(item.publishedAt).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}):'Waktu tidak tersedia';
+   return '<article class="bg-slate-950/60 border border-slate-800 rounded-xl p-3"><div class="flex gap-2 items-center justify-between"><span class="pill">'+escapeHtml(item.category||'Market')+'</span><span class="muted text-[9px]">'+escapeHtml(when)+'</span></div><a class="block font-semibold text-xs mt-2 text-cyan-200 hover:underline" href="'+escapeHtml(safeUrl)+'" target="_blank" rel="noopener noreferrer">'+escapeHtml(item.title||'Berita')+'</a><div class="muted text-[10px] mt-2">'+escapeHtml(item.source||'Sumber tidak tersedia')+'</div></article>';
+  }).join(''):'<p class="muted text-xs">Belum ada berita dari feed. Coba perbarui kembali.</p>';
+  if(data.errors?.length&&status)status.textContent=items.length+' berita · sebagian sumber gagal';
+ }catch(e){if(status)status.textContent='Feed berita bermasalah';box.innerHTML='<p class="text-amber-200 text-xs">'+escapeHtml(e.message||'Berita belum tersedia.')+'</p>';}
+}
+"""
+if js_anchor in html and 'async function loadMarketNews()' not in html:
+    html = html.replace(js_anchor, news_js + '\n' + js_anchor, 1)
+call_anchor = "const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar',assets:RITELAI_SYMBOLS}});"
+if call_anchor in html and 'await loadMarketNews();' not in html:
+    html = html.replace(call_anchor, call_anchor + 'await loadMarketNews();', 1)
+
 notice = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis dikirim ke Edge Function yang aman. Hasil gambar bukan data harga live dan bukan jaminan profit.</p>'
 replacement = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis chart tersedia untuk Crypto, Forex, Komoditas, Indeks, dan Saham berdasarkan gambar yang kamu unggah. Ketersediaan harga live dan berita tiap instrumen bergantung pada sumber data terhubung. Hasil bukan jaminan profit.</p>'
 if notice in html:
