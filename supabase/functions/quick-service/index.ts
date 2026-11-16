@@ -128,10 +128,16 @@ async function getCalendar() {
       importance: "high",
       countryCode: event.countryCode ?? event.country ?? "",
       currency: event.currency ?? "",
-      actual: event.actual ?? null,
-      forecast: event.forecast ?? null,
-      previous: event.previous ?? null,
-      revisedPrevious: event.revisedPrevious ?? event.revised_previous ?? null,
+      actual: event.actual ?? event.actualValue ?? event.actual_value ?? null,
+      forecast: event.forecast ?? event.consensus ?? event.forecastValue ?? event.forecast_value ?? null,
+      previous: event.previous ?? event.previousValue ?? event.previous_value ?? null,
+      revisedPrevious: event.revisedPrevious ?? event.revised_previous ?? event.revisedFrom ?? event.revised_from ?? null,
+      unit: event.unit ?? event.measureUnit ?? event.measure_unit ?? "",
+      referencePeriod: event.referencePeriod ?? event.reference_period ?? event.period ?? "",
+      eventSource: event.source ?? event.provider ?? "BiQuote",
+      sourceUrl: event.sourceUrl ?? event.source_url ?? null,
+      dataUpdatedAt: event.updatedAt ?? event.updated_at ?? event.lastUpdate ?? event.last_update ?? null,
+      importanceLevel: "HIGH",
     }))
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
 }
@@ -158,12 +164,38 @@ function getOfficialScheduledEvents(): AnyRecord[] {
   }));
 }
 
+function compareCalendarValues(event: AnyRecord): AnyRecord {
+  const actual = event.actual;
+  const forecast = event.forecast;
+  const previous = event.previous;
+  const numeric = (value: unknown): number | null => {
+    if (value == null || value === "") return null;
+    const cleaned = String(value).replace(/,/g, "").replace(/%/g, "").replace(/[^0-9.+-]/g, "");
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const a = numeric(actual), f = numeric(forecast), p = numeric(previous);
+  const hasActual = actual != null && String(actual).trim() !== "";
+  const hasForecast = forecast != null && String(forecast).trim() !== "";
+  const surprise = a == null || f == null ? null : Number((a - f).toFixed(6));
+  const surpriseLabel = surprise == null ? "PENDING" : surprise > 0 ? "ABOVE_FORECAST" : surprise < 0 ? "BELOW_FORECAST" : "IN_LINE";
+  return {
+    ...event,
+    releaseStatus: hasActual ? "RELEASED" : "UPCOMING",
+    actualVsForecast: surpriseLabel,
+    surpriseValue: surprise,
+    forecastVsPrevious: f == null || p == null ? "UNAVAILABLE" : f > p ? "FORECAST_ABOVE_PREVIOUS" : f < p ? "FORECAST_BELOW_PREVIOUS" : "FORECAST_IN_LINE",
+    hasActual, hasForecast, hasPrevious: previous != null && String(previous).trim() !== "",
+    valueDisplay: { actual: actual ?? "—", forecast: forecast ?? "Belum tersedia", previous: previous ?? "—", revisedPrevious: event.revisedPrevious ?? "—", unit: event.unit || "" },
+  };
+}
+
 function mergeCalendarEvents(providerEvents: AnyRecord[], officialEvents: AnyRecord[]): AnyRecord[] {
   const merged = new Map<string, AnyRecord>();
   for (const event of [...providerEvents, ...officialEvents]) {
     const key = `${String(event.name ?? event.title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}|${Date.parse(event.time)}`;
     // Jadwal resmi menjadi sumber utama untuk rilis yang tanggalnya sudah dikonfirmasi.
-    if (!merged.has(key) || event.scheduleStatus === "official_scheduled") merged.set(key, event);
+    if (!merged.has(key) || event.scheduleStatus === "official_scheduled") merged.set(key, compareCalendarValues(event));
   }
   return [...merged.values()].sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
 }
