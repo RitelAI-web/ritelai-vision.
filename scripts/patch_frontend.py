@@ -130,5 +130,33 @@ if 'function saveRitelSettings()' not in html:
 if "applyRitelSettings();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
     html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\n  applyRitelSettings();", 1)
 
+
+# Inject asset-aware headlines into the successful analysis result.
+news_js = r"""
+async function loadNewsForAnalysis(symbol){
+ const target=document.getElementById('analysisNewsIntel');if(!target)return;
+ target.innerHTML='<p class="muted text-xs">Memeriksa berita terbaru...</p>';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_news'}});
+  if(error)throw error;
+  const items=Array.isArray(data?.items)?data.items:[];
+  const key=String(symbol||'').toUpperCase();
+  const terms=key.includes('XAU')||key.includes('XAG')?['gold','silver','precious metal','fed','dollar','inflation']:key.includes('BTC')||key.includes('ETH')||key.includes('SOL')?['crypto','bitcoin','ethereum','digital asset','sec','etf']:key.includes('EUR')?['euro','ecb','europe','eurozone','dollar','fed']:key.includes('GBP')?['pound','sterling','boe','uk','britain','dollar']:key.includes('JPY')?['yen','boj','japan','dollar','fed']:key.includes('US30')||key.includes('US500')||key.includes('NAS')?['stock','equity','wall street','nasdaq','dow','s&p','fed','earnings']:[key.toLowerCase()];
+  const ranked=items.map(n=>{const hay=(String(n.title||'')+' '+String(n.category||'')+' '+String(n.source||'')).toLowerCase();return {...n,score:terms.reduce((a,t)=>a+(hay.includes(t)?1:0),0)}}).filter(n=>n.score>0).sort((a,b)=>b.score-a.score||Date.parse(b.publishedAt||0)-Date.parse(a.publishedAt||0)).slice(0,5);
+  const safe=v=>escapeHtml(String(v||''));const stamp=v=>v?new Date(v).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB':'Waktu publikasi tidak tersedia';
+  target.innerHTML='<div class="flex justify-between items-center gap-2 mb-3"><b class="text-xs">LIVE NEWS INTELLIGENCE · '+safe(key)+'</b><span class="pill text-cyan-200">'+ranked.length+' berita cocok</span></div>'+(ranked.length?ranked.map(n=>'<article class="border-t border-slate-700 py-3"><a class="text-xs font-semibold text-cyan-200 underline" href="'+safe(n.url)+'" target="_blank" rel="noopener noreferrer">'+safe(n.title)+'</a><div class="muted text-[10px] mt-1">'+safe(n.source)+' · '+stamp(n.publishedAt)+' · '+safe(n.category)+'</div></article>').join(''):'<p class="text-xs text-amber-200">Belum ditemukan berita yang cocok dari feed saat ini. Periksa tab News & Kalender.</p>')+'<p class="muted text-[10px] mt-2">Sumber: Google News RSS. Berita merupakan konteks, bukan sinyal BUY/SELL otomatis. Feed dapat terlambat atau gagal.</p>';
+ }catch(e){target.innerHTML='<b class="text-xs text-amber-200">News feed sementara tidak tersedia</b><p class="muted text-[10px] mt-1">'+escapeHtml(e.message||'Gagal mengambil berita')+'</p>';}
+}
+"""
+if 'async function loadNewsForAnalysis(symbol)' not in html:
+    anchor='function requestAnalysis(){'
+    if anchor not in html: raise SystemExit("Analysis function not found in source HTML")
+    html=html.replace(anchor,news_js+'\\n'+anchor,1)
+render_anchor='   const putSummary=(id,value)=>'
+render_add="""   const newsPanel=document.createElement('div');newsPanel.id='analysisNewsIntel';newsPanel.className='mt-4 text-left rounded-xl border border-cyan-900/60 bg-slate-950/60 p-4';newsPanel.innerHTML='<p class="muted text-xs">Memuat berita relevan...</p>';resultBox.appendChild(newsPanel);await loadNewsForAnalysis(document.getElementById('asset').value);
+"""
+if render_anchor not in html: raise SystemExit("Analysis result insertion point not found")
+html=html.replace(render_anchor,render_add+render_anchor,1)
+
 p.write_text(html, encoding="utf-8")
 print("RitelAI frontend patch applied: market selector and persistent user settings screen.")
