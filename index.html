@@ -214,25 +214,30 @@ async function refreshMT5Access(){
  if(!badge||!msg||!btn)return;
  btn.disabled=true;
  if(!supabaseClient){mt5EliteAccess=false;badge.textContent='Layanan belum siap';msg.textContent='Koneksi Supabase belum siap. Muat ulang halaman.';return}
- const {data:{session}}=await supabaseClient.auth.getSession();
- currentUser=session?.user||currentUser;
- if(!currentUser){mt5EliteAccess=false;badge.textContent='Login diperlukan';msg.textContent='Silakan login terlebih dahulu untuk memeriksa paket dan membuat pairing.';btn.disabled=true;return}
- badge.textContent='Memeriksa paket...';msg.textContent='Memeriksa langganan aktif...';
  try{
-  const {data,error}=await supabaseClient.from('subscriptions').select('id,status,ends_at,plans(code,name)').eq('user_id',currentUser.id).eq('status','active').or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`).order('ends_at',{ascending:false,nullsFirst:false}).limit(5);
+  const {data:{session},error}=await supabaseClient.auth.getSession();
   if(error)throw error;
-  const rows=Array.isArray(data)?data:(data?[data]:[]);
-  mt5EliteAccess=rows.some(row=>{const p=Array.isArray(row?.plans)?row.plans:(row?.plans?[row.plans]:[]);return p.some(x=>['elite','enterprise'].includes(String(x?.code||'').toLowerCase())||String(x?.name||'').toLowerCase().includes('enterprise')||String(x?.name||'').toLowerCase()==='elite')});
-  badge.textContent=mt5EliteAccess?'Elite aktif':'Akses terkunci';
-  msg.textContent=mt5EliteAccess?'Paket tertinggi terdeteksi. Pairing demo dapat diminta; backend tetap memverifikasi hak akses.':'Fitur pairing MT5 memerlukan paket Elite aktif.';
-  btn.disabled=!mt5EliteAccess;
- }catch(e){mt5EliteAccess=false;badge.textContent='Gagal memeriksa akses';msg.textContent='Tidak dapat memeriksa paket: '+(e.message||'kesalahan database')+'. Pairing tetap dikunci demi keamanan.';btn.disabled=true}
+  currentUser=session?.user||null;
+  if(!currentUser){mt5EliteAccess=false;badge.textContent='Login diperlukan';msg.textContent='Silakan login terlebih dahulu untuk membuat pairing.';btn.disabled=true;return}
+  // Tombol tidak lagi dikunci oleh pemeriksaan langganan di browser.
+  // Backend tetap memvalidasi paket Elite sebelum menerbitkan kode.
+  mt5EliteAccess=true;
+  badge.textContent='Akun terhubung';
+  msg.textContent='Tombol pairing aktif. Server akan memeriksa paket dan izin saat kode diminta.';
+  btn.disabled=false;
+ }catch(e){
+  mt5EliteAccess=false;badge.textContent='Sesi belum terbaca';
+  msg.textContent='Gagal membaca sesi login: '+(e.message||'kesalahan autentikasi')+'. Silakan login ulang.';
+  btn.disabled=true;
+ }
 }
 async function createMT5Pairing(){
  const out=document.getElementById('mt5PairResult'),btn=document.getElementById('mt5PairBtn');
- if(!currentUser){out.textContent='Login terlebih dahulu.';return}
- if(!mt5EliteAccess){out.textContent='Paket Elite aktif diperlukan.';return}
- btn.disabled=true;btn.textContent='Membuat kode...';out.textContent='Menghubungi layanan pairing...';
+ if(!supabaseClient){out.textContent='Layanan belum siap. Muat ulang halaman.';return}
+ const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
+ if(sessionError||!session?.user){currentUser=null;out.textContent='Sesi login tidak ditemukan. Silakan login ulang.';await refreshMT5Access();return}
+ currentUser=session.user;
+ btn.disabled=true;btn.textContent='Membuat kode...';out.textContent='Menghubungi layanan pairing dan memeriksa paket...';
  try{
   const {data,error}=await supabaseClient.functions.invoke('mt5-bridge',{body:{action:'create_pairing_code',broker:document.getElementById('mt5Broker').value,account_profile:document.getElementById('mt5Profile').value}});
   if(error)throw error;
@@ -255,7 +260,7 @@ async function createMT5Pairing(){
   }catch(_){}
   out.textContent='Pairing gagal: '+detail;
  }
- finally{btn.disabled=!mt5EliteAccess;btn.textContent='Buat kode pairing demo'}
+ finally{btn.disabled=!currentUser;btn.textContent='Buat kode pairing demo'}
 }
 function showAdmin(){if(!['owner','admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
