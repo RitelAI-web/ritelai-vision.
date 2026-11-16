@@ -349,3 +349,67 @@ if "PENDING ORDER INTELLIGENCE" not in html:
     html=html.replace(needle,pending_ui+"\n   "+needle,1)
 p.write_text(html, encoding="utf-8")
 print("RitelAI live quote monitor and pending-order display patch applied.")
+
+
+# Enterprise MT5 trading modes: customer-facing package disclosure.
+# This is a product UI only. It must never imply that an EA/broker connection
+# exists until the separate MT5 bridge and broker-specific demo tests pass.
+html = p.read_text(encoding="utf-8")
+mt5_nav = '  <button class="navbtn" data-tab="mt5-trading" onclick="showTab(\'mt5-trading\',this)"><i class="fa-solid fa-robot mr-1"></i>MT5 Trading</button>'
+settings_nav_anchor = '  <button class="navbtn" data-tab="settings" onclick="showTab(\'settings\',this)"><i class="fa-solid fa-gear mr-1"></i>Pengaturan</button>'
+if 'data-tab="mt5-trading"' not in html:
+    if settings_nav_anchor not in html:
+        raise SystemExit("Settings navigation anchor not found; cannot safely add MT5 panel")
+    html = html.replace(settings_nav_anchor, mt5_nav + "\\n" + settings_nav_anchor, 1)
+
+mt5_panel = '''
+ <section id="tab-mt5-trading" class="panel">
+  <div class="glass rounded-2xl p-5 mb-4 border border-violet-700/50">
+   <div class="flex flex-wrap items-center justify-between gap-2"><span class="text-[10px] tracking-widest text-violet-300 font-bold">ENTERPRISE EXCLUSIVE</span><span class="pill text-amber-200">Integrasi MT5 belum aktif</span></div>
+   <h2 class="text-2xl font-extrabold mt-2">MT5 Trading Modes</h2>
+   <p class="muted text-xs mt-2">Pilih cara menjalankan strategi. Koneksi Expert Advisor (EA), backend eksekusi, dan pengujian broker demo harus diselesaikan sebelum order dapat dikirim.</p>
+  </div>
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+   <article class="glass rounded-xl p-4 border border-slate-700"><span class="pill text-cyan-200">Manual</span><h3 class="font-bold mt-3">Manual Trading</h3><p class="muted text-xs mt-2">RitelAI memberi BUY/SELL/WAIT, alasan teknikal, zona entry, SL, TP, Risk:Reward, dan invalidasi. Customer memasukkan order sendiri di MT5.</p><p class="text-[10px] text-emerald-300 mt-3">Tersedia sebagai alur rekomendasi analisis</p></article>
+   <article class="glass rounded-xl p-4 border border-cyan-800"><span class="pill text-cyan-200">Semi-Auto</span><h3 class="font-bold mt-3">Approval sebelum order</h3><p class="muted text-xs mt-2">EA menerima setup, memeriksa simbol dan risiko, lalu meminta persetujuan customer sebelum mengirim order ke MT5.</p><p class="text-[10px] text-amber-200 mt-3">Direncanakan · EA dan konektor belum terpasang</p></article>
+   <article class="glass rounded-xl p-4 border border-violet-700"><span class="pill text-violet-200">Auto</span><h3 class="font-bold mt-3">Automated Trading</h3><p class="muted text-xs mt-2">EA menjalankan setup yang lolos filter, dengan batas risiko per transaksi, batas rugi harian, proteksi spread, dan emergency stop.</p><p class="text-[10px] text-amber-200 mt-3">Direncanakan · nonaktif sampai lulus demo test</p></article>
+  </div>
+  <div class="glass rounded-xl p-4 mt-4">
+   <h3 class="font-bold text-sm">Standar sinyal dan eksekusi</h3>
+   <ul class="muted text-xs list-disc pl-5 mt-2 space-y-1">
+    <li>Setiap sinyal wajib memuat alasan BUY/SELL/WAIT dan bukti indikator yang benar-benar tersedia.</li>
+    <li>SL wajib; TP1/TP2, Risk:Reward, zona entry, dan alasan invalidasi ditampilkan sebelum order.</li>
+    <li>Setup yang tidak jelas, harga stale, spread berlebihan, atau koneksi terputus harus ditolak.</li>
+    <li>Skor confidence bukan win rate. Akurasi historis hanya ditampilkan setelah backtest dan forward test tercatat.</li>
+    <li>Auto mode memiliki batas risiko, batas kerugian harian, tombol stop, dan emergency close.</li>
+   </ul>
+  </div>
+  <div class="glass rounded-xl p-4 mt-4">
+   <div class="flex items-center justify-between gap-2"><b class="text-sm">Status koneksi akun demo</b><span class="pill text-amber-200">Belum terhubung</span></div>
+   <p class="muted text-xs mt-2">Belum ada order yang dikirim ke MT5 dari halaman ini. Hubungkan EA resmi dan selesaikan uji akun demo broker sebelum mengaktifkan Semi-Auto atau Auto.</p>
+   <p class="muted text-[10px] mt-2">Jangan masukkan password MT5 ke website. Koneksi harus menggunakan EA dan token koneksi yang dapat dicabut.</p>
+  </div>
+ </section>
+'''
+if 'id="tab-mt5-trading"' not in html:
+    anchor = ' <section id="tab-settings" class="panel">'
+    if anchor not in html:
+        raise SystemExit("Settings panel anchor not found; cannot safely add MT5 panel")
+    html = html.replace(anchor, mt5_panel + "\\n" + anchor, 1)
+
+# Advertise the three modes only in the highest tier if a plan/pricing area exists.
+# Do not fabricate prices, entitlements, or payment behavior.
+enterprise_copy = '<div class="mt-3 text-[11px] text-violet-200">Eksklusif Enterprise: Manual · Semi-Auto MT5 · Auto MT5 (setelah integrasi dan uji demo)</div>'
+if 'Eksklusif Enterprise: Manual' not in html:
+    candidates = ['>Enterprise</', '>ENTERPRISE</', 'Enterprise Plan']
+    for marker in candidates:
+        pos = html.find(marker)
+        if pos >= 0:
+            end = html.find('</', pos)
+            if end >= 0:
+                close = html.find('>', end) + 1
+                html = html[:close] + enterprise_copy + html[close:]
+                break
+
+p.write_text(html, encoding="utf-8")
+print("RitelAI Enterprise MT5 modes panel applied; execution remains explicitly disabled until EA bridge is installed and demo-tested.")
