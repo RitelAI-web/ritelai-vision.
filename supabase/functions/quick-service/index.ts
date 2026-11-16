@@ -38,7 +38,7 @@ async function fetchJson(url: string, timeoutMs = 12000): Promise<any> {
 }
 
 async function getTick(symbol: SymbolKey) {
-  const data = await fetchJson(`https://biquote.io/api/${encodeURIComponent(symbol)}`);
+  const data = await fetchJson(`https://biquote.io/api/${encodeURIComponent(symbol)}`, 5000);
   // BiQuote documents mid as the correct single price for FX/CFD; last is often 0.
   const candidates = [
     data?.mid,
@@ -99,7 +99,7 @@ async function getCalendar() {
   url.searchParams.set("countries", "US,EU,GB,JP,CA,AU,CH,NZ,CN");
   url.searchParams.set("importance", "high");
   url.searchParams.set("limit", "500");
-  const rows = await fetchJson(url.toString());
+  const rows = await fetchJson(url.toString(), 5000);
   if (!Array.isArray(rows)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
 
   const relevantEvent = /\b(nfp|non[- ]?farm payrolls?|employment situation|employment change|unemployment rate|retail sales|cpi|consumer price index|core cpi|ppi|producer price index|core ppi|pce|personal consumption expenditures|personal income|fomc|federal reserve|fed funds|federal funds rate|fed interest rate decision|ecb|european central bank|boe|bank of england|boj|bank of japan|bank of canada|reserve bank of australia|swiss national bank|reserve bank of new zealand|people.?s bank of china|interest rate decision|rate decision|policy rate|cash rate|monetary policy|gross domestic product|gdp)\b/i;
@@ -206,7 +206,7 @@ EVENTS=${JSON.stringify(selected)}`;
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 12000 }),
-    signal: AbortSignal.timeout(15000),
+    signal: AbortSignal.timeout(9000),
   });
   const raw = await response.text();
   let data: AnyRecord;
@@ -275,9 +275,15 @@ async function analyzeEvents(events: AnyRecord[]) {
     } else ready.push(event);
   }
 
+  // Keep the public calendar endpoint responsive: analyze only the nearest
+  // eight events per request. Remaining events are explicitly WAIT until a later refresh.
   const batchSize = 8;
   const errors: string[] = [];
-  for (let i = 0; i < ready.length; i += batchSize) {
+  const deferred = ready.slice(batchSize);
+  for (const event of deferred) {
+    output.set(String(event.id), { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI dijadwalkan pada pembaruan berikutnya agar kalender tetap responsif.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Menunggu analisis AI pada pembaruan berikutnya." })) } });
+  }
+  for (let i = 0; i < Math.min(ready.length, batchSize); i += batchSize) {
     const batch = ready.slice(i, i + batchSize);
     try {
       const result = await analyzeEventBatch(batch);
