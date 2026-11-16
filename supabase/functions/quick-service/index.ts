@@ -193,10 +193,11 @@ async function analyzeEventBatch(events: AnyRecord[]) {
   const selected = events.map((event) => ({
     id: event.id, name: event.name, countryCode: event.countryCode, currency: event.currency,
     time: event.time, timeMode: event.timeMode, importance: event.importance,
+    analysisWindow: analysisWindowLabel(eventAnalysisPhase(event, Date.now())),
     unit: event.unit, actual: event.actual, forecast: event.forecast,
     previous: event.previous, revisedPrevious: event.revisedPrevious,
   }));
-  const prompt = `Anda analis makroekonomi dan dampak pasar. Analisis SETIAP agenda berikut secara terpisah untuk ENAM instrumen: XAUUSD, BTCUSD, EURUSD, GBPUSD, USDJPY, US30.
+  const prompt = `Anda analis makroekonomi dan dampak pasar. Tahap analisis ditentukan oleh analysisWindow pada setiap agenda. Pada H-7/H-3 buat bias awal yang konservatif dan sebutkan data yang masih ditunggu; pada H-1/1 jam/30 menit perbarui berdasarkan data aktual yang tersedia dan risiko menjelang rilis; saat agenda berlangsung atau baru dirilis prioritaskan actual vs forecast dan perubahan ekspektasi suku bunga; pada evaluasi 15 menit/1 jam/4 jam jelaskan reaksi pasar yang benar-benar tersedia. Jangan mengklaim membaca pidato atau reaksi harga jika sumbernya tidak disediakan. Analisis SETIAP agenda berikut secara terpisah untuk ENAM instrumen: XAUUSD, BTCUSD, EURUSD, GBPUSD, USDJPY, US30.
 Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika data penting kosong atau hubungan instrumen tidak cukup kuat, pilih WAIT dan jelaskan data apa yang kurang.
 Untuk SETIAP instrumen berikan bias BUY, SELL, atau WAIT; buyPct, sellPct, waitPct dengan jumlah tepat 100; confidence 0-100 yang terpisah dari skor skenario; dan reason yang menyebut faktor data serta transmisi pasar. Jangan menyamakan arah USD dengan arah emas/crypto. Persentase adalah skor skenario model, BUKAN probabilitas profit, win rate, atau jaminan hasil. Jangan memberi angka sama untuk semua aset. Bila ragu, WAIT lebih baik daripada sinyal palsu.
 Berikan summaryBias, reason makro, dan dataStatus PRE_RELEASE, RELEASED, atau INSUFFICIENT_DATA.
@@ -205,8 +206,8 @@ EVENTS=${JSON.stringify(selected)}`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 12000 }),
-    signal: AbortSignal.timeout(9000),
+    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 6500 }),
+    signal: AbortSignal.timeout(25000),
   });
   const raw = await response.text();
   let data: AnyRecord;
@@ -237,6 +238,8 @@ EVENTS=${JSON.stringify(selected)}`;
       available: true,
       bias: ["BULLISH", "BEARISH", "NEUTRAL"].includes(summaryBias) ? summaryBias : "NEUTRAL",
       reason: String(item.reason || "Bukti belum cukup untuk menyimpulkan dampak."),
+      analysisWindow: analysisWindowLabel(eventAnalysisPhase(event, now)),
+      nextUpdate: eventTimestamp(event.time) > now ? "Akan diperbarui otomatis pada tahap waktu berikutnya saat kalender dimuat ulang." : "Evaluasi pasca-rilis memerlukan data aktual dan reaksi harga terbaru.",
       dataStatus: ["PRE_RELEASE", "RELEASED", "INSUFFICIENT_DATA"].includes(item.dataStatus) ? item.dataStatus : "INSUFFICIENT_DATA",
       impacts, updatedAt: new Date().toISOString(),
     }};
@@ -247,11 +250,20 @@ EVENTS=${JSON.stringify(selected)}`;
 const AI_ANALYSIS_CACHE = new Map<string, { fingerprint: string; phase: string; at: number; event: AnyRecord }>();
 function eventAnalysisPhase(event: AnyRecord, now = Date.now()): string {
   const delta = eventTimestamp(event.time) - now;
-  if (delta <= 0 && delta >= -10 * 60 * 1000) return "just-released";
-  if (delta <= 15 * 60 * 1000) return "pre-15m";
+  if (delta <= -4 * 60 * 60 * 1000) return "post-4h";
+  if (delta <= -60 * 60 * 1000) return "post-1h";
+  if (delta <= -15 * 60 * 1000) return "post-15m";
+  if (delta <= 0) return "live";
+  if (delta <= 30 * 60 * 1000) return "pre-30m";
   if (delta <= 60 * 60 * 1000) return "pre-1h";
   if (delta <= 24 * 60 * 60 * 1000) return "pre-24h";
-  return "routine";
+  if (delta <= 3 * 24 * 60 * 60 * 1000) return "pre-3d";
+  if (delta <= 7 * 24 * 60 * 60 * 1000) return "pre-7d";
+  return "early-watch";
+}
+function analysisWindowLabel(phase: string): string {
+  const labels: Record<string,string> = { "early-watch":"Pemantauan awal (lebih dari H-7)", "pre-7d":"H-7 sampai H-3", "pre-3d":"H-3 sampai H-1", "pre-24h":"H-1 sampai H-1 jam", "pre-1h":"1 jam sampai 30 menit sebelum agenda", "pre-30m":"30 menit terakhir sebelum agenda", "live":"Agenda sedang berlangsung / baru dirilis", "post-15m":"Evaluasi 15 menit setelah agenda", "post-1h":"Evaluasi 1 jam setelah agenda", "post-4h":"Evaluasi 4 jam setelah agenda" };
+  return labels[phase] || "Pemantauan agenda";
 }
 function analysisFingerprint(event: AnyRecord): string {
   return JSON.stringify([event.id,event.actual,event.forecast,event.previous,event.revisedPrevious,event.time]);
@@ -277,7 +289,7 @@ async function analyzeEvents(events: AnyRecord[]) {
 
   // Keep the public calendar endpoint responsive: analyze only the nearest
   // eight events per request. Remaining events are explicitly WAIT until a later refresh.
-  const batchSize = 8;
+  const batchSize = 3;
   const errors: string[] = [];
   const deferred = ready.slice(batchSize);
   for (const event of deferred) {
