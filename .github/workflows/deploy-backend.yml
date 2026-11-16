@@ -5,7 +5,7 @@ on:
     paths:
       - 'RitelAI_Vision_GitHub_Ready.zip'
       - 'supabase/functions/**'
-      - '.github/workflows/deploy-backend.yml'
+      - '.github/workflows/deploy-backend.yml'\n      - 'scripts/patch_backend.py'
   workflow_dispatch:
 jobs:
   deploy:
@@ -22,7 +22,7 @@ jobs:
           APP_DIR="$(dirname "$(find extracted -type f -name index.html -print -quit)")"
           test -f "$APP_DIR/supabase/functions/quick-service/index.ts"
           cp -a "$APP_DIR/supabase/functions/quick-service" supabase/functions/
-      - name: Deploy functions
+      - name: Add cross-market news endpoint\n        run: python3 scripts/patch_backend.py\n      - name: Deploy functions
         run: |
           supabase functions deploy quick-service --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           supabase functions deploy quick-handler --project-ref "$SUPABASE_PROJECT_REF"
