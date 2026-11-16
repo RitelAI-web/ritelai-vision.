@@ -90,7 +90,9 @@ async function loadRitelMacroCalendar(){
  const list=document.getElementById("ritelMacroCalendarList"),status=document.getElementById("macroCalendarStatus");if(!list)return;
  status.textContent="Memperbarui data...";
  try{
-  const {data,error}=await supabaseClient.functions.invoke("quick-service",{body:{action:"market_calendar",assets:["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30"]}});
+  const request=supabaseClient.functions.invoke("quick-service",{body:{action:"market_calendar",assets:["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30"]}});
+  const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Permintaan kalender melewati 25 detik. Periksa koneksi atau status Edge Function Supabase.")),25000));
+  const {data,error}=await Promise.race([request,timeout]);
   if(error)throw error;
   const events=Array.isArray(data?.events)?data.events:[];
   if(!events.length){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Feed belum mengirim agenda. Coba perbarui kembali.</div>';status.textContent="0 agenda";return;}
