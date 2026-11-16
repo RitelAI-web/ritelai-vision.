@@ -131,6 +131,18 @@ if "applyRitelSettings();" not in html[html.rfind("window.addEventListener('DOMC
     html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\n  applyRitelSettings();", 1)
 
 
+# Always render both conditional trade scenarios, including when the primary signal is WAIT.
+scenario_js = r"""
+   const scenarioCard=(label,side,s)=>'<section class="rounded-xl border '+(side==='BUY'?'border-emerald-800/70':'border-rose-800/70')+' bg-slate-950/70 p-4"><div class="flex items-center justify-between gap-2 mb-3"><b class="text-sm">'+label+'</b><span class="text-[10px] font-bold '+(side==='BUY'?'text-emerald-300':'text-rose-300')+'">'+side+' BERSYARAT</span></div><dl class="space-y-2 text-xs">'+[['Pemicu',s?.trigger],['Konfirmasi',s?.confirmation],['Kondisi entry',s?.entry_condition],['Pembatalan',s?.invalidation],['Alasan',s?.rationale]].map(([k,v])=>'<div><dt class="muted text-[10px]">'+k+'</dt><dd class="mt-0.5">'+safe(v)+'</dd></div>').join('')+'</dl></section>';
+   const scenarioPanel=document.createElement('div');scenarioPanel.id='conditionalTradeScenarios';scenarioPanel.className='mt-4 text-left rounded-xl border border-cyan-900/60 bg-slate-900/70 p-4';
+   scenarioPanel.innerHTML='<div class="mb-3"><div class="text-[10px] tracking-widest text-cyan-300 font-bold">RENCANA DUA ARAH</div><h3 class="font-bold text-sm mt-1">Skenario BUY & SELL</h3><p class="muted text-[10px] mt-1">Skenario bersyarat, bukan instruksi entry. Tunggu pemicu dan konfirmasi; jika belum terpenuhi, tetap WAIT.</p></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">'+scenarioCard('Jika peluang naik','BUY',r.scenario_buy)+scenarioCard('Jika peluang turun','SELL',r.scenario_sell)+'</div>';
+   resultBox.appendChild(scenarioPanel);
+"""
+if 'id=\\'conditionalTradeScenarios\\'' not in html:
+    scenario_anchor = '   // Sinkronkan ringkasan bawah dengan hasil AI yang sama; jangan biarkan placeholder statis "—".'
+    if scenario_anchor not in html: raise SystemExit("Analysis summary anchor not found")
+    html = html.replace(scenario_anchor, scenario_js + "\\n" + scenario_anchor, 1)
+
 # Inject asset-aware headlines into the successful analysis result.
 news_js = r"""
 async function loadNewsForAnalysis(symbol){
