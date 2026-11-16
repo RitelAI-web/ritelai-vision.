@@ -20,6 +20,29 @@ const clean = (v:any,n=100) => String(v??"").trim().slice(0,n);
 const validBroker = (v:string) => v==="EXNESS" || v==="VERSUS_TRADE";
 const validProfile = (b:string,p:string) => (b==="EXNESS"&&p==="STANDARD_CENT") || (b==="VERSUS_TRADE"&&p==="STANDARD");
 
+async function hasActiveEnterprise(admin:any,userId:string){
+  const now=new Date().toISOString();
+  const {data:subs,error:subErr}=await admin.from("subscriptions")
+    .select("plan_id,status,starts_at,ends_at")
+    .eq("user_id",userId)
+    .eq("status","active")
+    .or(`starts_at.is.null,starts_at.lte.${now}`)
+    .or(`ends_at.is.null,ends_at.gt.${now}`)
+    .limit(20);
+  if(subErr) return {allowed:false,error:subErr.message,subscriptionCount:0,planCodes:[] as string[]};
+  const ids=[...new Set((subs||[]).map((s:any)=>s.plan_id).filter(Boolean))];
+  if(!ids.length) return {allowed:false,error:null,subscriptionCount:(subs||[]).length,planCodes:[] as string[]};
+  const {data:plans,error:planErr}=await admin.from("plans").select("id,code,name").in("id",ids);
+  if(planErr) return {allowed:false,error:planErr.message,subscriptionCount:subs.length,planCodes:[] as string[]};
+  const planCodes=(plans||[]).map((p:any)=>String(p.code||p.name||"").trim());
+  const allowed=(plans||[]).some((p:any)=>{
+    const code=String(p.code||"").toLowerCase().replace(/[^a-z]/g,"");
+    const name=String(p.name||"").toLowerCase().replace(/[^a-z]/g,"");
+    return code==="elite" || code.includes("enterprise") || name.includes("enterprise") || name==="elite";
+  });
+  return {allowed,error:null,subscriptionCount:subs.length,planCodes};
+}
+
 Deno.serve(async req=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:cors});
   if(req.method!=="POST") return reply({error:"Gunakan POST."},405);
@@ -38,26 +61,15 @@ Deno.serve(async req=>{
     if(error||!data.user) return reply({error:"Sesi login tidak valid."},401);
     const userId=data.user.id;
 
-    // Fail closed: only an active Enterprise plan can pair an MT5 terminal or queue an order signal.
-    const nowIso=new Date().toISOString();
-    const {data:subs,error:subErr}=await admin.from("subscriptions")
-      .select("plan_id,ends_at,plans(name,code)")
-      .eq("user_id",userId)
-      .eq("status","active")
-      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-      .order("ends_at",{ascending:false,nullsFirst:false})
-      .limit(5);
-    if(subErr) return reply({error:"Tidak dapat memverifikasi paket Enterprise.",detail:subErr.message},503);
-    const hasEnterprise=(subs||[]).some((row:any)=>{
-      const rel=row?.plans;
-      const plans=Array.isArray(rel)?rel:(rel?[rel]:[]);
-      return plans.some((plan:any)=>{
-        const code=String(plan?.code||"").toLowerCase().replace(/[^a-z]/g,"");
-        const name=String(plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-        return code==="elite" || code.includes("enterprise") || name.includes("enterprise") || name==="elite";
-      });
-    });
-    if(!hasEnterprise) return reply({error:"Fitur koneksi MT5 hanya tersedia untuk paket Enterprise aktif."},403);
+    // Fail closed, but resolve the subscription -> plan relation explicitly.
+    // Some Supabase deployments return the nested plans relation inconsistently;
+    // querying plan IDs separately avoids a false 403 for a valid Elite subscription.
+    const entitlement=await hasActiveEnterprise(admin,userId);
+    if(entitlement.error) return reply({error:"Tidak dapat memverifikasi paket Elite/Enterprise.",detail:entitlement.error},503);
+    if(!entitlement.allowed) return reply({
+      error:"Akun belum memiliki paket Elite/Enterprise yang aktif. Periksa status langganan dan tanggal berlakunya.",
+      diagnostic:{active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
+    },403);
 
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
@@ -118,30 +130,16 @@ Deno.serve(async req=>{
   const {data:device,error:deviceErr}=await admin.from("mt5_devices").select("*").eq("token_hash",await sha(token)).eq("enabled",true).eq("is_demo",true).maybeSingle();
   if(error||deviceErr||!device) return reply({error:"Token terminal tidak valid atau perangkat dinonaktifkan."},401);
 
-  // Re-check entitlement for every connected-terminal operation too. Losing or
-  // downgrading from Enterprise disables the device; a previously paired EA
-  // must not keep receiving signals after the subscription is no longer active.
-  const nowIso=new Date().toISOString();
-  const {data:activeSubs,error:activeSubErr}=await admin.from("subscriptions")
-    .select("plan_id,ends_at,plans(name,code)")
-    .eq("user_id",device.user_id)
-    .eq("status","active")
-    .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
-    .order("ends_at",{ascending:false,nullsFirst:false})
-    .limit(5);
-  if(activeSubErr) return reply({error:"Tidak dapat memverifikasi hak akses Enterprise terminal.",detail:activeSubErr.message},503);
-  const hasActiveEnterprise=(activeSubs||[]).some((row:any)=>{
-    const rel=row?.plans;
-    const plans=Array.isArray(rel)?rel:(rel?[rel]:[]);
-    return plans.some((plan:any)=>{
-      const code=String(plan?.code||"").toLowerCase().replace(/[^a-z]/g,"");
-      const name=String(plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-      return code==="elite" || code.includes("enterprise") || name.includes("enterprise") || name==="elite";
-    });
-  });
-  if(!hasActiveEnterprise){
+  // Re-check entitlement on every terminal operation. A downgraded account
+  // cannot keep a previously paired terminal connected.
+  const entitlement=await hasActiveEnterprise(admin,device.user_id);
+  if(entitlement.error) return reply({error:"Tidak dapat memverifikasi hak akses terminal.",detail:entitlement.error},503);
+  if(!entitlement.allowed){
     await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id);
-    return reply({error:"Akses MT5 dikunci. Paket Enterprise aktif diperlukan; perangkat telah dinonaktifkan."},403);
+    return reply({
+      error:"Akses MT5 dikunci karena paket Elite/Enterprise tidak aktif. Perangkat dinonaktifkan.",
+      diagnostic:{active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
+    },403);
   }
 
   if(action==="heartbeat"){
