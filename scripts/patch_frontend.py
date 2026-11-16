@@ -80,6 +80,11 @@ scenario_code = r'''
 if scenario_anchor in html and 'const scenarioCard=' not in html:
     html = html.replace(scenario_anchor, scenario_anchor + '\n' + scenario_code, 1)
 summary_anchor = '<p class="text-sm mt-3">${safe(r.summary)}</p>'
+confidence_panel = r'''
+    ${Number.isFinite(Number(r.confidence))?'<div class="mt-4 rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-left"><div class="flex items-center justify-between gap-3"><span class="text-xs font-semibold">TINGKAT KEYAKINAN ANALISIS</span><strong class="text-lg text-cyan-300">'+Math.max(0,Math.min(100,Math.round(Number(r.confidence))))+'%</strong></div><div class="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden"><div class="h-full rounded-full bg-cyan-400" style="width:'+Math.max(0,Math.min(100,Math.round(Number(r.confidence))))+'%"></div></div><p class="muted text-[10px] mt-2">Mengukur kejelasan bukti pada chart, bukan probabilitas profit atau win rate.</p></div>':''}
+'''
+if summary_anchor in html and 'TINGKAT KEYAKINAN ANALISIS' not in html:
+    html = html.replace(summary_anchor, summary_anchor + '\\n' + confidence_panel, 1)
 scenario_panel = '''
     ${signal==='WAIT'?'<div class="mt-4 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4"><div class="font-bold text-xs mb-3">RENCANA BERSYARAT — TUNGGU KONFIRMASI</div><div class="grid gap-2 sm:grid-cols-2">'+scenarioCard('SKENARIO BUY',r.scenario_buy)+scenarioCard('SKENARIO SELL',r.scenario_sell)+'</div><p class="muted text-[10px] mt-3">Pemicu bukan instruksi entry langsung. Tunggu konfirmasi candle dan pastikan level masih berlaku.</p></div>':''}
 '''
