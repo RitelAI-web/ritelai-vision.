@@ -290,3 +290,62 @@ html=html.replace(render_anchor,render_add+render_anchor,1)
 
 p.write_text(html, encoding="utf-8")
 print("RitelAI frontend patch applied: market selector and persistent user settings screen.")
+
+
+# Add a separate live quote monitor and evidence-based pending-order panel.
+# Quote polling is deliberately independent from screenshot-based AI analysis.
+html = p.read_text(encoding="utf-8")
+live_monitor_js = r"""
+let ritelLiveQuoteTimer=null,ritelLiveQuoteBusy=false;
+async function refreshRitelLiveQuote(){
+ const panel=document.getElementById('ritelLiveQuote');
+ if(!panel||ritelLiveQuoteBusy)return;
+ ritelLiveQuoteBusy=true;
+ try{
+  const symbol=String(document.getElementById('asset')?.value||'XAUUSD').toUpperCase();
+  const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_quotes',symbol}});
+  if(error)throw error;
+  const q=data?.quote;
+  if(!q){panel.innerHTML='<b class="text-amber-300 text-xs">STALE · Harga tidak tersedia</b><p class="muted text-[10px] mt-1">'+escapeHtml(data?.error||'Feed belum mengirim tick baru')+'</p>';return;}
+  const live=q.status==='LIVE_TICK'&&!q.stale&&q.marketState!=='closed';
+  panel.innerHTML='<div class="flex items-center justify-between gap-2"><b class="text-xs">PEMANTAUAN HARGA · '+escapeHtml(symbol)+'</b><span class="pill '+(live?'text-emerald-300':'text-amber-300')+'">'+(live?'LIVE FEED':q.marketState==='closed'?'MARKET CLOSED':'STALE')+'</span></div><div class="text-2xl font-extrabold mt-2">'+Number(q.price).toLocaleString('en-US',{maximumFractionDigits:5})+'</div><p class="muted text-[10px] mt-1">Sumber '+escapeHtml(q.source||'feed')+' · diperiksa '+new Date().toLocaleTimeString('id-ID')+'</p><p class="muted text-[10px] mt-1">Harga feed diperbarui terpisah; analisis screenshot tidak dihitung ulang setiap tick.</p>';
+ }catch(e){panel.innerHTML='<b class="text-amber-300 text-xs">FEED TIDAK TERSEDIA</b><p class="muted text-[10px] mt-1">'+escapeHtml(e.message||e)+'</p>';}
+ finally{ritelLiveQuoteBusy=false;}
+}
+function startRitelLiveQuoteMonitor(){
+ if(ritelLiveQuoteTimer)clearInterval(ritelLiveQuoteTimer);
+ refreshRitelLiveQuote();
+ ritelLiveQuoteTimer=setInterval(()=>{if(document.visibilityState==='visible')refreshRitelLiveQuote();},5000);
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&document.getElementById('ritelLiveQuote'))refreshRitelLiveQuote();});
+"""
+if 'function startRitelLiveQuoteMonitor()' not in html:
+    anchor='async function requestAnalysis(){'
+    if anchor not in html: raise SystemExit("Analysis function not found for live quote monitor")
+    html=html.replace(anchor,live_monitor_js+"\n"+anchor,1)
+
+pending_ui = r"""
+const quotePanel=document.createElement('div');
+quotePanel.id='ritelLiveQuote';
+quotePanel.className='mt-4 text-left rounded-xl border border-cyan-900/60 bg-slate-950/70 p-4';
+quotePanel.innerHTML='<p class="muted text-xs">Menghubungkan feed harga...</p>';
+resultBox.appendChild(quotePanel);
+startRitelLiveQuoteMonitor();
+const pending=r.pending_orders||{};
+const renderPendingOrder=(o,label)=>{
+ o=o||{};
+ const n=v=>v==null?'—':escapeHtml(String(v));
+ const valid=o.status==='VALID_SETUP'&&o.entry_price!=null&&o.stop_loss!=null&&o.take_profit_1!=null;
+ return '<section class="rounded-xl border border-slate-700 bg-slate-900 p-3"><div class="flex justify-between gap-2"><b class="text-sm">'+label+'</b><span class="pill text-amber-200">'+n(o.status||'WAIT_CONFIRMATION')+'</span></div><p class="text-xs mt-2">Zona: '+n(o.zone_type)+' · '+n(o.entry_zone_low)+' – '+n(o.entry_zone_high)+'</p><p class="text-xs mt-1">Entry: '+n(o.entry_price)+' · SL: '+n(o.stop_loss)+' · TP1: '+n(o.take_profit_1)+' · TP2: '+n(o.take_profit_2)+'</p><p class="text-xs mt-2">'+n(o.rationale||'Bukti zona belum cukup.')+'</p><p class="muted text-[10px] mt-2">Skor kualitas setup: '+n(o.confidence_score)+'/100 · Akurasi historis: belum tersedia</p><p class="muted text-[10px] mt-1">Invalidasi: '+n(o.invalidation)+'</p>'+(valid?'':'<p class="text-[10px] text-amber-200 mt-2">Jangan pasang order: setup/level belum tervalidasi.</p>')+'</section>';
+};
+const orderPanel=document.createElement('div');
+orderPanel.className='mt-4 text-left rounded-xl border border-cyan-900/60 bg-slate-950/70 p-4';
+orderPanel.innerHTML='<b class="text-xs text-cyan-200">PENDING ORDER INTELLIGENCE</b><p class="muted text-[10px] mt-1">Limit adalah rencana bersyarat; tidak dikirim ke broker.</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">'+renderPendingOrder(pending.buy_limit,'BUY LIMIT')+renderPendingOrder(pending.sell_limit,'SELL LIMIT')+'</div><p class="muted text-[10px] mt-2">'+escapeHtml(pending.no_trade_reason||'Jika syarat tidak terpenuhi, tetap WAIT.')+'</p>';
+resultBox.appendChild(orderPanel);
+"""
+needle='const putSummary=(id,value)=>'
+if needle not in html: raise SystemExit("Analysis result render anchor missing")
+if "PENDING ORDER INTELLIGENCE" not in html:
+    html=html.replace(needle,pending_ui+"\n   "+needle,1)
+p.write_text(html, encoding="utf-8")
+print("RitelAI live quote monitor and pending-order display patch applied.")
