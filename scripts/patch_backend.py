@@ -69,8 +69,8 @@ s = s.replace(old, new, 1)
 # Prevent unexpected runtime/provider errors from surfacing as opaque HTTP non-2xx.
 handler = "Deno.serve(async (request: Request) => {"
 if handler in s and "quick-service unexpected error" not in s:
-    s = s.replace(handler, handler + "\\n  try {", 1)
-    end = s.rfind("\\n});")
+    s = s.replace(handler, handler + "\n  try {", 1)
+    end = s.rfind("\n});")
     if end < 0:
         raise SystemExit("Could not locate end of Deno handler")
     catch_block = '''
