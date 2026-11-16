@@ -118,7 +118,7 @@ Deno.serve(async req=>{
   if(activeSubErr) return reply({error:"Tidak dapat memverifikasi hak akses Enterprise terminal."},503);
   const activePlan:any=activeSub?.plans;
   const activePlanLabel=String(activePlan?.code||activePlan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-  if(!activePlanLabel.includes("enterprise")){
+  if(!activePlanLabel.includes("enterprise") && activePlanLabel!=="elite"){
     await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id);
     return reply({error:"Akses MT5 dikunci. Paket Enterprise aktif diperlukan; perangkat telah dinonaktifkan."},403);
   }
