@@ -4,18 +4,16 @@ on:
     branches: [main]
     paths:
       - 'RitelAI_Vision_GitHub_Ready.zip'
-      - '.github/workflows/pages.yml'\n      - 'scripts/patch_frontend.py'
+      - '.github/workflows/pages.yml'
+      - 'scripts/patch_frontend.py'
   workflow_dispatch:
-
 permissions:
   contents: read
   pages: write
   id-token: write
-
 concurrency:
   group: pages
   cancel-in-progress: true
-
 jobs:
   build-and-deploy:
     environment:
@@ -25,24 +23,22 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
       - name: Extract application package
         run: |
           mkdir -p extracted site
           unzip -o RitelAI_Vision_GitHub_Ready.zip -d extracted
-          APP_DIR="$(find extracted -type f -name index.html -printf '%h\n' | head -n 1)"
+          APP_DIR="$(find extracted -type f -name index.html -printf '%h\\n' | head -n 1)"
           test -n "$APP_DIR"
           cp -a "$APP_DIR"/. site/
-          test -s site/index.html\n\n      - name: Apply universal multi-market selector\n        run: python3 scripts/patch_frontend.py\n
-
+          test -s site/index.html
+      - name: Apply universal multi-market selector and news panel
+        run: python3 scripts/patch_frontend.py
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
-
       - name: Upload website artifact
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
-
       - name: Deploy website
         id: deployment
         uses: actions/deploy-pages@v4
