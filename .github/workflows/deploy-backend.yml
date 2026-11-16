@@ -18,6 +18,8 @@ jobs:
           version: 2.53.6
       - name: Preserve corrected Market Intelligence source
         run: cp supabase/functions/quick-service/index.ts /tmp/quick-service-index.ts
+      - name: Preserve corrected chart analysis source
+        run: cp supabase/functions/quick-handler/index.ts /tmp/quick-handler-index.ts
       - name: Restore packaged functions
         run: |
           mkdir -p extracted supabase/functions
@@ -27,6 +29,8 @@ jobs:
           cp -a "$APP_DIR/supabase/functions/quick-service" supabase/functions/
       - name: Overlay corrected Market Intelligence source
         run: cp /tmp/quick-service-index.ts supabase/functions/quick-service/index.ts
+      - name: Overlay corrected chart analysis source
+        run: cp /tmp/quick-handler-index.ts supabase/functions/quick-handler/index.ts
       - name: Add cross-market news endpoint
         run: python3 scripts/patch_backend.py
       - name: Ensure Edge Function browser CORS
