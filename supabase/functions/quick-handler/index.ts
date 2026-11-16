@@ -2,6 +2,23 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 const cors = {"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store"};
 const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:cors});
+
+function formatDisplay(value: unknown, depth = 0): string {
+ if (value === null || value === undefined || value === "") return "Belum tersedia";
+ if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
+ if (depth >= 2) return "Detail tersedia";
+ if (Array.isArray(value)) return value.length ? value.slice(0, 5).map((item) => formatDisplay(item, depth + 1)).join("; ") : "Belum tersedia";
+ if (typeof value === "object") {
+  const entries = Object.entries(value as Record<string, unknown>).filter(([, item]) => item !== null && item !== undefined && item !== "");
+  if (!entries.length) return "Belum tersedia";
+  return entries.slice(0, 6).map(([key, item]) => {
+   const label = key.replace(/_/g, " ").replace(/([A-Z])/g, " $1").trim();
+   return label + ": " + formatDisplay(item, depth + 1);
+  }).join(" · ");
+ }
+ return "Belum tersedia";
+}
+
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(req.method!=="POST")return reply({error:"Method tidak didukung."},405);
@@ -54,7 +71,7 @@ Semua angka harga harus bersumber dari screenshot. Untuk level yang tidak terbac
   if(!result||typeof result!=="object")throw new Error("OpenAI returned an invalid analysis object.");
   if(!["BUY","SELL","WAIT"].includes(String(result.signal).toUpperCase()))result.signal="WAIT";
   if(!["UPTREND","DOWNTREND","SIDEWAYS","UNCLEAR"].includes(String(result.trend||"").toUpperCase()))result.trend="UNCLEAR";
-  const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>String(x)).slice(0,8):[]; const conf=Number(result.confidence); return reply({result:{signal:String(result.signal).toUpperCase(),summary:String(result.summary||"Analisis selesai."),entry:result.entry??null,stop_loss:result.stop_loss??null,scenario_buy:result.scenario_buy&&typeof result.scenario_buy==="object"?result.scenario_buy:null,scenario_sell:result.scenario_sell&&typeof result.scenario_sell==="object"?result.scenario_sell:null,take_profit_1:result.take_profit_1??result.take_profit??null,take_profit:result.take_profit_1??result.take_profit??null,take_profit_2:result.take_profit_2??null,risk_reward:result.risk_reward??null,confidence:Number.isFinite(conf)?Math.max(0,Math.min(100,conf)):0,trend:result.trend??null,support_resistance:result.support_resistance??null,market_structure:result.market_structure??null,swing_points:Array.isArray(result.swing_points)?result.swing_points.slice(0,8):[],setup_type:result.setup_type??"NONE",entry_zone:result.entry_zone??null,entry_trigger:result.entry_trigger??null,invalidation:result.invalidation??null,supporting_evidence:arr(result.supporting_evidence),opposing_evidence:arr(result.opposing_evidence),scenario_buy:result.scenario_buy&&typeof result.scenario_buy==="object"?result.scenario_buy:null,scenario_sell:result.scenario_sell&&typeof result.scenario_sell==="object"?result.scenario_sell:null,chart_price_status:"snapshot_only",chart_timestamp:result.chart_timestamp??null,indicator_signals:Array.isArray(result.indicator_signals)?result.indicator_signals.slice(0,10):[],indicator_consensus:result.indicator_consensus&&typeof result.indicator_consensus==="object"?result.indicator_consensus:null,rsi:result.rsi??null,macd:result.macd??null,volume:result.volume??null,volatility:result.volatility??null,reasoning:result.reasoning??result.summary??null,confirmation:arr(result.confirmation),warnings:arr(result.warnings),disclaimer:result.disclaimer??"Analisis hanya berdasarkan screenshot (snapshot), bukan harga live. Verifikasi harga dan level di broker sebelum entry. Bukan jaminan profit."}});
+  const arr=(v:any)=>Array.isArray(v)?v.map((x:any)=>String(x)).slice(0,8):[]; const conf=Number(result.confidence); return reply({result:{signal:String(result.signal).toUpperCase(),summary:String(result.summary||"Analisis selesai."),entry:result.entry??null,stop_loss:result.stop_loss??null,scenario_buy:result.scenario_buy&&typeof result.scenario_buy==="object"?result.scenario_buy:null,scenario_sell:result.scenario_sell&&typeof result.scenario_sell==="object"?result.scenario_sell:null,take_profit_1:result.take_profit_1??result.take_profit??null,take_profit:result.take_profit_1??result.take_profit??null,take_profit_2:result.take_profit_2??null,risk_reward:result.risk_reward??null,confidence:Number.isFinite(conf)?Math.max(0,Math.min(100,conf)):0,trend:result.trend??null,support_resistance:formatDisplay(result.support_resistance),support_resistance_detail:result.support_resistance??null,market_structure:result.market_structure??null,swing_points:Array.isArray(result.swing_points)?result.swing_points.slice(0,8):[],setup_type:result.setup_type??"NONE",entry_zone:result.entry_zone??null,entry_trigger:result.entry_trigger??null,invalidation:result.invalidation??null,supporting_evidence:arr(result.supporting_evidence),opposing_evidence:arr(result.opposing_evidence),scenario_buy:result.scenario_buy&&typeof result.scenario_buy==="object"?result.scenario_buy:null,scenario_sell:result.scenario_sell&&typeof result.scenario_sell==="object"?result.scenario_sell:null,chart_price_status:"snapshot_only",chart_timestamp:result.chart_timestamp??null,indicator_signals:Array.isArray(result.indicator_signals)?result.indicator_signals.slice(0,10):[],indicator_consensus:result.indicator_consensus&&typeof result.indicator_consensus==="object"?result.indicator_consensus:null,rsi:formatDisplay(result.rsi),rsi_detail:result.rsi??null,macd:formatDisplay(result.macd),macd_detail:result.macd??null,volume:formatDisplay(result.volume),volume_detail:result.volume??null,volatility:formatDisplay(result.volatility),volatility_detail:result.volatility??null,reasoning:result.reasoning??result.summary??null,confirmation:arr(result.confirmation),warnings:arr(result.warnings),disclaimer:result.disclaimer??"Analisis hanya berdasarkan screenshot (snapshot), bukan harga live. Verifikasi harga dan level di broker sebelum entry. Bukan jaminan profit."}});
  }catch(e){
   console.error("quick-handler",e);
   const raw=e instanceof Error?e.message:"Kesalahan internal saat analisis.";
