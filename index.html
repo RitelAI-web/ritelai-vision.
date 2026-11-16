@@ -192,14 +192,18 @@ let currentRole='customer';
 let currentUser=null;
 function showTab(name,btn){document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active')
  if(name==='news'&&!marketHasLoaded)loadMarketIntelligence({silent:true});
+ if(name==='mt5')refreshMT5Access();
 }
 function updateMT5ProfileOptions(){
  const broker=document.getElementById('mt5Broker')?.value||'EXNESS';
  const profile=document.getElementById('mt5Profile');
  if(!profile)return;
- const options=broker==='EXNESS'
-  ?[['STANDARD_CENT','Standard Cent Demo'],['ZERO','Zero Demo'],['STANDARD','Standard Demo']]
-  :[['STANDARD','Standard Demo']];
+ const options=[
+  ['STANDARD_CENT','Cent Demo'],
+  ['ZERO','Zero Demo'],
+  ['PRO','Pro Demo'],
+  ['STANDARD','Standard Demo']
+ ];
  const previous=profile.value;
  profile.innerHTML=options.map(([value,label])=>'<option value="'+value+'">'+label+'</option>').join('');
  profile.value=options.some(([value])=>value===previous)?previous:options[0][0];
@@ -207,17 +211,22 @@ function updateMT5ProfileOptions(){
 let mt5EliteAccess=false;
 async function refreshMT5Access(){
  const badge=document.getElementById('mt5AccessBadge'),msg=document.getElementById('mt5AccessMessage'),btn=document.getElementById('mt5PairBtn');
+ if(!badge||!msg||!btn)return;
+ btn.disabled=true;
+ if(!supabaseClient){mt5EliteAccess=false;badge.textContent='Layanan belum siap';msg.textContent='Koneksi Supabase belum siap. Muat ulang halaman.';return}
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ currentUser=session?.user||currentUser;
  if(!currentUser){mt5EliteAccess=false;badge.textContent='Login diperlukan';msg.textContent='Silakan login terlebih dahulu untuk memeriksa paket dan membuat pairing.';btn.disabled=true;return}
- badge.textContent='Memeriksa paket...';msg.textContent='Memeriksa langganan aktif...';btn.disabled=true;
+ badge.textContent='Memeriksa paket...';msg.textContent='Memeriksa langganan aktif...';
  try{
   const {data,error}=await supabaseClient.from('subscriptions').select('id,status,ends_at,plans(code,name)').eq('user_id',currentUser.id).eq('status','active').or(`ends_at.is.null,ends_at.gt.${new Date().toISOString()}`).order('ends_at',{ascending:false,nullsFirst:false}).limit(5);
   if(error)throw error;
   const rows=Array.isArray(data)?data:(data?[data]:[]);
   mt5EliteAccess=rows.some(row=>{const p=Array.isArray(row?.plans)?row.plans:(row?.plans?[row.plans]:[]);return p.some(x=>['elite','enterprise'].includes(String(x?.code||'').toLowerCase())||String(x?.name||'').toLowerCase().includes('enterprise')||String(x?.name||'').toLowerCase()==='elite')});
   badge.textContent=mt5EliteAccess?'Elite aktif':'Akses terkunci';
-  msg.textContent=mt5EliteAccess?'Paket tertinggi terdeteksi. Pairing demo dapat diminta; backend tetap memverifikasi hak akses.':'Fitur pairing MT5 memerlukan paket Elite aktif. Paket Basic/Starter/Pro tetap terkunci.';
+  msg.textContent=mt5EliteAccess?'Paket tertinggi terdeteksi. Pairing demo dapat diminta; backend tetap memverifikasi hak akses.':'Fitur pairing MT5 memerlukan paket Elite aktif.';
   btn.disabled=!mt5EliteAccess;
- }catch(e){mt5EliteAccess=false;badge.textContent='Belum dapat diverifikasi';msg.textContent='Pemeriksaan paket gagal: '+(e.message||'kesalahan database')+'. Pairing dinonaktifkan demi keamanan.';btn.disabled=true}
+ }catch(e){mt5EliteAccess=false;badge.textContent='Gagal memeriksa akses';msg.textContent='Tidak dapat memeriksa paket: '+(e.message||'kesalahan database')+'. Pairing tetap dikunci demi keamanan.';btn.disabled=true}
 }
 async function createMT5Pairing(){
  const out=document.getElementById('mt5PairResult'),btn=document.getElementById('mt5PairBtn');
