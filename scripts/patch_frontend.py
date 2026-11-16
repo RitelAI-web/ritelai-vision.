@@ -76,13 +76,13 @@ scenario_code = r'''
    const scenarioCard=(label,scenario)=>{if(!scenario)return '';const val=v=>(v===null||v===undefined||v===''?'Belum terbaca dari chart':escapeHtml(String(v)));return '<div class="bg-slate-900 rounded-lg p-3"><b class="text-xs">'+label+'</b><div class="mt-2 text-[11px]"><span class="muted">Pemicu:</span> '+val(scenario.trigger)+'</div><div class="mt-1 text-[11px]"><span class="muted">Konfirmasi:</span> '+val(scenario.confirmation)+'</div><div class="mt-1 text-[11px]"><span class="muted">Pembatalan:</span> '+val(scenario.invalidation)+'</div><div class="mt-1 text-[11px]">'+val(scenario.rationale)+'</div></div>';};
 '''
 if scenario_anchor in html and 'const scenarioCard=' not in html:
-    html = html.replace(scenario_anchor, scenario_anchor + '\\n' + scenario_code, 1)
+    html = html.replace(scenario_anchor, scenario_anchor + '\n' + scenario_code, 1)
 summary_anchor = '<p class="text-sm mt-3">${safe(r.summary)}</p>'
 scenario_panel = '''
     ${signal==='WAIT'?'<div class="mt-4 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4"><div class="font-bold text-xs mb-3">RENCANA BERSYARAT — TUNGGU KONFIRMASI</div><div class="grid gap-2 sm:grid-cols-2">'+scenarioCard('SKENARIO BUY',r.scenario_buy)+scenarioCard('SKENARIO SELL',r.scenario_sell)+'</div><p class="muted text-[10px] mt-3">Pemicu bukan instruksi entry langsung. Tunggu konfirmasi candle dan pastikan level masih berlaku.</p></div>':''}
 '''
 if summary_anchor in html and 'RENCANA BERSYARAT — TUNGGU KONFIRMASI' not in html:
-    html = html.replace(summary_anchor, summary_anchor + '\\n' + scenario_panel, 1)
+    html = html.replace(summary_anchor, summary_anchor + '\n' + scenario_panel, 1)
 
 p.write_text(html, encoding="utf-8")
 print("Patched universal instrument selector:", sum(map(len, options.values())), "instruments")
