@@ -138,7 +138,7 @@ scenario_js = r"""
    scenarioPanel.innerHTML='<div class="mb-3"><div class="text-[10px] tracking-widest text-cyan-300 font-bold">RENCANA DUA ARAH</div><h3 class="font-bold text-sm mt-1">Skenario BUY & SELL</h3><p class="muted text-[10px] mt-1">Skenario bersyarat, bukan instruksi entry. Tunggu pemicu dan konfirmasi; jika belum terpenuhi, tetap WAIT.</p></div><div class="grid grid-cols-1 sm:grid-cols-2 gap-3">'+scenarioCard('Jika peluang naik','BUY',r.scenario_buy)+scenarioCard('Jika peluang turun','SELL',r.scenario_sell)+'</div>';
    resultBox.appendChild(scenarioPanel);
 """
-if 'id=\\'conditionalTradeScenarios\\'' not in html:
+if 'conditionalTradeScenarios' not in html:
     scenario_anchor = '   // Sinkronkan ringkasan bawah dengan hasil AI yang sama; jangan biarkan placeholder statis "—".'
     if scenario_anchor not in html: raise SystemExit("Analysis summary anchor not found")
     html = html.replace(scenario_anchor, scenario_js + "\\n" + scenario_anchor, 1)
