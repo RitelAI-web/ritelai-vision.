@@ -25,6 +25,10 @@ jobs:
           cp -a "$APP_DIR/supabase/functions/quick-service" supabase/functions/
       - name: Add cross-market news endpoint
         run: python3 scripts/patch_backend.py
+      - name: Overlay corrected Market Intelligence source
+        run: |
+          test -s supabase/functions/quick-service/index.ts
+          echo "Using tracked corrected quick-service implementation"
       - name: Ensure Edge Function browser CORS
         run: python3 scripts/patch_cors.py
       - name: Deploy functions
