@@ -348,58 +348,74 @@ Deno.serve(async (request: Request) => {
     return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_calendar atau market_news." }, 400);
   }
 
-  // Provider failures are returned as a partial 200 response so the UI can show
-  // the exact failed source instead of the generic Supabase non-2xx message.
-  const quoteResults = await Promise.allSettled(SYMBOLS.map((symbol) => getTick(symbol)));
-  const quotes = quoteResults.filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled").map((result) => result.value);
-  const quoteErrors = quoteResults.filter((result): result is PromiseRejectedResult => result.status === "rejected")
-    .map((result) => messageOf(result.reason));
-
-  let providerEvents: AnyRecord[] = [];
-  let calendarError: string | null = null;
-  try { providerEvents = await getCalendar(); }
-  catch (error) { calendarError = messageOf(error); }
-  // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
-  // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
-  let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents());
-
-  let aiError: string | null = null;
-  if (events.length) {
-    try {
-      const result = await analyzeEvents(events);
-      events = result.events;
-      aiError = result.error;
-    } catch (error) {
-      aiError = messageOf(error);
-      events = events.map((event) => ({
-        ...event,
-        ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI gagal; periksa konfigurasi server. Jangan gunakan sebagai sinyal transaksi.", impacts: [] },
-      }));
+  try {
+    // Provider failures are returned as a partial 200 response so the UI can show
+    // the exact failed source instead of the generic Supabase non-2xx message.
+    const quoteResults = await Promise.allSettled(SYMBOLS.map((symbol) => getTick(symbol)));
+    const quotes = quoteResults.filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled").map((result) => result.value);
+    const quoteErrors = quoteResults.filter((result): result is PromiseRejectedResult => result.status === "rejected")
+      .map((result) => messageOf(result.reason));
+  
+    let providerEvents: AnyRecord[] = [];
+    let calendarError: string | null = null;
+    try { providerEvents = await getCalendar(); }
+    catch (error) { calendarError = messageOf(error); }
+    // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
+    // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
+    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents());
+  
+    let aiError: string | null = null;
+    if (events.length) {
+      try {
+        const result = await analyzeEvents(events);
+        events = result.events;
+        aiError = result.error;
+      } catch (error) {
+        aiError = messageOf(error);
+        events = events.map((event) => ({
+          ...event,
+          ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI gagal; periksa konfigurasi server. Jangan gunakan sebagai sinyal transaksi.", impacts: [] },
+        }));
+      }
+    } else if (!Deno.env.get("OPENAI_API_KEY")) {
+      aiError = "OPENAI_API_KEY belum dikonfigurasi di Supabase Secrets.";
     }
-  } else if (!Deno.env.get("OPENAI_API_KEY")) {
-    aiError = "OPENAI_API_KEY belum dikonfigurasi di Supabase Secrets.";
+  
+    return reply({
+      status: "ok",
+      generatedAt: new Date().toISOString(),
+      quotes,
+      quoteErrors,
+      events,
+      calendarError,
+      aiError,
+      calendarSource: "BiQuote + jadwal resmi BLS, Federal Reserve, dan BEA",
+      priceSource: "BiQuote MT5 feed",
+      diagnostics: {
+        requestedSymbols: [...SYMBOLS],
+        receivedSymbols: quotes.map((quote) => quote.key),
+        calendarCount: events.length,
+        calendarLimit: null,
+        calendarRange: "remaining-November-2026-through-2026-12-31-Asia/Jakarta",
+        maximumUpcomingEvents: null,
+        futureOnly: true,
+        openAIConfigured: Boolean(Deno.env.get("OPENAI_API_KEY")),
+      },
+      disclaimer: "Harga berasal dari penyedia pihak ketiga dan tidak dijamin sama dengan harga broker. Data dapat tertunda atau tidak tersedia. Bias AI bersifat kualitatif, bukan probabilitas profit atau win rate.",
+    });
+  } catch (error) {
+    // Never leak an unhandled provider/runtime exception as a generic non-2xx to the customer UI.
+    return reply({
+      status: "ok",
+      generatedAt: new Date().toISOString(),
+      quotes: [],
+      quoteErrors: [],
+      events: [],
+      calendarError: messageOf(error),
+      aiError: null,
+      calendarSource: "BiQuote + jadwal resmi BLS, Federal Reserve, dan BEA",
+      diagnostics: { requestedSymbols: [...SYMBOLS], receivedSymbols: [], calendarCount: 0, partial: true },
+      disclaimer: "Data kalender/harga sementara tidak tersedia. Jangan gunakan sebagai sinyal transaksi.",
+    });
   }
-
-  return reply({
-    status: "ok",
-    generatedAt: new Date().toISOString(),
-    quotes,
-    quoteErrors,
-    events,
-    calendarError,
-    aiError,
-    calendarSource: "BiQuote + jadwal resmi BLS, Federal Reserve, dan BEA",
-    priceSource: "BiQuote MT5 feed",
-    diagnostics: {
-      requestedSymbols: [...SYMBOLS],
-      receivedSymbols: quotes.map((quote) => quote.key),
-      calendarCount: events.length,
-      calendarLimit: null,
-      calendarRange: "remaining-November-2026-through-2026-12-31-Asia/Jakarta",
-      maximumUpcomingEvents: null,
-      futureOnly: true,
-      openAIConfigured: Boolean(Deno.env.get("OPENAI_API_KEY")),
-    },
-    disclaimer: "Harga berasal dari penyedia pihak ketiga dan tidak dijamin sama dengan harga broker. Data dapat tertunda atau tidak tersedia. Bias AI bersifat kualitatif, bukan probabilitas profit atau win rate.",
-  });
 });
