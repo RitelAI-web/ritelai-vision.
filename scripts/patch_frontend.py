@@ -66,8 +66,12 @@ macro_panel = """
 """
 if 'id="tab-macro-calendar"' not in html:
     anchor = ' <section id="tab-settings" class="panel">'
-    if anchor not in html: raise SystemExit("Settings panel anchor not found")
-    html = html.replace(anchor, macro_panel + "\n" + anchor, 1)
+    if anchor in html:
+        html = html.replace(anchor, macro_panel + "\n" + anchor, 1)
+    elif "</body>" in html:
+        html = html.replace("</body>", macro_panel + "\n</body>", 1)
+    else:
+        raise SystemExit("No safe insertion point for economic calendar panel")
 
 macro_js = r'''
 function macroSafe(v){return escapeHtml(String(v==null||v===""?"—":v))}
@@ -142,9 +146,12 @@ settings_panel = '''
 '''
 if 'id="tab-settings"' not in html:
     admin_anchor = ' <section id="tab-admin" class="panel">'
-    if admin_anchor not in html:
-        raise SystemExit("Admin panel anchor not found; refusing to inject settings panel")
-    html = html.replace(admin_anchor, settings_panel + "\n" + admin_anchor, 1)
+    if admin_anchor in html:
+        html = html.replace(admin_anchor, settings_panel + "\n" + admin_anchor, 1)
+    elif "</body>" in html:
+        html = html.replace("</body>", settings_panel + "\n</body>", 1)
+    else:
+        raise SystemExit("No safe insertion point for settings panel")
 
 settings_js = '''
 function readRitelSettings(){
