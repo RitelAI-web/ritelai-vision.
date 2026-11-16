@@ -130,5 +130,17 @@ auth_gate = r"""
 if 'id="ritelai-beta-auth-gate"' not in html:
     html = html.replace('</body>', auth_gate + '\\n</body>', 1)
 
+
+# GitHub Pages project sites live under a repository path. Using location.origin
+# sends Supabase email confirmation to the domain root (a 404); use the full app URL.
+html = html.replace(
+    "emailRedirectTo:location.origin",
+    "emailRedirectTo:'https://adilesmana1207-cyber.github.io/ritelai-vision./'"
+)
+html = html.replace(
+    "redirectTo:location.origin",
+    "redirectTo:'https://adilesmana1207-cyber.github.io/ritelai-vision./'"
+)
+
 p.write_text(html, encoding="utf-8")
 print("Patched universal instrument selector:", sum(map(len, options.values())), "instruments")
