@@ -16,6 +16,8 @@ jobs:
       - uses: supabase/setup-cli@v1
         with:
           version: 2.53.6
+      - name: Preserve corrected Market Intelligence source
+        run: cp supabase/functions/quick-service/index.ts /tmp/quick-service-index.ts
       - name: Restore packaged functions
         run: |
           mkdir -p extracted supabase/functions
@@ -26,9 +28,7 @@ jobs:
       - name: Add cross-market news endpoint
         run: python3 scripts/patch_backend.py
       - name: Overlay corrected Market Intelligence source
-        run: |
-          test -s supabase/functions/quick-service/index.ts
-          echo "Using tracked corrected quick-service implementation"
+        run: cp /tmp/quick-service-index.ts supabase/functions/quick-service/index.ts
       - name: Ensure Edge Function browser CORS
         run: python3 scripts/patch_cors.py
       - name: Deploy functions
