@@ -206,8 +206,8 @@ EVENTS=${JSON.stringify(selected)}`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 6500 }),
-    signal: AbortSignal.timeout(25000),
+    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 5000 }),
+    signal: AbortSignal.timeout(45000),
   });
   const raw = await response.text();
   let data: AnyRecord;
@@ -287,9 +287,9 @@ async function analyzeEvents(events: AnyRecord[]) {
     } else ready.push(event);
   }
 
-  // Keep the public calendar endpoint responsive: analyze only the nearest
-  // eight events per request. Remaining events are explicitly WAIT until a later refresh.
-  const batchSize = 3;
+  // Analyze one event per OpenAI request to avoid truncated JSON for six instrument impacts.
+  // Remaining events stay explicitly WAIT until a subsequent calendar refresh.
+  const batchSize = 1;
   const errors: string[] = [];
   const deferred = ready.slice(batchSize);
   for (const event of deferred) {
