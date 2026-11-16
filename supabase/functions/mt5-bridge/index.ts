@@ -18,7 +18,7 @@ async function sha(value:string) {
 }
 const clean = (v:any,n=100) => String(v??"").trim().slice(0,n);
 const validBroker = (v:string) => v==="EXNESS" || v==="VERSUS_TRADE";
-const validProfile = (b:string,p:string) => (b==="EXNESS"&&["STANDARD_CENT","ZERO","STANDARD"].includes(p)) || (b==="VERSUS_TRADE"&&p==="STANDARD");
+const validProfile = (b:string,p:string) => (b==="EXNESS"||b==="VERSUS_TRADE") && ["STANDARD_CENT","ZERO","PRO","STANDARD"].includes(p);
 
 async function hasActiveEnterprise(admin:any,userId:string){
   const now=new Date().toISOString();
@@ -73,7 +73,7 @@ Deno.serve(async req=>{
 
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
-      if(!validBroker(broker)||!validProfile(broker,profile)) return reply({error:"Profil broker tidak sesuai. Exness mendukung pilihan Standard Cent, Zero, atau Standard; Versus Trade pada koneksi ini menggunakan Standard."},400);
+      if(!validBroker(broker)||!validProfile(broker,profile)) return reply({error:"Profil akun demo tidak valid. Pilih Cent, Zero, Pro, atau Standard."},400);
       const code=randomToken(6).toUpperCase();
       const {error:insertErr}=await admin.from("mt5_pairing_codes").insert({user_id:userId,code_hash:await sha(code),broker,account_profile:profile,expected_demo:true,expires_at:new Date(Date.now()+10*60*1000).toISOString()});
       if(insertErr) return reply({error:"Gagal membuat kode pairing."},500);
