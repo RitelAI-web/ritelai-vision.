@@ -22,7 +22,29 @@ Deno.serve(async(req)=>{
   const body=await req.json(),image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
   if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
-  const prompt=`Analisis screenshot chart untuk edukasi, bukan nasihat keuangan. Instrumen ${instrument}; timeframe ${timeframe}; batas risiko ${risk}%. Analisis semua kondisi pasar: TRENDING naik/turun maupun SIDEWAYS/RANGE. Jangan menganggap sideways sebagai error dan jangan memaksakan BUY/SELL. Jika sideways, tentukan batas support dan resistance/range; signal WAIT bila harga berada di tengah range atau belum ada konfirmasi. BUY hanya jika ada pantulan bullish yang jelas dari support atau breakout resistance yang sudah dikonfirmasi; SELL hanya jika ada penolakan bearish yang jelas dari resistance atau breakdown support yang sudah dikonfirmasi. Jika bukti tidak cukup, gunakan WAIT. Bedakan trend dengan signal: trend boleh SIDEWAYS sementara signal WAIT/BUY/SELL sesuai bukti. Jika harga/skala tidak terbaca, gunakan WAIT dan null untuk level harga; jangan mengarang angka. Kembalikan JSON sesuai field: signal (BUY/SELL/WAIT), summary, entry, stop_loss, take_profit_1, take_profit_2, risk_reward, confidence (0-100 untuk keterbacaan/kekuatan bukti chart, bukan win rate), trend (UPTREND/DOWNTREND/SIDEWAYS/UNCLEAR), support_resistance, rsi, macd, volume, volatility, reasoning, confirmation (array string), warnings (array string), disclaimer. Gunakan null bila nilai tidak dapat dibaca/dihitung secara bertanggung jawab. Jangan menjanjikan profit atau win rate. Jawaban wajib JSON valid tanpa markdown.`;
+  const prompt=`Anda adalah analis teknikal chart yang disiplin. Analisis gambar chart yang benar-benar terlihat; jangan menebak data yang tidak tampak. Instrumen ${instrument}; timeframe ${timeframe}; risiko maksimum ${risk}% per transaksi. Kembalikan JSON valid saja.
+
+ATURAN ANALISIS:
+1) Baca struktur harga terlebih dahulu: rangkaian swing high/swing low, arah candle terakhir, posisi harga terhadap support/resistance, dan apakah ada breakout/rejection yang benar-benar terlihat.
+2) Tentukan TREND secara independen dari keputusan ENTRY:
+- UPTREND bila swing high dan swing low cenderung makin tinggi.
+- DOWNTREND bila swing high dan swing low cenderung makin rendah.
+- SIDEWAYS hanya bila harga jelas berulang kali tertahan dalam rentang horizontal tanpa struktur naik/turun dominan.
+- UNCLEAR bila gambar/struktur tidak cukup terbaca.
+Jangan menyebut SIDEWAYS hanya karena belum ada sinyal entry. Tren bisa UPTREND/DOWNTREND sementara signal tetap WAIT.
+3) Tentukan SIGNAL terpisah:
+- BUY hanya bila ada setup bullish yang terlihat dan terkonfirmasi (contoh higher-low lalu candle bullish konfirmasi, rejection support, atau breakout diikuti close/retest).
+- SELL hanya bila ada setup bearish yang terlihat dan terkonfirmasi (contoh lower-high lalu candle bearish konfirmasi, rejection resistance, atau breakdown diikuti close/retest).
+- WAIT bila entry belum terkonfirmasi, harga berada di tengah range, atau chart tidak cukup terbaca. Jangan memaksakan BUY/SELL.
+4) Jangan mengarang harga, level, indikator, volume, maupun pola. Jika skala harga tidak terbaca, isi level terkait null. RSI/MACD hanya isi bila indikatornya tampak dan nilainya dapat dibaca; jika tidak, null atau "Tidak terlihat". Volume hanya nilai bila panel volume tampak.
+5) Untuk range, sebutkan batas atas/bawah hanya jika dapat dibaca. Untuk tren, jelaskan struktur swing yang mendukung. Summary wajib spesifik terhadap gambar, bukan template umum.
+6) Entry/SL/TP/RR hanya isi jika setup terkonfirmasi dan angka dapat dibaca/dihitung dari chart. Jika tidak, null. Confidence mengukur kejelasan bukti visual (0-100), BUKAN probabilitas profit atau win rate.
+7) Sebutkan alasan yang menentang skenario utama dan kondisi yang membatalkan setup. Dilarang menjanjikan profit.
+
+FIELD JSON:
+signal (BUY/SELL/WAIT), summary (bahasa Indonesia, 2-4 kalimat, sebutkan bukti candle/struktur yang terlihat), entry, stop_loss, take_profit_1, take_profit_2, risk_reward, confidence (0-100), trend (UPTREND/DOWNTREND/SIDEWAYS/UNCLEAR), support_resistance, rsi, macd, volume, volatility, reasoning, confirmation (array), warnings (array), disclaimer.
+Gunakan null untuk angka/level yang tidak bisa dipastikan. Jangan gunakan angka harga contoh atau harga pasar dari ingatan; semua level harus berasal dari gambar. `;
+
    const res=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:"gpt-4.1-mini",input:[{role:"user",content:[{type:"input_text",text:prompt},{type:"input_image",image_url:image,detail:"high"}]}],text:{format:{type:"json_object"}},max_output_tokens:1400})});
   const raw=await res.json();if(!res.ok){const apiMessage=raw?.error?.message||`OpenAI HTTP ${res.status}`;throw new Error(`OpenAI HTTP ${res.status}: ${apiMessage}`);}
   if(raw.status==="incomplete")throw new Error(`OpenAI incomplete response: ${raw.incomplete_details?.reason||"output limit"}`);
