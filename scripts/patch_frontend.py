@@ -101,8 +101,13 @@ async function loadRitelMacroCalendar(){
 '''
 if 'function loadRitelMacroCalendar()' not in html:
     js_anchor = 'function readRitelSettings(){'
-    if js_anchor not in html: raise SystemExit("Settings JS anchor not found")
-    html=html.replace(js_anchor,macro_js+"\n"+js_anchor,1)
+    if js_anchor in html:
+        html=html.replace(js_anchor,macro_js+"\n"+js_anchor,1)
+    elif "</script>" in html:
+        pos=html.rfind("</script>")
+        html=html[:pos]+macro_js+"\n"+html[pos:]
+    else:
+        raise SystemExit("No safe JavaScript insertion point for economic calendar")
 if "loadRitelMacroCalendar();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
     html=html.replace("  applyRitelSettings();","  applyRitelSettings();\n  loadRitelMacroCalendar();",1)
 
@@ -185,9 +190,13 @@ function resetRitelSettings(){
 '''
 if 'function saveRitelSettings()' not in html:
     js_anchor = 'function showTab(name,btn)'
-    if js_anchor not in html:
-        raise SystemExit("Tab controller not found; refusing to inject settings behavior")
-    html = html.replace(js_anchor, settings_js + "\n" + js_anchor, 1)
+    if js_anchor in html:
+        html = html.replace(js_anchor, settings_js + "\n" + js_anchor, 1)
+    elif "</script>" in html:
+        pos = html.rfind("</script>")
+        html = html[:pos] + settings_js + "\n" + html[pos:]
+    else:
+        raise SystemExit("No safe JavaScript insertion point for settings")
 
 # Apply saved defaults after the page DOM exists.
 if "applyRitelSettings();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
