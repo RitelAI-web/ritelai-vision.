@@ -1,7 +1,7 @@
 from pathlib import Path
 
-p = Path("extracted")
-files = list(p.rglob("supabase/functions/quick-service/index.ts"))
+p = Path("supabase/functions/quick-service/index.ts")
+files = [p] if p.exists() else []
 if not files:
     raise SystemExit("quick-service source missing from package")
 f = files[0]
