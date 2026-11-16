@@ -324,7 +324,7 @@ async function getMarketNews() {
     return [...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi)].slice(0,8).map(m=>{
       const x=m[1],date=Date.parse(newsTag(x,"pubDate"));
       return {title:newsTag(x,"title"),url:newsTag(x,"link"),source:newsTag(x,"source")||"Google News",publishedAt:Number.isFinite(date)?new Date(date).toISOString():null,category};
-    }).filter(x=>x.title&&/^https?:\\/\\//i.test(x.url));
+    }).filter(x=>x.title&&/^https?:\/\//i.test(x.url));
   }));
   const items=settled.flatMap(x=>x.status==="fulfilled"?x.value:[]);
   const unique=[...new Map(items.map(x=>[x.url,x])).values()].sort((a,b)=>Date.parse(b.publishedAt||"")-Date.parse(a.publishedAt||"")).slice(0,30);
