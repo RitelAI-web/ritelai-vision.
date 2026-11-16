@@ -321,7 +321,7 @@ async function getMarketNews() {
     const res=await fetch(url.toString(),{headers:{"User-Agent":"RitelAI-Vision/1.0","Accept":"application/rss+xml, application/xml"},signal:AbortSignal.timeout(6500)});
     if(!res.ok)throw new Error(category+" RSS HTTP "+res.status);
     const xml=await res.text();
-    return [...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi)].slice(0,8).map(m=>{
+    return [...xml.matchAll(/<item(?:\s[^>]*)?>([\s\S]*?)<\/item>/gi)].slice(0,8).map(m=>{
       const x=m[1],date=Date.parse(newsTag(x,"pubDate"));
       return {title:newsTag(x,"title"),url:newsTag(x,"link"),source:newsTag(x,"source")||"Google News",publishedAt:Number.isFinite(date)?new Date(date).toISOString():null,category};
     }).filter(x=>x.title&&/^https?:\/\//i.test(x.url));
