@@ -46,6 +46,62 @@ if 'data-tab="settings"' not in html:
         raise SystemExit("Navigation anchor not found; refusing to inject settings into unknown layout")
     html = html.replace(nav_anchor, nav_anchor + "\n" + nav_settings, 1)
 
+
+# Add an Investing-style economic calendar with Previous / Forecast / Actual
+# and AI scenario commentary. Values are rendered only when supplied by provider.
+macro_nav = '  <button class="navbtn" data-tab="macro-calendar" onclick="showTab(\\'macro-calendar\\',this)"><i class="fa-solid fa-calendar-days mr-1"></i>Kalender Ekonomi</button>'
+if 'data-tab="macro-calendar"' not in html:
+    nav_anchor = '  <button class="navbtn" data-tab="history" onclick="showTab(\\'history\\',this)"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Riwayat</button>'
+    if nav_anchor not in html:
+        raise SystemExit("Navigation anchor for economic calendar not found")
+    html = html.replace(nav_anchor, nav_anchor + "\\n" + macro_nav, 1)
+
+macro_panel = """
+ <section id="tab-macro-calendar" class="panel">
+  <div class="mb-4"><div class="text-[10px] tracking-widest text-cyan-300 font-bold">MACRO EVENT INTELLIGENCE</div><h2 class="text-xl font-extrabold">Kalender Ekonomi</h2><p class="muted text-xs mt-1">Previous · Forecast · Actual · Revisi · Analisis skenario AI</p></div>
+  <div class="flex gap-2 flex-wrap mb-3"><button class="btn primary" onclick="loadRitelMacroCalendar()">Perbarui kalender</button><span id="macroCalendarStatus" class="muted text-xs self-center">Memuat data kalender...</span></div>
+  <div id="ritelMacroCalendarList" class="space-y-3"><div class="glass rounded-xl p-4 muted text-xs">Mengambil agenda ekonomi...</div></div>
+  <p class="muted text-[10px] mt-3">Actual/Forecast/Previous berasal dari feed kalender jika tersedia. Prediksi AI adalah skenario terpisah, bukan konsensus pasar atau jaminan arah harga.</p>
+ </section>
+"""
+if 'id="tab-macro-calendar"' not in html:
+    anchor = ' <section id="tab-settings" class="panel">'
+    if anchor not in html: raise SystemExit("Settings panel anchor not found")
+    html = html.replace(anchor, macro_panel + "\\n" + anchor, 1)
+
+macro_js = r'''
+function macroSafe(v){return escapeHtml(String(v==null||v===""?"—":v))}
+function macroTime(v){if(!v)return "Waktu belum tersedia";const d=new Date(v);return Number.isNaN(d.getTime())?macroSafe(v):d.toLocaleString("id-ID",{timeZone:"Asia/Jakarta",dateStyle:"medium",timeStyle:"short"})+" WIB"}
+function macroCard(e){
+ const v=e.valueDisplay||{},ai=e.ai||e.analysis||e.impactAnalysis||{},imp=String(e.importance||"").toUpperCase();
+ const actual=e.actual??v.actual,forecast=e.forecast??v.forecast,previous=e.previous??v.previous,revised=e.revisedPrevious??v.revisedPrevious;
+ const status=e.releaseStatus==="RELEASED"||actual!=null&&actual!==""?"RELEASED":"UPCOMING";
+ const assets=Array.isArray(ai.assets)?ai.assets:Array.isArray(ai.results)?ai.results:[];
+ const aiText=ai.reason||ai.summary||e.analysisReason||e.impact||"Analisis AI belum tersedia untuk agenda ini.";
+ const scores=assets.map(x=>'<div class="border-t border-slate-700 pt-2 mt-2"><div class="flex justify-between text-xs"><b>'+macroSafe(x.symbol||x.asset||x.instrument)+'</b><b>'+macroSafe(x.decision||x.signal||"WAIT")+'</b></div><div class="muted text-[10px] mt-1">'+macroSafe(x.reason||x.analysis||"Alasan belum tersedia")+'</div></div>').join("");
+ const surprise=e.actualVsForecast||"PENDING";
+ return '<article class="glass rounded-2xl p-4 border border-slate-700"><div class="flex flex-wrap items-center justify-between gap-2"><div class="flex gap-2 items-center"><span class="pill text-cyan-200">'+macroSafe(e.currency||e.countryCode||"—")+'</span><span class="pill '+(imp.includes("HIGH")||imp==="3"?"text-rose-300":"text-amber-200")+'">'+macroSafe(imp||"IMPACT —")+'</span></div><span class="text-[10px] '+(status==="RELEASED"?"text-emerald-300":"text-cyan-200")+'">'+status+'</span></div><h3 class="font-bold mt-3">'+macroSafe(e.name||e.title||"Agenda ekonomi")+'</h3><p class="muted text-[11px] mt-1">'+macroTime(e.time||e.date||e.timestamp)+'</p><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Previous</div><b class="text-sm">'+macroSafe(previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Forecast</div><b class="text-sm">'+macroSafe(forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Actual</div><b class="text-sm '+(status==="RELEASED"?"text-emerald-300":"")+'">'+macroSafe(actual)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Previous revised</div><b class="text-sm">'+macroSafe(revised)+'</b></div></div><div class="text-[10px] muted mt-2">Perbandingan: '+macroSafe(surprise)+' · Sumber: '+macroSafe(e.eventSource||e.source||"feed kalender")+'</div><div class="rounded-xl bg-slate-950/60 p-3 mt-3"><b class="text-xs text-cyan-200">Analisis dampak AI</b><p class="text-xs mt-2">'+macroSafe(aiText)+'</p>'+scores+'</div></article>';
+}
+async function loadRitelMacroCalendar(){
+ const list=document.getElementById("ritelMacroCalendarList"),status=document.getElementById("macroCalendarStatus");if(!list)return;
+ status.textContent="Memperbarui data...";
+ try{
+  const {data,error}=await supabaseClient.functions.invoke("quick-service",{body:{action:"market_calendar",assets:["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30"]}});
+  if(error)throw error;
+  const events=Array.isArray(data?.events)?data.events:[];
+  if(!events.length){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Feed belum mengirim agenda. Coba perbarui kembali.</div>';status.textContent="0 agenda";return;}
+  list.innerHTML=events.map(macroCard).join("");
+  status.textContent=events.length+" agenda · diperbarui "+new Date().toLocaleTimeString("id-ID");
+ }catch(err){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Kalender belum dapat dimuat: '+macroSafe(err.message||err)+'</div>';status.textContent="Gagal memuat";}
+}
+'''
+if 'function loadRitelMacroCalendar()' not in html:
+    js_anchor = 'function readRitelSettings(){'
+    if js_anchor not in html: raise SystemExit("Settings JS anchor not found")
+    html=html.replace(js_anchor,macro_js+"\\n"+js_anchor,1)
+if "loadRitelMacroCalendar();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
+    html=html.replace("  applyRitelSettings();","  applyRitelSettings();\\n  loadRitelMacroCalendar();",1)
+
 settings_panel = '''
  <section id="tab-settings" class="panel">
   <div class="mb-4"><div class="text-[10px] tracking-widest text-cyan-300 font-bold">PREFERENSI APLIKASI</div><h2 class="text-xl font-extrabold">Pengaturan</h2><p class="muted text-xs mt-1">Atur preferensi analisis dan tampilan. Pengaturan tersimpan pada browser/perangkat ini.</p></div>
