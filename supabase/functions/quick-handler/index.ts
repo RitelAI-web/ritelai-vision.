@@ -46,12 +46,17 @@ Deno.serve(async(req)=>{
   const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
   const {data:ud,error:ue}=await userClient.auth.getUser(); if(ue||!ud.user)return reply({error:"Sesi login tidak valid."},401);
   const admin=createClient(url,service,{auth:{persistSession:false}});
-  const {data:profile}=await admin.from("profiles").select("role").eq("id",ud.user.id).maybeSingle();
-  const {data:sub}=await admin.from("subscriptions").select("plan_id,plans(name,analysis_quota)").eq("user_id",ud.user.id).eq("status","active").gt("ends_at",new Date().toISOString()).order("ends_at",{ascending:false}).limit(1).maybeSingle();
-  let quota=Number((sub?.plans as any)?.analysis_quota??0),planName=String((sub?.plans as any)?.name??"");
-  if(!sub){const {data:free}=await admin.from("plans").select("name,analysis_quota").eq("code","free").eq("is_active",true).maybeSingle();quota=Number(free?.analysis_quota??0);planName=String(free?.name??"Free");}
   const since=new Date();since.setDate(since.getDate()-30);
-  const {count,error:ce}=await admin.from("analysis_history").select("id",{count:"exact",head:true}).eq("user_id",ud.user.id).gte("created_at",since.toISOString());if(ce)throw ce;
+  const [profileResult,subResult,historyResult,freePlanResult]=await Promise.all([
+   admin.from("profiles").select("role").eq("id",ud.user.id).maybeSingle(),
+   admin.from("subscriptions").select("plan_id,plans(name,analysis_quota)").eq("user_id",ud.user.id).eq("status","active").gt("ends_at",new Date().toISOString()).order("ends_at",{ascending:false}).limit(1).maybeSingle(),
+   admin.from("analysis_history").select("id",{count:"exact",head:true}).eq("user_id",ud.user.id).gte("created_at",since.toISOString()),
+   admin.from("plans").select("name,analysis_quota").eq("code","free").eq("is_active",true).maybeSingle()
+  ]);
+  if(historyResult.error)throw historyResult.error;
+  const profile=profileResult.data,sub=subResult.data,count=historyResult.count;
+  let quota=Number((sub?.plans as any)?.analysis_quota??freePlanResult.data?.analysis_quota??0);
+  let planName=String((sub?.plans as any)?.name??freePlanResult.data?.name??"Free");
   if(!profile||(!["owner","admin","super_admin"].includes(String(profile.role||"").toLowerCase())&&(count??0)>=quota))return reply({error:`Kuota paket ${planName||"akun"} habis (${count}/${quota} analisis dalam 30 hari).`},403);
   const body=await req.json(),image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
