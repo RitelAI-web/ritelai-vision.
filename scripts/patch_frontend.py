@@ -217,5 +217,44 @@ html = html.replace(
     "redirectTo:'https://adilesmana1207-cyber.github.io/ritelai-vision./'"
 )
 
+
+# Never expose the Admin control to ordinary customer accounts.
+# Resolve the authoritative role from the Supabase profiles table.
+admin_visibility_guard = r"""
+<script id="ritelai-customer-admin-visibility">
+(function(){
+ async function enforceAdminVisibility(){
+  try{
+   if(!window.supabaseClient || !window.currentUser) return;
+   const {data,error}=await window.supabaseClient.from('profiles').select('role').eq('id',window.currentUser.id).maybeSingle();
+   const role=String(data&&data.role||'').toLowerCase();
+   const allowed=!error&&['owner','admin','super_admin'].includes(role);
+   document.querySelectorAll('button,a,[role="button"]').forEach(function(el){
+    const label=(el.innerText||el.textContent||'').trim().replace(/\\s+/g,' ');
+    if(label==='Admin'||label==='Admin Panel'||label==='Dashboard Admin'){
+     el.style.display=allowed?'':'none';
+     el.setAttribute('aria-hidden',allowed?'false':'true');
+    }
+   });
+  }catch(e){
+   document.querySelectorAll('button,a,[role="button"]').forEach(function(el){
+    const label=(el.innerText||el.textContent||'').trim().replace(/\\s+/g,' ');
+    if(label==='Admin'||label==='Admin Panel'||label==='Dashboard Admin')el.style.display='none';
+   });
+  }
+ }
+ document.addEventListener('DOMContentLoaded',function(){
+  enforceAdminVisibility();
+  if(window.supabaseClient&&window.supabaseClient.auth){
+   window.supabaseClient.auth.onAuthStateChange(function(){setTimeout(enforceAdminVisibility,250);});
+  }
+ });
+ window.addEventListener('load',function(){setTimeout(enforceAdminVisibility,500);});
+})();
+</script>
+"""
+if 'id="ritelai-customer-admin-visibility"' not in html:
+    html = html.replace('</body>', admin_visibility_guard + '\\n</body>', 1)
+
 p.write_text(html, encoding="utf-8")
 print("Patched universal instrument selector:", sum(map(len, options.values())), "instruments")
