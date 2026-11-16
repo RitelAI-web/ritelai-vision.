@@ -64,7 +64,7 @@ call_anchor = "const {data,error}=await supabaseClient.functions.invoke('quick-s
 if call_anchor in html:
     # Load RSS independently before requesting calendar data. A calendar Edge
     # Function failure must not prevent the separate news feed from rendering.
-    html = html.replace(call_anchor, 'await loadMarketNews();\n' + call_anchor, 1)
+    html = html.replace(call_anchor, 'loadMarketNews(); // berita dimuat paralel; jangan menahan kalender dan harga\n' + call_anchor, 1)
 
 notice = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis dikirim ke Edge Function yang aman. Hasil gambar bukan data harga live dan bukan jaminan profit.</p>'
 replacement = '<p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis chart tersedia untuk Crypto, Forex, Komoditas, Indeks, dan Saham berdasarkan gambar yang kamu unggah. Ketersediaan harga live dan berita tiap instrumen bergantung pada sumber data terhubung. Hasil bukan jaminan profit.</p>'
