@@ -43,7 +43,7 @@ Deno.serve(async req=>{
     if(subErr) return reply({error:"Tidak dapat memverifikasi paket Enterprise."},503);
     const plan:any=sub?.plans;
     const planLabel=String(plan?.code||plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-    if(!planLabel.includes("enterprise")) return reply({error:"Fitur koneksi MT5 hanya tersedia untuk paket Enterprise aktif."},403);
+    if(!planLabel.includes("enterprise") && planLabel!=="elite") return reply({error:"Fitur koneksi MT5 hanya tersedia untuk paket Enterprise aktif."},403);
 
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
