@@ -25,6 +25,8 @@ jobs:
           cp -a "$APP_DIR/supabase/functions/quick-service" supabase/functions/
       - name: Add cross-market news endpoint
         run: python3 scripts/patch_backend.py
+      - name: Ensure Edge Function browser CORS
+        run: python3 scripts/patch_cors.py
       - name: Deploy functions
         run: |
           supabase functions deploy quick-service --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
