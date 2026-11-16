@@ -304,6 +304,35 @@ async function analyzeEvents(events: AnyRecord[]) {
   return { events: events.map((event) => output.get(String(event.id)) || event), error: errors.length ? errors.join(" | ") : null };
 }
 
+
+const NEWS_CACHE: { at: number; payload: AnyRecord } = { at: 0, payload: { items: [], errors: [] } };
+function decodeNewsXml(value: string): string {
+  return value.replace(/<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, "$1").replace(/&amp;/g,"&").replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+}
+function newsTag(block: string, tag: string): string {
+  const m=block.match(new RegExp("<"+tag+"(?:\\s[^>]*)?>([\\s\\S]*?)</"+tag+">","i"));
+  return m ? decodeNewsXml(m[1]).trim() : "";
+}
+async function getMarketNews() {
+  if (Date.now()-NEWS_CACHE.at < 120000 && NEWS_CACHE.payload.items.length) return { ...NEWS_CACHE.payload, cached: true };
+  const topics=[["Global Markets","global financial markets economy central banks"],["Crypto","cryptocurrency Bitcoin Ethereum digital assets"],["Forex","forex currency markets dollar euro yen"],["Commodities","gold silver crude oil commodities"],["Stocks & Indices","global stock markets equities indices earnings"]];
+  const settled=await Promise.allSettled(topics.map(async ([category,q])=>{
+    const url=new URL("https://news.google.com/rss/search");url.searchParams.set("q",q);url.searchParams.set("hl","en-US");url.searchParams.set("gl","US");url.searchParams.set("ceid","US:en");
+    const res=await fetch(url.toString(),{headers:{"User-Agent":"RitelAI-Vision/1.0","Accept":"application/rss+xml, application/xml"},signal:AbortSignal.timeout(6500)});
+    if(!res.ok)throw new Error(category+" RSS HTTP "+res.status);
+    const xml=await res.text();
+    return [...xml.matchAll(/<item(?:\\s[^>]*)?>([\\s\\S]*?)<\\/item>/gi)].slice(0,8).map(m=>{
+      const x=m[1],date=Date.parse(newsTag(x,"pubDate"));
+      return {title:newsTag(x,"title"),url:newsTag(x,"link"),source:newsTag(x,"source")||"Google News",publishedAt:Number.isFinite(date)?new Date(date).toISOString():null,category};
+    }).filter(x=>x.title&&/^https?:\\/\\//i.test(x.url));
+  }));
+  const items=settled.flatMap(x=>x.status==="fulfilled"?x.value:[]);
+  const unique=[...new Map(items.map(x=>[x.url,x])).values()].sort((a,b)=>Date.parse(b.publishedAt||"")-Date.parse(a.publishedAt||"")).slice(0,30);
+  const payload={items:unique,errors:settled.filter(x=>x.status==="rejected").map(x=>messageOf(x.reason))};
+  if(unique.length){NEWS_CACHE.at=Date.now();NEWS_CACHE.payload=payload;}
+  return {...payload,cached:false};
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (request.method !== "POST") return reply({ status: "error", error: "Gunakan metode POST." }, 405);
@@ -311,8 +340,12 @@ Deno.serve(async (request: Request) => {
   let body: AnyRecord;
   try { body = await request.json(); }
   catch { return reply({ status: "error", error: "Body request harus berupa JSON." }, 400); }
+  if (body?.action === "market_news") {
+    try { return reply({ status: "ok", source: "Google News RSS", generatedAt: new Date().toISOString(), ...await getMarketNews() }); }
+    catch (error) { return reply({ status: "ok", source: "Google News RSS", items: NEWS_CACHE.payload.items, errors: [messageOf(error)], cached: true }); }
+  }
   if (body?.action !== "market_calendar") {
-    return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_calendar." }, 400);
+    return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_calendar atau market_news." }, 400);
   }
 
   // Provider failures are returned as a partial 200 response so the UI can show
