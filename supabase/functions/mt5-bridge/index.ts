@@ -39,11 +39,25 @@ Deno.serve(async req=>{
     const userId=data.user.id;
 
     // Fail closed: only an active Enterprise plan can pair an MT5 terminal or queue an order signal.
-    const {data:sub,error:subErr}=await admin.from("subscriptions").select("plan_id,plans(name,code)").eq("user_id",userId).eq("status","active").gt("ends_at",new Date().toISOString()).order("ends_at",{ascending:false}).limit(1).maybeSingle();
-    if(subErr) return reply({error:"Tidak dapat memverifikasi paket Enterprise."},503);
-    const plan:any=sub?.plans;
-    const planLabel=String(plan?.code||plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-    if(!planLabel.includes("enterprise") && planLabel!=="elite") return reply({error:"Fitur koneksi MT5 hanya tersedia untuk paket Enterprise aktif."},403);
+    const nowIso=new Date().toISOString();
+    const {data:subs,error:subErr}=await admin.from("subscriptions")
+      .select("plan_id,ends_at,plans(name,code)")
+      .eq("user_id",userId)
+      .eq("status","active")
+      .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+      .order("ends_at",{ascending:false,nullsFirst:false})
+      .limit(5);
+    if(subErr) return reply({error:"Tidak dapat memverifikasi paket Enterprise.",detail:subErr.message},503);
+    const hasEnterprise=(subs||[]).some((row:any)=>{
+      const rel=row?.plans;
+      const plans=Array.isArray(rel)?rel:(rel?[rel]:[]);
+      return plans.some((plan:any)=>{
+        const code=String(plan?.code||"").toLowerCase().replace(/[^a-z]/g,"");
+        const name=String(plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
+        return code==="elite" || code.includes("enterprise") || name.includes("enterprise") || name==="elite";
+      });
+    });
+    if(!hasEnterprise) return reply({error:"Fitur koneksi MT5 hanya tersedia untuk paket Enterprise aktif."},403);
 
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
@@ -107,18 +121,25 @@ Deno.serve(async req=>{
   // Re-check entitlement for every connected-terminal operation too. Losing or
   // downgrading from Enterprise disables the device; a previously paired EA
   // must not keep receiving signals after the subscription is no longer active.
-  const {data:activeSub,error:activeSubErr}=await admin.from("subscriptions")
-    .select("plan_id,plans(name,code)")
+  const nowIso=new Date().toISOString();
+  const {data:activeSubs,error:activeSubErr}=await admin.from("subscriptions")
+    .select("plan_id,ends_at,plans(name,code)")
     .eq("user_id",device.user_id)
     .eq("status","active")
-    .gt("ends_at",new Date().toISOString())
-    .order("ends_at",{ascending:false})
-    .limit(1)
-    .maybeSingle();
-  if(activeSubErr) return reply({error:"Tidak dapat memverifikasi hak akses Enterprise terminal."},503);
-  const activePlan:any=activeSub?.plans;
-  const activePlanLabel=String(activePlan?.code||activePlan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
-  if(!activePlanLabel.includes("enterprise") && activePlanLabel!=="elite"){
+    .or(`ends_at.is.null,ends_at.gt.${nowIso}`)
+    .order("ends_at",{ascending:false,nullsFirst:false})
+    .limit(5);
+  if(activeSubErr) return reply({error:"Tidak dapat memverifikasi hak akses Enterprise terminal.",detail:activeSubErr.message},503);
+  const hasActiveEnterprise=(activeSubs||[]).some((row:any)=>{
+    const rel=row?.plans;
+    const plans=Array.isArray(rel)?rel:(rel?[rel]:[]);
+    return plans.some((plan:any)=>{
+      const code=String(plan?.code||"").toLowerCase().replace(/[^a-z]/g,"");
+      const name=String(plan?.name||"").toLowerCase().replace(/[^a-z]/g,"");
+      return code==="elite" || code.includes("enterprise") || name.includes("enterprise") || name==="elite";
+    });
+  });
+  if(!hasActiveEnterprise){
     await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id);
     return reply({error:"Akses MT5 dikunci. Paket Enterprise aktif diperlukan; perangkat telah dinonaktifkan."},403);
   }
