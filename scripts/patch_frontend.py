@@ -434,7 +434,7 @@ if 'id="ritelMt5PairButton"' not in html:
     marker = '  <div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
     if marker not in html:
         raise SystemExit("MT5 mode cards anchor not found; refusing to inject pairing UI")
-    html = html.replace(marker, pairing_card + "\\n" + marker, 1)
+    html = html.replace(marker, pairing_card + "\n" + marker, 1)
 
 pairing_js = r"""
 function updateRitelMt5Profile(){
