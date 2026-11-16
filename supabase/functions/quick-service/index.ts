@@ -185,20 +185,46 @@ function parseJsonText(raw: string): AnyRecord {
   return JSON.parse(cleaned.slice(start, end + 1));
 }
 
+function macroSeriesForEvent(event: AnyRecord): string[] {
+  const name = String(event.name || '').toLowerCase();
+  if (/nfp|non.?farm|employment situation|payroll|unemployment/.test(name)) return ['PAYEMS', 'UNRATE'];
+  if (/consumer price|\\bcpi\\b/.test(name)) return ['CPIAUCSL', 'CPILFESL'];
+  if (/producer price|\\bppi\\b/.test(name)) return ['PPIACO', 'PPIFIS'];
+  if (/pce|personal consumption/.test(name)) return ['PCEPI', 'PCEPILFE'];
+  if (/fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(name)) return ['FEDFUNDS', 'DGS10'];
+  if (/retail sales/.test(name)) return ['RSAFS'];
+  if (/gdp|gross domestic/.test(name)) return ['GDP'];
+  return [];
+}
+async function fetchFredHistory(seriesId: string): Promise<AnyRecord> {
+  const response = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + encodeURIComponent(seriesId), { headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(7000) });
+  if (!response.ok) throw new Error('FRED HTTP ' + response.status);
+  const csv = await response.text();
+  const rows = csv.trim().split(/\\r?\\n/).slice(1).filter((line) => line && !line.endsWith(',.'));
+  const observations = rows.slice(-8).map((line) => { const cells = line.split(','); return { date: cells[0], value: cells.slice(1).join(',') }; }).filter((row) => row.value && row.value !== '.');
+  return { series: seriesId, observations };
+}
+async function getHistoricalMacroContext(event: AnyRecord): Promise<AnyRecord[]> {
+  const results = await Promise.allSettled(macroSeriesForEvent(event).map((id) => fetchFredHistory(id)));
+  return results.filter((r) => r.status === 'fulfilled').map((r: any) => r.value);
+}
 async function analyzeEventBatch(events: AnyRecord[]) {
   const apiKey = Deno.env.get("OPENAI_API_KEY");
   if (!apiKey) return { events, error: "OPENAI_API_KEY belum dikonfigurasi di Supabase Edge Function Secrets." };
   if (!events.length) return { events, error: null };
 
-  const selected = events.map((event) => ({
+  const now = Date.now();
+  const historical = await Promise.all(events.map((event) => getHistoricalMacroContext(event)));
+  const selected = events.map((event, index) => ({
     id: event.id, name: event.name, countryCode: event.countryCode, currency: event.currency,
     time: event.time, timeMode: event.timeMode, importance: event.importance,
     analysisWindow: analysisWindowLabel(eventAnalysisPhase(event, Date.now())),
     unit: event.unit, actual: event.actual, forecast: event.forecast,
     previous: event.previous, revisedPrevious: event.revisedPrevious,
+    historicalMacroContext: historical[index],
   }));
   const prompt = `Anda analis makroekonomi dan dampak pasar. Tahap analisis ditentukan oleh analysisWindow pada setiap agenda. Pada H-7/H-3 buat bias awal yang konservatif dan sebutkan data yang masih ditunggu; pada H-1/1 jam/30 menit perbarui berdasarkan data aktual yang tersedia dan risiko menjelang rilis; saat agenda berlangsung atau baru dirilis prioritaskan actual vs forecast dan perubahan ekspektasi suku bunga; pada evaluasi 15 menit/1 jam/4 jam jelaskan reaksi pasar yang benar-benar tersedia. Jangan mengklaim membaca pidato atau reaksi harga jika sumbernya tidak disediakan. Analisis SETIAP agenda berikut secara terpisah untuk ENAM instrumen: XAUUSD, BTCUSD, EURUSD, GBPUSD, USDJPY, US30.
-Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika data penting kosong atau hubungan instrumen tidak cukup kuat, pilih WAIT dan jelaskan data apa yang kurang.
+Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Gunakan historicalMacroContext dari FRED sebagai konteks tren historis resmi (observasi terakhir, bukan data konsensus). Bandingkan pola rilis sebelumnya jika konteksnya cukup dan jelaskan keterbatasannya. Jangan menyebut nilai historis sebagai forecast konsensus. Jika forecast tidak tersedia, buat tiga skenario bersyarat lebih tinggi, sesuai, dan lebih rendah dari ekspektasi pasar yang belum diketahui; tandai konsensus tidak tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika data penting kosong atau hubungan instrumen tidak cukup kuat, pilih WAIT dan jelaskan data apa yang kurang.
 Untuk SETIAP instrumen berikan bias BUY, SELL, atau WAIT; buyPct, sellPct, waitPct dengan jumlah tepat 100; confidence 0-100 yang terpisah dari skor skenario; dan reason yang menyebut faktor data serta transmisi pasar. Jangan menyamakan arah USD dengan arah emas/crypto. Persentase adalah skor skenario model, BUKAN probabilitas profit, win rate, atau jaminan hasil. Jangan memberi angka sama untuk semua aset. Bila ragu, WAIT lebih baik daripada sinyal palsu.
 Berikan summaryBias, reason makro, dan dataStatus PRE_RELEASE, RELEASED, atau INSUFFICIENT_DATA.
 Balas JSON murni: {"items":[{"id":"id-event","summaryBias":"BULLISH|BEARISH|NEUTRAL","reason":"alasan makro dan skenario bersyarat","dataStatus":"PRE_RELEASE|RELEASED|INSUFFICIENT_DATA","impacts":[{"symbol":"XAUUSD","bias":"BUY|SELL|WAIT","buyPct":40,"sellPct":35,"waitPct":25,"confidence":65,"reason":"alasan spesifik aset"}]}]}. Setiap event wajib memuat keenam instrumen tepat satu kali.
