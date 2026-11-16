@@ -415,8 +415,8 @@ p.write_text(html, encoding="utf-8")
 print("RitelAI Enterprise MT5 modes panel applied; execution remains explicitly disabled until EA bridge is installed and demo-tested.")
 
 
-// RitelAI MT5 pairing UI. This creates a one-time DEMO pairing code via the
-// authenticated Edge Function; it does not create orders or enable trading.
+# RitelAI MT5 pairing UI. This creates a one-time DEMO pairing code via the
+# authenticated Edge Function; it does not create orders or enable trading.
 html = p.read_text(encoding="utf-8")
 pairing_card = '''
   <div class="glass rounded-xl p-4 mt-4 border border-cyan-800/60">
