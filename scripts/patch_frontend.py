@@ -420,14 +420,14 @@ print("RitelAI Enterprise MT5 modes panel applied; execution remains explicitly 
 html = p.read_text(encoding="utf-8")
 pairing_card = '''
   <div class="glass rounded-xl p-4 mt-4 border border-cyan-800/60">
-   <div class="flex items-center justify-between gap-2"><b class="text-sm">Hubungkan terminal MT5 demo</b><span class="pill text-amber-200">Pairing saja · tanpa transaksi</span></div>
-   <p class="muted text-xs mt-2">Buat kode sekali pakai untuk menghubungkan EA RitelAI ke akun demo. Jangan pernah memasukkan password broker di sini.</p>
+   <div class="flex items-center justify-between gap-2"><b class="text-sm">Hubungkan terminal MT5 demo</b><span class="pill text-violet-200">Khusus paket Enterprise</span></div>
+   <p class="muted text-xs mt-2">Fitur eksklusif pelanggan Enterprise aktif. Paket di bawah Enterprise akan terkunci dan tidak dapat membuat pairing MT5. Pairing hanya untuk akun demo; jangan pernah memasukkan password broker di sini.</p>
    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
     <div><label class="muted text-[11px] block mb-1">Broker</label><select id="ritelMt5Broker" class="field" onchange="updateRitelMt5Profile()"><option value="EXNESS">Exness</option><option value="VERSUS_TRADE">Versus Trade</option></select></div>
     <div><label class="muted text-[11px] block mb-1">Jenis akun demo</label><select id="ritelMt5Profile" class="field"><option value="STANDARD_CENT">Standard Cent</option></select></div>
    </div>
    <button id="ritelMt5PairButton" class="btn primary mt-3" onclick="createRitelMt5PairingCode()">Buat kode pairing</button>
-   <div id="ritelMt5PairResult" class="mt-3" aria-live="polite"><p class="muted text-[10px]">Kode hanya berlaku 10 menit dan hanya dapat digunakan sekali.</p></div>
+   <div id="ritelMt5PairResult" class="mt-3" aria-live="polite"><p class="muted text-[10px]">Akses Enterprise diperlukan. Kode berlaku 10 menit dan hanya dapat digunakan sekali.</p></div>
   </div>
 '''
 if 'id="ritelMt5PairButton"' not in html:
@@ -445,7 +445,7 @@ function updateRitelMt5Profile(){
 async function createRitelMt5PairingCode(){
  const button=document.getElementById('ritelMt5PairButton'),out=document.getElementById('ritelMt5PairResult');
  if(!button||!out)return;
- button.disabled=true;button.textContent='Membuat kode...';out.textContent='Memeriksa sesi dan paket Enterprise...';
+ button.disabled=true;button.textContent='Membuat kode...';out.textContent='Memeriksa sesi dan hak paket Enterprise...';
  try{
   const {data:sessionData,error:sessionError}=await supabaseClient.auth.getSession();
   if(sessionError)throw sessionError;
@@ -454,7 +454,8 @@ async function createRitelMt5PairingCode(){
   const account_profile=document.getElementById('ritelMt5Profile').value;
   const {data,error}=await supabaseClient.functions.invoke('mt5-bridge',{body:{action:'create_pairing_code',broker,account_profile}});
   if(error)throw error;
-  if(!data?.pairing_code)throw new Error(data?.error||'Kode pairing tidak diterima dari server.');
+  if(data?.error)throw new Error(data.error);
+  if(!data?.pairing_code)throw new Error('Kode pairing tidak diterima dari server.');
   const code=String(data.pairing_code);
   out.innerHTML='<div class="rounded-xl border border-emerald-800 bg-slate-950 p-3"><div class="text-[10px] text-emerald-300 font-bold tracking-widest">KODE PAIRING DEMO · SEKALI PAKAI</div><div id="ritelMt5PairCode" class="text-2xl font-extrabold tracking-[.18em] mt-2">'+escapeHtml(code)+'</div><button class="btn border border-slate-600 mt-2" onclick="navigator.clipboard?.writeText(document.getElementById(\'ritelMt5PairCode\')?.textContent||\'\')">Salin kode</button><p class="muted text-[10px] mt-2">Berlaku '+Math.floor(Number(data.expires_in_seconds||600)/60)+' menit. Masukkan ke input Pairing Code pada EA MT5 DEMO. Jangan kirim kode ini kepada orang lain.</p></div>';
  }catch(e){
