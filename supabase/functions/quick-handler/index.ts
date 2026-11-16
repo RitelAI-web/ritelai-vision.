@@ -33,6 +33,7 @@ function scenarioOrFallback(value: unknown, side: "BUY" | "SELL", levels: Record
   entry_condition: String(s.entry_condition || "Entry hanya setelah konfirmasi; jika level dan harga tidak terbaca, jangan entry."),
   invalidation: String(s.invalidation || "Batalkan skenario jika candle close menembus zona invalidasi; level numerik hanya digunakan bila terbaca pada chart."),
   rationale: String(s.rationale || "Skenario bersyarat untuk menjaga rencana dua arah tetap tersedia; bukan sinyal entry aktif.")
+ };
 }
 
 Deno.serve(async(req)=>{
