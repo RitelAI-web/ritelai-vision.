@@ -127,7 +127,7 @@ customer_settings = r"""
 </div>
 <button id="customerSettingsToggle" class="btn border border-slate-700 w-full mt-3" onclick="toggleCustomerSettings()">Pengaturan akun</button>
 """;
- signed_in_anchor = '<div id="signedInRole" class="text-xs cyan mt-1">Customer</div>'
+signed_in_anchor = '<div id="signedInRole" class="text-xs cyan mt-1">Customer</div>'
 if 'id="customerSettingsToggle"' not in html:
     html = html.replace(signed_in_anchor, signed_in_anchor + customer_settings, 1)
 
