@@ -207,7 +207,7 @@ EVENTS=${JSON.stringify(selected)}`;
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 12000 }),
-    signal: AbortSignal.timeout(45000),
+    signal: AbortSignal.timeout(15000),
   });
   const raw = await response.text();
   let data: AnyRecord;
