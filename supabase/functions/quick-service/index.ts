@@ -1,5 +1,4 @@
 // RitelAI Vision — public Market Intelligence Edge Function
-declare const Deno: { env: { get(name: string): string | undefined }; serve(handler: (request: Request) => Response | Promise<Response>): void };
 // Deploy as the existing Supabase function named: quick-service
 // Public read-only endpoint: keep all secrets on the server, never in HTML.
 
