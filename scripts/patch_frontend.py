@@ -134,38 +134,47 @@ if "loadRitelMacroCalendar();" not in html[html.rfind("window.addEventListener('
 
 settings_panel = '''
  <section id="tab-settings" class="panel">
-  <div class="mb-4"><div class="text-[10px] tracking-widest text-cyan-300 font-bold">PREFERENSI APLIKASI</div><h2 class="text-xl font-extrabold">Pengaturan</h2><p class="muted text-xs mt-1">Atur preferensi analisis dan tampilan. Pengaturan tersimpan pada browser/perangkat ini.</p></div>
-  <div class="grid lg:grid-cols-2 gap-4">
+  <div class="glass rounded-2xl p-5 mb-4">
+   <div class="text-[10px] tracking-widest text-cyan-300 font-bold">AKUN & PENGALAMAN</div>
+   <h2 id="settingsGreeting" class="text-2xl font-extrabold mt-2">Halo, selamat datang 👋</h2>
+   <p id="settingsRole" class="muted text-xs mt-1">Memuat informasi akun...</p>
+   <p class="muted text-xs mt-3">Semua pengaturan akun, keamanan, dan pengalaman RitelAI Vision dalam satu tempat.</p>
+  </div>
+  <div class="space-y-4">
    <div class="glass rounded-2xl p-4">
-    <h3 class="font-bold text-sm mb-3">Default analisis</h3>
-    <label class="text-[11px] muted block mb-1">Timeframe pilihan</label>
-    <select id="prefTimeframe" class="field mb-3"><option>M5</option><option>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option></select>
+    <h3 class="font-bold text-sm mb-3">Informasi pribadi</h3>
+    <label class="text-[11px] muted block mb-1">Nama tampilan</label><input id="profileDisplayName" class="field mb-3" maxlength="60" placeholder="Nama yang ingin ditampilkan">
+    <label class="text-[11px] muted block mb-1">Alamat email</label><input id="profileEmail" type="email" class="field mb-2" disabled>
+    <div class="flex flex-wrap gap-2 items-center"><span id="profileEmailStatus" class="pill text-amber-200">Memeriksa status email...</span><button id="profileResendVerification" class="btn border border-cyan-700 text-cyan-200 text-xs" onclick="resendRitelVerification()">Kirim ulang verifikasi</button></div>
+    <p class="muted text-[10px] mt-2">Email login dikelola oleh sistem autentikasi. Perubahan email, jika diaktifkan, memerlukan konfirmasi email baru.</p>
+    <button class="btn primary mt-3" onclick="saveRitelProfile()">Simpan nama</button>
+    <p id="profileSaveNote" class="muted text-[10px] mt-2"></p>
+   </div>
+   <div class="glass rounded-2xl p-4">
+    <h3 class="font-bold text-sm mb-3">Keamanan akun</h3>
+    <label class="text-[11px] muted block mb-1">Password baru</label><input id="profileNewPassword" type="password" class="field mb-2" minlength="8" autocomplete="new-password" placeholder="Minimal 8 karakter">
+    <button class="btn border border-cyan-700 text-cyan-200" onclick="changeRitelPassword()">Perbarui password</button>
+    <p class="muted text-[10px] mt-2">Jangan bagikan password atau kode verifikasi kepada siapa pun.</p>
+    <p id="securitySaveNote" class="muted text-[10px] mt-2"></p>
+   </div>
+   <div class="glass rounded-2xl p-4">
+    <h3 class="font-bold text-sm mb-3">Pengalaman analisis</h3>
+    <label class="text-[11px] muted block mb-1">Timeframe default</label><select id="prefTimeframe" class="field mb-3"><option>M5</option><option>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option></select>
     <label class="text-[11px] muted block mb-1">Modal akun default (USD)</label><input id="prefBalance" type="number" min="0" class="field mb-3" value="1000">
     <label class="text-[11px] muted block mb-1">Risiko default per transaksi (%)</label><input id="prefRisk" type="number" min="0.1" max="2" step="0.1" class="field mb-3" value="1">
-    <div class="flex gap-2 flex-wrap"><button class="btn primary" onclick="saveRitelSettings()">Simpan pengaturan</button><button class="btn border border-slate-600" onclick="resetRitelSettings()">Pulihkan default</button></div>
-    <p id="settingsSaveNote" class="muted text-[10px] mt-3">Belum ada perubahan tersimpan.</p>
+    <div class="flex gap-2 flex-wrap"><button class="btn primary" onclick="saveRitelSettings()">Simpan pengalaman</button><button class="btn border border-slate-600" onclick="resetRitelSettings()">Pulihkan default</button></div>
+    <p id="settingsSaveNote" class="muted text-[10px] mt-2">Preferensi disimpan pada perangkat ini.</p>
+   </div>
+   <div id="settingsAdminAccess" class="glass rounded-2xl p-4" hidden>
+    <h3 class="font-bold text-sm mb-2">Akses Owner / Admin</h3>
+    <p class="muted text-xs">Panel administrasi hanya ditampilkan untuk akun yang memiliki role resmi dari sistem.</p>
+    <button class="btn border border-cyan-700 text-cyan-200 mt-3" onclick="showAdmin()">Buka Dashboard Admin</button>
    </div>
    <div class="glass rounded-2xl p-4">
-    <h3 class="font-bold text-sm mb-2">Checklist indikator pilihan</h3>
-    <p class="muted text-[10px] mb-3">Checklist ini menyimpan preferensi pribadi. Belum mengaktifkan/menonaktifkan perhitungan indikator pada server AI.</p>
-    <div class="grid grid-cols-2 gap-3 text-xs">
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="EMA 9/20/50/200"> EMA 9/20/50/200</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="Parabolic SAR"> Parabolic SAR</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="RSI 14"> RSI 14</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="MACD"> MACD</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="ADX/DMI"> ADX/DMI</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="Bollinger Bands"> Bollinger Bands</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="VWAP"> VWAP</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="Stochastic RSI"> Stochastic RSI</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="ATR"> ATR</label>
-     <label class="flex gap-2 items-center"><input type="checkbox" class="pref-indicator" value="Volume"> Volume</label>
-    </div>
-   </div>
-   <div class="glass rounded-2xl p-4 lg:col-span-2">
-    <h3 class="font-bold text-sm mb-2">Administrasi & layanan</h3>
-    <p class="muted text-xs">Pengelolaan pengguna, paket, pembayaran manual, dan pengumuman tersedia di Dashboard Admin setelah masuk dengan akun berizin Owner/Admin.</p>
-    <button class="btn border border-cyan-700 text-cyan-200 mt-3" onclick="showAdmin()"><i class="fa-solid fa-user-shield mr-1"></i>Buka Dashboard Admin</button>
-    <p class="muted text-[10px] mt-2">Kunci API, role Owner, dan konfigurasi backend tidak disimpan di browser. Perubahan tersebut harus dilakukan melalui Supabase/server dengan hak akses yang sesuai.</p>
+    <h3 class="font-bold text-sm mb-2">Bantuan & preferensi</h3>
+    <p class="muted text-xs">Pengaturan profil dan keamanan mengikuti status autentikasi. Preferensi analisis tersimpan di browser/perangkat ini.</p>
+    <button class="btn border border-slate-600 mt-3" onclick="signOutRitelAccount()">Keluar dari akun</button>
+    <p id="accountActionNote" class="muted text-[10px] mt-2"></p>
    </div>
   </div>
  </section>
@@ -180,34 +189,61 @@ if 'id="tab-settings"' not in html:
         raise SystemExit("No safe insertion point for settings panel")
 
 settings_js = '''
-function readRitelSettings(){
- try{return JSON.parse(localStorage.getItem('ritelai.userSettings')||'{}')}catch(_){return {}}
+let ritelSettingsUser=null;
+function readRitelSettings(){try{return JSON.parse(localStorage.getItem('ritelai.userSettings')||'{}')}catch(_){return {}}}
+async function loadRitelAccountSettings(){
+ const greeting=document.getElementById('settingsGreeting'),roleLine=document.getElementById('settingsRole');
+ try{
+  const {data,error}=await supabaseClient.auth.getUser();if(error)throw error;
+  const user=data?.user;ritelSettingsUser=user;
+  if(!user){if(greeting)greeting.textContent='Halo, selamat datang 👋';if(roleLine)roleLine.textContent='Kamu belum masuk ke akun.';return;}
+  const meta=user.user_metadata||{},app=user.app_metadata||{};
+  const display=meta.full_name||meta.name||meta.display_name||user.email?.split('@')[0]||'Pengguna';
+  const role=String(app.role||meta.role||'user').toLowerCase();
+  const isOwner=['owner','super_admin','superadmin'].includes(role)||String(meta.login_id||'').toLowerCase()==='ritelai';
+  const isAdmin=isOwner||role==='admin';
+  if(greeting)greeting.textContent='Halo, '+(isOwner?'Owner':display)+' 👋';
+  if(roleLine)roleLine.textContent=(isOwner?'Owner':isAdmin?'Admin':'Akun pengguna')+' · '+(user.email||'Email tidak tersedia');
+  const name=document.getElementById('profileDisplayName'),email=document.getElementById('profileEmail'),status=document.getElementById('profileEmailStatus'),resend=document.getElementById('profileResendVerification');
+  if(name)name.value=meta.full_name||meta.name||meta.display_name||'';
+  if(email)email.value=user.email||'';
+  const verified=Boolean(user.email_confirmed_at||user.confirmed_at);
+  if(status){status.textContent=verified?'Email terverifikasi':'Email belum terverifikasi';status.className='pill '+(verified?'text-emerald-300':'text-amber-200');}
+  if(resend)resend.hidden=verified;
+  const admin=document.getElementById('settingsAdminAccess');if(admin)admin.hidden=!isAdmin;
+ }catch(e){if(greeting)greeting.textContent='Halo, selamat datang 👋';if(roleLine)roleLine.textContent='Informasi akun belum dapat dimuat: '+(e.message||e);}
+}
+async function saveRitelProfile(){
+ const note=document.getElementById('profileSaveNote'),name=String(document.getElementById('profileDisplayName')?.value||'').trim();
+ if(!name){if(note)note.textContent='Nama tampilan tidak boleh kosong.';return;}
+ try{const {data,error}=await supabaseClient.auth.updateUser({data:{full_name:name}});if(error)throw error;ritelSettingsUser=data?.user||ritelSettingsUser;if(note)note.textContent='Nama tampilan berhasil diperbarui.';await loadRitelAccountSettings();}
+ catch(e){if(note)note.textContent='Gagal menyimpan nama: '+(e.message||e);}
+}
+async function resendRitelVerification(){
+ const note=document.getElementById('profileSaveNote');try{const email=ritelSettingsUser?.email;if(!email)throw new Error('Email akun tidak ditemukan.');const {error}=await supabaseClient.auth.resend({type:'signup',email});if(error)throw error;if(note)note.textContent='Permintaan verifikasi dikirim. Periksa inbox dan folder spam.';}
+ catch(e){if(note)note.textContent='Gagal mengirim verifikasi: '+(e.message||e);}
+}
+async function changeRitelPassword(){
+ const note=document.getElementById('securitySaveNote'),password=document.getElementById('profileNewPassword')?.value||'';
+ if(password.length<8){if(note)note.textContent='Password minimal 8 karakter.';return;}
+ try{const {error}=await supabaseClient.auth.updateUser({password});if(error)throw error;document.getElementById('profileNewPassword').value='';if(note)note.textContent='Password berhasil diperbarui.';}
+ catch(e){if(note)note.textContent='Gagal memperbarui password: '+(e.message||e);}
+}
+async function signOutRitelAccount(){
+ const note=document.getElementById('accountActionNote');try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;if(note)note.textContent='Kamu sudah keluar. Memuat ulang halaman...';setTimeout(()=>location.reload(),500);}
+ catch(e){if(note)note.textContent='Gagal keluar: '+(e.message||e);}
 }
 function applyRitelSettings(){
- const s=readRitelSettings();
- const tf=document.getElementById('prefTimeframe'), bal=document.getElementById('prefBalance'), risk=document.getElementById('prefRisk');
- if(tf&&s.timeframe)tf.value=s.timeframe;
- if(bal&&s.balance!=null)bal.value=s.balance;
- if(risk&&s.risk!=null)risk.value=s.risk;
- document.querySelectorAll('.pref-indicator').forEach(x=>x.checked=Array.isArray(s.indicators)?s.indicators.includes(x.value):true);
- const liveTf=document.getElementById('timeframe'), liveBal=document.getElementById('balance'), liveRisk=document.getElementById('risk');
- if(liveTf&&s.timeframe)liveTf.value=s.timeframe;
- if(liveBal&&s.balance!=null)liveBal.value=s.balance;
- if(liveRisk&&s.risk!=null)liveRisk.value=s.risk;
+ const s=readRitelSettings(),tf=document.getElementById('prefTimeframe'),bal=document.getElementById('prefBalance'),risk=document.getElementById('prefRisk');
+ if(tf&&s.timeframe)tf.value=s.timeframe;if(bal&&s.balance!=null)bal.value=s.balance;if(risk&&s.risk!=null)risk.value=s.risk;
+ const liveTf=document.getElementById('timeframe'),liveBal=document.getElementById('balance'),liveRisk=document.getElementById('risk');
+ if(liveTf&&s.timeframe)liveTf.value=s.timeframe;if(liveBal&&s.balance!=null)liveBal.value=s.balance;if(liveRisk&&s.risk!=null)liveRisk.value=s.risk;
 }
 function saveRitelSettings(){
- const s={timeframe:document.getElementById('prefTimeframe').value,balance:Math.max(0,Number(document.getElementById('prefBalance').value)||0),risk:Math.min(2,Math.max(.1,Number(document.getElementById('prefRisk').value)||1)),indicators:[...document.querySelectorAll('.pref-indicator:checked')].map(x=>x.value)};
- try{localStorage.setItem('ritelai.userSettings',JSON.stringify(s));applyRitelSettings();document.getElementById('settingsSaveNote').textContent='Tersimpan pada perangkat ini. Preferensi default analisis telah diterapkan.';toast('Pengaturan berhasil disimpan.')}catch(e){toast('Tidak dapat menyimpan pengaturan pada browser ini.')}
+ const s={timeframe:document.getElementById('prefTimeframe').value,balance:Math.max(0,Number(document.getElementById('prefBalance').value)||0),risk:Math.min(2,Math.max(.1,Number(document.getElementById('prefRisk').value)||1))};
+ try{localStorage.setItem('ritelai.userSettings',JSON.stringify(s));applyRitelSettings();document.getElementById('settingsSaveNote').textContent='Preferensi pengalaman berhasil disimpan pada perangkat ini.';toast('Pengaturan berhasil disimpan.');}catch(e){toast('Tidak dapat menyimpan pengaturan pada browser ini.');}
 }
-function resetRitelSettings(){
- try{localStorage.removeItem('ritelai.userSettings')}catch(_){}
- const tf=document.getElementById('prefTimeframe'),bal=document.getElementById('prefBalance'),risk=document.getElementById('prefRisk');
- if(tf)tf.value='M15';if(bal)bal.value='1000';if(risk)risk.value='1';
- document.querySelectorAll('.pref-indicator').forEach(x=>x.checked=true);
- const liveTf=document.getElementById('timeframe'),liveBal=document.getElementById('balance'),liveRisk=document.getElementById('risk');
- if(liveTf)liveTf.value='M15';if(liveBal)liveBal.value='1000';if(liveRisk)liveRisk.value='1';
- document.getElementById('settingsSaveNote').textContent='Default awal dipulihkan.';toast('Pengaturan dipulihkan ke default.');
-}
+function resetRitelSettings(){try{localStorage.removeItem('ritelai.userSettings')}catch(_){};const tf=document.getElementById('prefTimeframe'),bal=document.getElementById('prefBalance'),risk=document.getElementById('prefRisk');if(tf)tf.value='M15';if(bal)bal.value='1000';if(risk)risk.value='1';const lt=document.getElementById('timeframe'),lb=document.getElementById('balance'),lr=document.getElementById('risk');if(lt)lt.value='M15';if(lb)lb.value='1000';if(lr)lr.value='1';document.getElementById('settingsSaveNote').textContent='Pengaturan default dipulihkan.';}
 '''
 if 'function saveRitelSettings()' not in html:
     js_anchor = 'function showTab(name,btn)'
