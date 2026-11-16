@@ -84,5 +84,51 @@ scenario_panel = '''
 if summary_anchor in html and 'RENCANA BERSYARAT — TUNGGU KONFIRMASI' not in html:
     html = html.replace(summary_anchor, summary_anchor + '\n' + scenario_panel, 1)
 
+
+# Require an authenticated customer account before the workspace can be used.
+# The existing Supabase sign-up/sign-in form remains the only entry point.
+auth_gate = r"""
+<script id="ritelai-beta-auth-gate">
+(function(){
+ const originalRefreshAuth=refreshAuth;
+ refreshAuth=async function(){
+  await originalRefreshAuth();
+  const modal=document.getElementById('accountModal');
+  if(!modal)return;
+  if(currentUser){modal.classList.add('hidden');modal.classList.remove('flex');}
+  else{modal.classList.remove('hidden');modal.classList.add('flex');}
+ };
+ const originalCloseModal=closeModal;
+ closeModal=function(id){
+  if(id==='accountModal'&&!currentUser){
+   authMessage('Silakan masuk atau daftar untuk mengakses RitelAI Vision Beta.',true);
+   return;
+  }
+  return originalCloseModal(id);
+ };
+ const originalShowTab=showTab;
+ showTab=function(name,btn){
+  if(!currentUser){openModal('accountModal');authMessage('Login atau daftar terlebih dahulu untuk menggunakan fitur Beta.',true);return;}
+  return originalShowTab(name,btn);
+ };
+ const originalSignOut=signOut;
+ signOut=async function(){
+  await originalSignOut();
+  openModal('accountModal');
+  authMessage('Sesi berakhir. Masuk kembali untuk mengakses Beta.');
+ };
+ document.addEventListener('DOMContentLoaded',function(){
+  if(!currentUser){
+   const modal=document.getElementById('accountModal');
+   if(modal){modal.classList.remove('hidden');modal.classList.add('flex');}
+   authMessage('Akses Beta memerlukan akun. Silakan masuk atau daftar.',false);
+  }
+ });
+})();
+</script>
+"""
+if 'id="ritelai-beta-auth-gate"' not in html:
+    html = html.replace('</body>', auth_gate + '\\n</body>', 1)
+
 p.write_text(html, encoding="utf-8")
 print("Patched universal instrument selector:", sum(map(len, options.values())), "instruments")
