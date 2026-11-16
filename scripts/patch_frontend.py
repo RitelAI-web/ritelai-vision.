@@ -151,7 +151,7 @@ async function loadNewsForAnalysis(symbol){
 if 'async function loadNewsForAnalysis(symbol)' not in html:
     anchor='function requestAnalysis(){'
     if anchor not in html: raise SystemExit("Analysis function not found in source HTML")
-    html=html.replace(anchor,news_js+'\\n'+anchor,1)
+    html=html.replace(anchor,news_js+"\n"+anchor,1)
 render_anchor='   const putSummary=(id,value)=>'
 render_add="""   const newsPanel=document.createElement('div');newsPanel.id='analysisNewsIntel';newsPanel.className='mt-4 text-left rounded-xl border border-cyan-900/60 bg-slate-950/60 p-4';newsPanel.innerHTML='<p class="muted text-xs">Memuat berita relevan...</p>';resultBox.appendChild(newsPanel);await loadNewsForAnalysis(document.getElementById('asset').value);
 """
