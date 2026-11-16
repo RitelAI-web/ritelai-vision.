@@ -426,12 +426,22 @@ Deno.serve(async (request: Request) => {
   let body: AnyRecord;
   try { body = await request.json(); }
   catch { return reply({ status: "error", error: "Body request harus berupa JSON." }, 400); }
+  if (body?.action === "market_quotes") {
+    const requested = String(body?.symbol || "XAUUSD").toUpperCase();
+    if (!SYMBOLS.includes(requested as SymbolKey)) return reply({ status: "error", error: "Instrumen belum didukung feed live." }, 400);
+    try {
+      const quote = await getTick(requested as SymbolKey);
+      return reply({ status: "ok", generatedAt: new Date().toISOString(), quote, source: quote.source, disclaimer: "Tick dari feed pihak ketiga, bukan harga broker pengguna. Interval polling bukan jaminan frekuensi tick." });
+    } catch (error) {
+      return reply({ status: "ok", generatedAt: new Date().toISOString(), quote: null, statusLabel: "STALE", error: messageOf(error), disclaimer: "Harga tidak tersedia; jangan gunakan snapshot lama untuk entry." });
+    }
+  }
   if (body?.action === "market_news") {
     try { return reply({ status: "ok", source: "Google News RSS", generatedAt: new Date().toISOString(), ...await getMarketNews() }); }
     catch (error) { return reply({ status: "ok", source: "Google News RSS", items: NEWS_CACHE.payload.items, errors: [messageOf(error)], cached: true }); }
   }
   if (body?.action !== "market_calendar") {
-    return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_calendar atau market_news." }, 400);
+    return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_quotes, market_calendar, atau market_news." }, 400);
   }
   if (CALENDAR_RESPONSE_CACHE.payload && Date.now() - CALENDAR_RESPONSE_CACHE.at < 30000) {
     return reply({ ...CALENDAR_RESPONSE_CACHE.payload, cached: true, cacheAgeMs: Date.now() - CALENDAR_RESPONSE_CACHE.at });
