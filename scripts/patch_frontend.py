@@ -223,10 +223,11 @@ html = html.replace(
 admin_visibility_guard = r"""
 <script id="ritelai-customer-admin-visibility">
 (function(){
+ function hideAdminControls(){document.querySelectorAll('button,a,[role="button"]').forEach(function(el){const label=(el.innerText||el.textContent||'').trim().replace(/\\s+/g,' ');if(['Admin','Admin Panel','Dashboard Admin'].includes(label))el.style.display='none';});}
  async function enforceAdminVisibility(){
   try{
-   if(!window.supabaseClient || !window.currentUser) return;
-   const {data,error}=await window.supabaseClient.from('profiles').select('role').eq('id',window.currentUser.id).maybeSingle();
+   if(typeof supabaseClient==='undefined' || typeof currentUser==='undefined' || !currentUser) { hideAdminControls(); return; }
+   const {data,error}=await supabaseClient.from('profiles').select('role').eq('id',currentUser.id).maybeSingle();
    const role=String(data&&data.role||'').toLowerCase();
    const allowed=!error&&['owner','admin','super_admin'].includes(role);
    document.querySelectorAll('button,a,[role="button"]').forEach(function(el){
@@ -245,8 +246,8 @@ admin_visibility_guard = r"""
  }
  document.addEventListener('DOMContentLoaded',function(){
   enforceAdminVisibility();
-  if(window.supabaseClient&&window.supabaseClient.auth){
-   window.supabaseClient.auth.onAuthStateChange(function(){setTimeout(enforceAdminVisibility,250);});
+  if(typeof supabaseClient!=='undefined' && supabaseClient.auth){
+   supabaseClient.auth.onAuthStateChange(function(){setTimeout(enforceAdminVisibility,250);});
   }
  });
  window.addEventListener('load',function(){setTimeout(enforceAdminVisibility,500);});
