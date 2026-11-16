@@ -44,7 +44,7 @@ nav_settings = '  <button class="navbtn" data-tab="settings" onclick="showTab(\'
 if 'data-tab="settings"' not in html:
     if nav_anchor not in html:
         raise SystemExit("Navigation anchor not found; refusing to inject settings into unknown layout")
-    html = html.replace(nav_anchor, nav_anchor + "\\n" + nav_settings, 1)
+    html = html.replace(nav_anchor, nav_anchor + "\n" + nav_settings, 1)
 
 settings_panel = '''
  <section id="tab-settings" class="panel">
@@ -88,7 +88,7 @@ if 'id="tab-settings"' not in html:
     admin_anchor = ' <section id="tab-admin" class="panel">'
     if admin_anchor not in html:
         raise SystemExit("Admin panel anchor not found; refusing to inject settings panel")
-    html = html.replace(admin_anchor, settings_panel + "\\n" + admin_anchor, 1)
+    html = html.replace(admin_anchor, settings_panel + "\n" + admin_anchor, 1)
 
 settings_js = '''
 function readRitelSettings(){
@@ -124,11 +124,11 @@ if 'function saveRitelSettings()' not in html:
     js_anchor = 'function showTab(name,btn)'
     if js_anchor not in html:
         raise SystemExit("Tab controller not found; refusing to inject settings behavior")
-    html = html.replace(js_anchor, settings_js + "\\n" + js_anchor, 1)
+    html = html.replace(js_anchor, settings_js + "\n" + js_anchor, 1)
 
 # Apply saved defaults after the page DOM exists.
 if "applyRitelSettings();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
-    html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\\n  applyRitelSettings();", 1)
+    html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\n  applyRitelSettings();", 1)
 
 p.write_text(html, encoding="utf-8")
 print("RitelAI frontend patch applied: market selector and persistent user settings screen.")
