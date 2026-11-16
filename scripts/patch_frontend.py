@@ -257,7 +257,7 @@ if 'function saveRitelSettings()' not in html:
 
 # Apply saved defaults after the page DOM exists.
 if "applyRitelSettings();" not in html[html.rfind("window.addEventListener('DOMContentLoaded'"):]:
-    html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\n  applyRitelSettings();", 1)
+    html = html.replace("  startMarketAutoRefresh();", "  startMarketAutoRefresh();\n  applyRitelSettings();\n  loadRitelAccountSettings();", 1)
 
 
 # Inject asset-aware headlines into the successful analysis result.
