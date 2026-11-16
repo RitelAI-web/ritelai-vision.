@@ -228,13 +228,23 @@ function macroSeriesForEvent(event: AnyRecord): string[] {
   if (/gdp|gross domestic/.test(name)) return ['GDP'];
   return [];
 }
+const FRED_HISTORY_CACHE = new Map<string, { at: number; value: AnyRecord }>();
 async function fetchFredHistory(seriesId: string): Promise<AnyRecord> {
-  const response = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + encodeURIComponent(seriesId), { headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(4000) });
-  if (!response.ok) throw new Error('FRED HTTP ' + response.status);
-  const csv = await response.text();
-  const rows = csv.trim().split(/\\r?\\n/).slice(1).filter((line) => line && !line.endsWith(',.'));
-  const observations = rows.slice(-8).map((line) => { const cells = line.split(','); return { date: cells[0], value: cells.slice(1).join(',') }; }).filter((row) => row.value && row.value !== '.');
-  return { series: seriesId, observations };
+  const cached = FRED_HISTORY_CACHE.get(seriesId);
+  if (cached && Date.now() - cached.at < 6 * 60 * 60 * 1000) return cached.value;
+  try {
+    const response = await fetch('https://fred.stlouisfed.org/graph/fredgraph.csv?id=' + encodeURIComponent(seriesId), { headers: { Accept: 'text/csv' }, signal: AbortSignal.timeout(2200) });
+    if (!response.ok) throw new Error('FRED HTTP ' + response.status);
+    const csv = await response.text();
+    const rows = csv.trim().split(/\\r?\\n/).slice(1).filter((line) => line && !line.endsWith(',.'));
+    const observations = rows.slice(-8).map((line) => { const cells = line.split(','); return { date: cells[0], value: cells.slice(1).join(',') }; }).filter((row) => row.value && row.value !== '.');
+    const value = { series: seriesId, observations };
+    FRED_HISTORY_CACHE.set(seriesId, { at: Date.now(), value });
+    return value;
+  } catch (error) {
+    if (cached) return { ...cached.value, stale: true };
+    throw error;
+  }
 }
 async function getHistoricalMacroContext(event: AnyRecord): Promise<AnyRecord[]> {
   const results = await Promise.allSettled(macroSeriesForEvent(event).map((id) => fetchFredHistory(id)));
@@ -264,8 +274,8 @@ EVENTS=${JSON.stringify(selected)}`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 5000 }),
-    signal: AbortSignal.timeout(12000),
+    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 2600 }),
+    signal: AbortSignal.timeout(9000),
   });
   const raw = await response.text();
   let data: AnyRecord;
