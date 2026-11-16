@@ -94,6 +94,43 @@ if summary_anchor in html and 'RENCANA BERSYARAT — TUNGGU KONFIRMASI' not in h
 
 # Require an authenticated customer account before the workspace can be used.
 # The existing Supabase sign-up/sign-in form remains the only entry point.
+
+# Customer settings: profile metadata and Supabase Auth security settings.
+customer_settings = r"""
+<div id="customerSettings" class="hidden mt-4 border-t border-slate-700 pt-4 space-y-3">
+ <div class="font-bold text-sm">Pengaturan akun</div>
+ <label class="block text-[11px] muted">Nama tampilan</label>
+ <input id="customerDisplayName" class="field" maxlength="80" placeholder="Nama kamu">
+ <label class="block text-[11px] muted">URL foto profil (opsional)</label>
+ <input id="customerAvatarUrl" class="field" type="url" placeholder="https://...">
+ <button class="btn primary w-full" onclick="saveCustomerProfile()">Simpan profil</button>
+ <div class="border-t border-slate-700 pt-3">
+  <div class="font-semibold text-xs mb-2">Keamanan akun</div>
+  <label class="block text-[11px] muted">Password baru (minimal 8 karakter)</label>
+  <input id="customerNewPassword" class="field" type="password" minlength="8" autocomplete="new-password" placeholder="Password baru">
+  <button class="btn border border-slate-700 w-full mt-2" onclick="changeCustomerPassword()">Ubah password</button>
+  <label class="block text-[11px] muted mt-3">Email baru</label>
+  <input id="customerNewEmail" class="field" type="email" autocomplete="email" placeholder="email-baru@contoh.com">
+  <button class="btn border border-slate-700 w-full mt-2" onclick="changeCustomerEmail()">Ubah email</button>
+  <p class="muted text-[10px] mt-2">Perubahan email mungkin memerlukan konfirmasi melalui email dari Supabase.</p>
+ </div>
+ <div class="border-t border-slate-700 pt-3">
+  <div class="font-semibold text-xs">Paket & pembayaran</div>
+  <p class="muted text-[11px] mt-1">Lihat paket dan alur pembayaran yang tersedia.</p>
+  <button class="btn border border-slate-700 w-full mt-2" onclick="openModal('plansModal')">Paket & langganan</button>
+ </div>
+ <div class="border-t border-slate-700 pt-3">
+  <div class="font-semibold text-xs">Bantuan</div>
+  <a class="text-cyan-300 text-xs" href="mailto:adilesmana1207@gmail.com">Hubungi bantuan RitelAI</a>
+ </div>
+ <p id="customerSettingsStatus" class="muted text-[11px]" role="status"></p>
+</div>
+<button id="customerSettingsToggle" class="btn border border-slate-700 w-full mt-3" onclick="toggleCustomerSettings()">Pengaturan akun</button>
+""";
+const signedInAnchor = '<div id="signedInRole" class="text-xs cyan mt-1">Customer</div>';
+if 'id="customerSettingsToggle"' not in html:
+    html = html.replace(signedInAnchor, signedInAnchor + customer_settings, 1)
+
 auth_gate = r"""
 <script id="ritelai-beta-auth-gate">
 (function(){
@@ -102,14 +139,16 @@ auth_gate = r"""
   await originalRefreshAuth();
   const modal=document.getElementById('accountModal');
   if(!modal)return;
-  if(currentUser){modal.classList.add('hidden');modal.classList.remove('flex');}
-  else{modal.classList.remove('hidden');modal.classList.add('flex');}
+  if(currentUser){
+   modal.classList.add('hidden');modal.classList.remove('flex');
+   const message=document.getElementById('authMessage');
+   if(message&&message.textContent.includes('Akses Beta memerlukan akun'))message.textContent='';
+  } else {modal.classList.remove('hidden');modal.classList.add('flex');}
  };
  const originalCloseModal=closeModal;
  closeModal=function(id){
   if(id==='accountModal'&&!currentUser){
-   authMessage('Silakan masuk atau daftar untuk mengakses RitelAI Vision Beta.',true);
-   return;
+   authMessage('Silakan masuk atau daftar untuk mengakses RitelAI Vision Beta.',true);return;
   }
   return originalCloseModal(id);
  };
@@ -119,18 +158,47 @@ auth_gate = r"""
   return originalShowTab(name,btn);
  };
  const originalSignOut=signOut;
- signOut=async function(){
-  await originalSignOut();
-  openModal('accountModal');
-  authMessage('Sesi berakhir. Masuk kembali untuk mengakses Beta.');
- };
- document.addEventListener('DOMContentLoaded',function(){
-  if(!currentUser){
-   const modal=document.getElementById('accountModal');
-   if(modal){modal.classList.remove('hidden');modal.classList.add('flex');}
-   authMessage('Akses Beta memerlukan akun. Silakan masuk atau daftar.',false);
+ signOut=async function(){await originalSignOut();openModal('accountModal');authMessage('Sesi berakhir. Masuk kembali untuk mengakses Beta.');};
+ window.toggleCustomerSettings=function(){
+  const panel=document.getElementById('customerSettings');
+  if(!panel)return;
+  const opening=panel.classList.contains('hidden');panel.classList.toggle('hidden');
+  if(opening&&currentUser){
+   const meta=currentUser.user_metadata||{};
+   document.getElementById('customerDisplayName').value=meta.full_name||meta.name||'';
+   document.getElementById('customerAvatarUrl').value=meta.avatar_url||'';
   }
- });
+ };
+ window.saveCustomerProfile=async function(){
+  const status=document.getElementById('customerSettingsStatus');
+  if(!currentUser||!supabaseClient){status.textContent='Sesi login tidak tersedia.';return;}
+  const full_name=document.getElementById('customerDisplayName').value.trim();
+  const avatar_url=document.getElementById('customerAvatarUrl').value.trim();
+  if(avatar_url&&!/^https:\/\/.+/i.test(avatar_url)){status.textContent='URL foto harus diawali https://';return;}
+  status.textContent='Menyimpan profil...';
+  const {data,error}=await supabaseClient.auth.updateUser({data:{full_name,avatar_url}});
+  if(error){status.textContent='Gagal menyimpan: '+error.message;return;}
+  currentUser=data.user||currentUser;status.textContent='Profil berhasil disimpan.';
+ };
+ window.changeCustomerPassword=async function(){
+  const status=document.getElementById('customerSettingsStatus'),password=document.getElementById('customerNewPassword').value;
+  if(!currentUser||!supabaseClient){status.textContent='Sesi login tidak tersedia.';return;}
+  if(password.length<8){status.textContent='Password minimal 8 karakter.';return;}
+  status.textContent='Memperbarui password...';
+  const {error}=await supabaseClient.auth.updateUser({password});
+  if(error){status.textContent='Gagal mengubah password: '+error.message;return;}
+  document.getElementById('customerNewPassword').value='';status.textContent='Password berhasil diperbarui.';
+ };
+ window.changeCustomerEmail=async function(){
+  const status=document.getElementById('customerSettingsStatus'),email=document.getElementById('customerNewEmail').value.trim();
+  if(!currentUser||!supabaseClient){status.textContent='Sesi login tidak tersedia.';return;}
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){status.textContent='Masukkan email yang valid.';return;}
+  status.textContent='Mengirim permintaan perubahan email...';
+  const {error}=await supabaseClient.auth.updateUser({email});
+  if(error){status.textContent='Gagal mengubah email: '+error.message;return;}
+  status.textContent='Permintaan perubahan email dikirim. Periksa email untuk konfirmasi.';
+ };
+ document.addEventListener('DOMContentLoaded',function(){refreshAuth().catch(function(){ });});
 })();
 </script>
 """
