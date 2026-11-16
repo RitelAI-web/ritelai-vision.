@@ -86,20 +86,39 @@ function macroCard(e){
  const surprise=e.actualVsForecast||"PENDING";
  return '<article class="glass rounded-2xl p-4 border border-slate-700"><div class="flex flex-wrap items-center justify-between gap-2"><div class="flex gap-2 items-center"><span class="pill text-cyan-200">'+macroSafe(e.currency||e.countryCode||"—")+'</span><span class="pill '+(imp.includes("HIGH")||imp==="3"?"text-rose-300":"text-amber-200")+'">'+macroSafe(imp||"IMPACT —")+'</span></div><span class="text-[10px] '+(status==="RELEASED"?"text-emerald-300":"text-cyan-200")+'">'+status+'</span></div><h3 class="font-bold mt-3">'+macroSafe(e.name||e.title||"Agenda ekonomi")+'</h3><p class="muted text-[11px] mt-1">'+macroTime(e.time||e.date||e.timestamp)+'</p><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Previous</div><b class="text-sm">'+macroSafe(previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Forecast</div><b class="text-sm">'+macroSafe(forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Actual</div><b class="text-sm '+(status==="RELEASED"?"text-emerald-300":"")+'">'+macroSafe(actual)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><div class="muted text-[10px]">Previous revised</div><b class="text-sm">'+macroSafe(revised)+'</b></div></div><div class="text-[10px] muted mt-2">Perbandingan: '+macroSafe(surprise)+' · Sumber: '+macroSafe(e.eventSource||e.source||"feed kalender")+'</div><div class="rounded-xl bg-slate-950/60 p-3 mt-3"><b class="text-xs text-cyan-200">Analisis dampak AI</b><p class="text-xs mt-2">'+macroSafe(aiText)+'</p>'+scores+'</div></article>';
 }
+let ritelMacroRefreshTimer=null,ritelMacroLoading=false,ritelMacroEvents=[];
+function ritelMacroRefreshDelay(){
+ const now=Date.now();
+ const near=ritelMacroEvents.some(e=>{const t=Date.parse(e.time||e.date||e.timestamp||"");return Number.isFinite(t)&&t>=now-15*60*1000&&t<=now+30*60*1000;});
+ return near?60*1000:5*60*1000;
+}
+function scheduleRitelMacroRefresh(){
+ if(ritelMacroRefreshTimer)clearTimeout(ritelMacroRefreshTimer);
+ const delay=ritelMacroRefreshDelay();
+ ritelMacroRefreshTimer=setTimeout(()=>{
+  if(document.visibilityState==="visible")loadRitelMacroCalendar();
+  else scheduleRitelMacroRefresh();
+ },delay);
+}
 async function loadRitelMacroCalendar(){
- const list=document.getElementById("ritelMacroCalendarList"),status=document.getElementById("macroCalendarStatus");if(!list)return;
- status.textContent="Memperbarui data...";
+ const list=document.getElementById("ritelMacroCalendarList"),status=document.getElementById("macroCalendarStatus");if(!list||ritelMacroLoading)return;
+ ritelMacroLoading=true;
+ status.textContent="Memperbarui otomatis...";
  try{
   const request=supabaseClient.functions.invoke("quick-service",{body:{action:"market_calendar",assets:["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30"]}});
   const timeout=new Promise((_,reject)=>setTimeout(()=>reject(new Error("Permintaan kalender melewati 25 detik. Periksa koneksi atau status Edge Function Supabase.")),25000));
   const {data,error}=await Promise.race([request,timeout]);
   if(error)throw error;
   const events=Array.isArray(data?.events)?data.events:[];
-  if(!events.length){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Feed belum mengirim agenda. Coba perbarui kembali.</div>';status.textContent="0 agenda";return;}
+  ritelMacroEvents=events;
+  if(!events.length){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Feed belum mengirim agenda. Coba perbarui kembali.</div>';status.textContent="0 agenda · pembaruan otomatis aktif";return;}
   list.innerHTML=events.map(macroCard).join("");
-  status.textContent=events.length+" agenda · diperbarui "+new Date().toLocaleTimeString("id-ID");
- }catch(err){list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Kalender belum dapat dimuat: '+macroSafe(err.message||err)+'</div>';status.textContent="Gagal memuat";}
+  const delay=ritelMacroRefreshDelay();
+  status.textContent=events.length+" agenda · diperbarui "+new Date().toLocaleTimeString("id-ID")+" · otomatis "+(delay<120000?"1 menit":"5 menit");
+ }catch(err){status.textContent="Gagal memuat · mencoba lagi otomatis";list.innerHTML='<div class="glass rounded-xl p-4 text-xs text-amber-200">Kalender belum dapat dimuat: '+macroSafe(err.message||err)+'</div>';}
+ finally{ritelMacroLoading=false;scheduleRitelMacroRefresh();}
 }
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){if(ritelMacroRefreshTimer)clearTimeout(ritelMacroRefreshTimer);loadRitelMacroCalendar();}});
 '''
 if 'function loadRitelMacroCalendar()' not in html:
     js_anchor = 'function readRitelSettings(){'
