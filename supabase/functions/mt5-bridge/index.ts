@@ -17,8 +17,9 @@ async function sha(value:string) {
   return hex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value))));
 }
 const clean = (v:any,n=100) => String(v??"").trim().slice(0,n);
-const validBroker = (v:string) => v==="EXNESS" || v==="VERSUS_TRADE";
-const validProfile = (b:string,p:string) => (b==="EXNESS"||b==="VERSUS_TRADE") && ["STANDARD_CENT","ZERO","PRO","STANDARD"].includes(p);
+// Broker names are normalized identifiers, not a hard-coded broker allowlist.
+const validBroker = (v:string) => /^[A-Z0-9_ -]{2,24}$/.test(v);
+const validProfile = (_b:string,p:string) => ["CENT","STANDARD_CENT","STANDARD","ZERO","RAW","PRO","ECN","ISLAMIC","OTHER"].includes(p);
 
 async function hasActiveEnterprise(admin:any,userId:string){
   const now=new Date().toISOString();
@@ -102,11 +103,12 @@ Deno.serve(async req=>{
     }
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
-      if(!validBroker(broker)||!validProfile(broker,profile)) return reply({error:"Profil akun demo tidak valid. Pilih Cent, Zero, Pro, atau Standard."},400);
+      const expectedDemo=body.is_demo!==false;
+      if(!validBroker(broker)||!validProfile(broker,profile)) return reply({error:"Broker atau tipe akun tidak valid."},400);
       const code=randomToken(6).toUpperCase();
-      const {error:insertErr}=await admin.from("mt5_pairing_codes").insert({user_id:userId,code_hash:await sha(code),broker,account_profile:profile,expected_demo:true,expires_at:new Date(Date.now()+10*60*1000).toISOString()});
+      const {error:insertErr}=await admin.from("mt5_pairing_codes").insert({user_id:userId,code_hash:await sha(code),broker,account_profile:profile,expected_demo:expectedDemo,expires_at:new Date(Date.now()+10*60*1000).toISOString()});
       if(insertErr) return reply({error:"Gagal membuat kode pairing."},500);
-      return reply({status:"ok",pairing_code:code,expires_in_seconds:600,instructions:"Masukkan kode ini satu kali ke EA RitelAI di MT5 demo. Kode tidak dapat digunakan ulang."});
+      return reply({status:"ok",pairing_code:code,expires_in_seconds:600,instructions:expectedDemo?"Masukkan kode ini satu kali ke terminal MT5 DEMO. Kode tidak dapat digunakan ulang.":"Masukkan kode ini satu kali ke terminal MT5 REAL. Pairing Real hanya mengaktifkan koneksi dan pemantauan; eksekusi order Real tetap terkunci sampai lulus validasi keamanan."});
     }
     if(action==="revoke_device"){
       const id=clean(body.device_id,64);
@@ -135,12 +137,12 @@ Deno.serve(async req=>{
 
   if(action==="pair_terminal"){
     const code=clean(body.pairing_code,64).toUpperCase(), broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
-    if(!code||!validBroker(broker)||!validProfile(broker,profile)||body.is_demo!==true) return reply({error:"Pairing hanya menerima profil broker yang ditentukan dan akun DEMO."},400);
+    if(!code||!validBroker(broker)||!validProfile(broker,profile)||typeof body.is_demo!=="boolean") return reply({error:"Pairing memerlukan broker, tipe akun, dan status Demo/Real yang valid."},400);
     const {data:pair,error}=await admin.from("mt5_pairing_codes").select("*").eq("code_hash",await sha(code)).is("used_at",null).gt("expires_at",new Date().toISOString()).maybeSingle();
-    if(error||!pair||pair.broker!==broker||pair.account_profile!==profile) return reply({error:"Kode pairing tidak valid, kedaluwarsa, atau profil broker tidak cocok."},403);
+    if(error||!pair||pair.broker!==broker||pair.account_profile!==profile||pair.expected_demo!==body.is_demo) return reply({error:"Kode pairing tidak valid, kedaluwarsa, atau profil akun tidak cocok."},403);
     const token=randomToken(32);
     const {data:device,error:deviceErr}=await admin.from("mt5_devices").insert({
-      user_id:pair.user_id,token_hash:await sha(token),broker,account_profile:profile,is_demo:true,
+      user_id:pair.user_id,token_hash:await sha(token),broker,account_profile:profile,is_demo:body.is_demo,
       terminal_server:clean(body.server,120),account_login:clean(body.login,40),
       symbol_name:clean(body.symbol,32),symbol_digits:Number.isInteger(body.digits)?body.digits:null,
       contract_size:Number.isFinite(Number(body.contract_size))?Number(body.contract_size):null,
@@ -151,13 +153,13 @@ Deno.serve(async req=>{
     }).select("id").single();
     if(deviceErr) return reply({error:"Gagal mendaftarkan terminal."},500);
     await admin.from("mt5_pairing_codes").update({used_at:new Date().toISOString()}).eq("id",pair.id).is("used_at",null);
-    return reply({status:"ok",device_id:device.id,device_token:token,warning:"Simpan token ini secara privat. Token hanya ditampilkan sekali. Terminal dipasangkan dalam mode DEMO dan Emergency Stop aktif secara default."});
+    return reply({status:"ok",device_id:device.id,device_token:token,warning:body.is_demo?"Simpan token ini secara privat. Terminal DEMO dipasangkan dengan Emergency Stop aktif.":"Simpan token ini secara privat. Terminal REAL hanya terhubung untuk pemantauan; eksekusi order Real tetap dikunci dan Emergency Stop aktif."});
   }
 
   const auth=req.headers.get("Authorization")||"";
   const token=auth.startsWith("Bearer ")?auth.slice(7).trim():clean(body.device_token,256);
   if(!token) return reply({error:"Token terminal diperlukan."},401);
-  const {data:device,error:deviceErr}=await admin.from("mt5_devices").select("*").eq("token_hash",await sha(token)).eq("enabled",true).eq("is_demo",true).maybeSingle();
+  const {data:device,error:deviceErr}=await admin.from("mt5_devices").select("*").eq("token_hash",await sha(token)).eq("enabled",true).maybeSingle();
   if(deviceErr||!device) return reply({error:"Token terminal tidak valid atau perangkat dinonaktifkan."},401);
 
   // Re-check entitlement on every terminal operation. A downgraded account
@@ -177,7 +179,9 @@ Deno.serve(async req=>{
     if(body.symbol) patch.symbol_name=clean(body.symbol,32);
     if(Number.isInteger(body.digits)) patch.symbol_digits=body.digits;
     for(const k of ["contract_size","volume_min","volume_max","volume_step"]) if(Number.isFinite(Number(body[k]))) patch[k]=Number(body[k]);
-    if(body.is_demo!==true) { await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id); return reply({error:"Terminal bukan demo. Perangkat dinonaktifkan."},403); }
+    if(typeof body.is_demo!=="boolean" || body.is_demo!==device.is_demo) { await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id); return reply({error:"Mode akun berubah/tidak cocok. Pairing ulang diperlukan."},403); }
+    if(body.account_currency) patch.account_currency=clean(body.account_currency,12);
+    if(Number.isFinite(Number(body.leverage))) patch.account_leverage=Math.max(1,Math.min(10000,Number(body.leverage)));
     await admin.from("mt5_devices").update(patch).eq("id",device.id);
     return reply({status:"ok",heartbeat:true,device_id:device.id});
   }
@@ -186,8 +190,8 @@ Deno.serve(async req=>{
       .select("execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions,is_demo,enabled")
       .eq("id",device.id).single();
     if(controlErr || !controls) return reply({error:"Kontrol perangkat tidak dapat diverifikasi; polling dihentikan."},503);
-    if(controls.is_demo!==true || controls.enabled!==true)
-      return reply({error:"Perangkat bukan terminal DEMO aktif; polling dihentikan."},403);
+    if(controls.enabled!==true) return reply({error:"Terminal tidak aktif; polling dihentikan."},403);
+    if(device.is_demo!==true) return reply({status:"real_linked_safe_mode",signals:[],controls:{...controls,emergency_stop:true},device_id:device.id,mode:"REAL_MONITOR_ONLY",execution_enabled:false,message:"Akun REAL berhasil terhubung untuk pemantauan. Pengambilan sinyal eksekusi dan auto trade REAL tetap dikunci sampai validasi keamanan selesai."},200);
     // Fail closed: never claim signals while the emergency stop is active.
     if(controls.emergency_stop===true)
       return reply({status:"paused",signals:[],controls,device_id:device.id,mode:"DEMO_ONLY",
@@ -201,7 +205,7 @@ Deno.serve(async req=>{
       return reply({error:"Kontrol risiko perangkat di luar batas DEMO yang diizinkan; polling dihentikan."},409);
     const {data:rows,error:pollErr}=await admin.rpc("claim_mt5_signals",{p_device_id:device.id});
     if(pollErr) return reply({error:"Gagal mengunci antrean sinyal.",detail:pollErr.message},500);
-    return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:"DEMO_ONLY"});
+    return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:"DEMO_ONLY",execution_enabled:true});
   }
   if(action==="receipt"){
     const id=clean(body.signal_id,64), status=clean(body.status,20).toUpperCase();
