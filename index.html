@@ -68,6 +68,7 @@
   <button class="navbtn active" data-tab="analyze" onclick="showTab('analyze',this)"><i class="fa-solid fa-chart-line"></i><span>Analisis</span></button>
   <button class="navbtn" data-tab="news" onclick="showTab('news',this)"><i class="fa-regular fa-newspaper"></i><span>News & Kalender</span></button>
   <button class="navbtn" data-tab="history" onclick="showTab('history',this)"><i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span></button>
+  <button class="navbtn" data-tab="guide" onclick="showTab('guide',this)"><i class="fa-solid fa-book-open"></i><span>Panduan</span></button>
   <button class="navbtn" data-tab="mt5" onclick="showTab('mt5',this);refreshMT5Access()"><i class="fa-solid fa-plug"></i><span>MT5 Demo</span></button>
  </div>
  <section id="tab-mt5" class="panel">
@@ -141,6 +142,55 @@
   </div>
  </section>
  <section id="tab-history" class="panel"><div class="glass rounded-2xl p-5"><h2 class="font-bold text-sm">Riwayat analisis</h2><p id="emptyHistory" class="muted text-xs text-center py-12">Belum ada analisis yang tersimpan.</p><div id="historyItems" class="space-y-2"></div></div></section>
+ <section id="tab-guide" class="panel">
+  <div class="glass rounded-2xl p-5 md:p-6 mb-4">
+   <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">PANDUAN PENGGUNA</div>
+   <h2 class="text-xl md:text-2xl font-extrabold mt-2">Mulai menggunakan RitelAI Chart Vision</h2>
+   <p class="muted text-xs mt-2 max-w-3xl">Ikuti langkah berikut untuk menyiapkan chart, meminta analisis, membaca rencana risiko, dan memantau agenda pasar. Panduan ini merupakan petunjuk penggunaan, bukan rekomendasi untuk membuka transaksi.</p>
+  </div>
+  <div class="grid md:grid-cols-2 gap-4">
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">01 · Persiapan</span><h3 class="font-bold text-sm">Pilih instrumen dan timeframe</h3></div>
+    <svg viewBox="0 0 560 190" role="img" aria-label="Ilustrasi pemilihan instrumen dan timeframe" class="w-full rounded-xl bg-slate-950/70 border border-slate-800">
+     <rect x="18" y="18" width="250" height="154" rx="12" fill="#102238" stroke="#31506c"/><text x="36" y="45" fill="#9fb5cc" font-size="13">INSTRUMEN</text><rect x="34" y="58" width="218" height="38" rx="7" fill="#071321" stroke="#2c536d"/><text x="48" y="82" fill="#67e8f9" font-size="16" font-weight="bold">XAUUSD · Gold</text><text x="36" y="125" fill="#9fb5cc" font-size="13">TIMEFRAME</text><rect x="34" y="137" width="58" height="24" rx="6" fill="#0e7490"/><text x="48" y="154" fill="white" font-size="12">M15</text><rect x="104" y="137" width="58" height="24" rx="6" fill="#1e334a"/><text x="118" y="154" fill="#b7c8d9" font-size="12">H1</text><rect x="174" y="137" width="58" height="24" rx="6" fill="#1e334a"/><text x="188" y="154" fill="#b7c8d9" font-size="12">H4</text>
+     <path d="M300 148 L330 120 L355 132 L382 82 L410 96 L440 50 L470 68 L520 30" fill="none" stroke="#22d3ee" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/><path d="M300 160 H530 M300 25 V160" stroke="#35516b" stroke-width="1"/>
+    </svg>
+    <p class="muted text-xs mt-3">Pilih aset yang sama dengan chart yang akan dianalisis. Pilih timeframe yang sesuai strategi. Contoh: M5–M15 untuk pengamatan jangka pendek, H1–H4 untuk konteks lebih luas.</p>
+   </article>
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">02 · Unggah chart</span><h3 class="font-bold text-sm">Siapkan screenshot yang jelas</h3></div>
+    <svg viewBox="0 0 560 190" role="img" aria-label="Ilustrasi screenshot chart candlestick" class="w-full rounded-xl bg-slate-950/70 border border-slate-800">
+     <rect x="18" y="16" width="524" height="158" rx="10" fill="#081522" stroke="#29445d"/><g stroke="#20374d"><path d="M34 55H526 M34 95H526 M34 135H526"/></g><g stroke-width="3"><path d="M85 45V112" stroke="#34d399"/><rect x="77" y="65" width="16" height="30" fill="#34d399"/><path d="M150 52V125" stroke="#f87171"/><rect x="142" y="72" width="16" height="35" fill="#f87171"/><path d="M215 35V104" stroke="#34d399"/><rect x="207" y="48" width="16" height="38" fill="#34d399"/><path d="M280 56V140" stroke="#f87171"/><rect x="272" y="80" width="16" height="42" fill="#f87171"/><path d="M345 30V100" stroke="#34d399"/><rect x="337" y="44" width="16" height="37" fill="#34d399"/><path d="M410 45V128" stroke="#34d399"/><rect x="402" y="62" width="16" height="42" fill="#34d399"/><path d="M475 25V92" stroke="#f87171"/><rect x="467" y="40" width="16" height="34" fill="#f87171"/></g><path d="M35 115 L130 102 L220 110 L315 87 L405 95 L520 65" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="5 4"/>
+    </svg>
+    <p class="muted text-xs mt-3">Pastikan nama simbol dan timeframe terlihat, candle terbaru tidak terpotong, serta indikator/level penting terbaca. Hindari screenshot buram, terlalu kecil, atau tertutup menu.</p>
+   </article>
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">03 · Risiko</span><h3 class="font-bold text-sm">Isi modal dan batas risiko</h3></div>
+    <svg viewBox="0 0 560 150" role="img" aria-label="Ilustrasi pengaturan modal dan risiko" class="w-full rounded-xl bg-slate-950/70 border border-slate-800">
+     <rect x="18" y="18" width="245" height="112" rx="10" fill="#102238" stroke="#31506c"/><text x="34" y="44" fill="#9fb5cc" font-size="13">MODAL AKUN (USD)</text><rect x="34" y="55" width="210" height="30" rx="6" fill="#071321" stroke="#2c536d"/><text x="48" y="76" fill="white" font-size="16">1,000</text><text x="292" y="44" fill="#9fb5cc" font-size="13">RISIKO PER TRANSAKSI</text><rect x="292" y="55" width="220" height="30" rx="6" fill="#071321" stroke="#2c536d"/><text x="306" y="76" fill="#67e8f9" font-size="16">1.0%</text><rect x="292" y="101" width="220" height="8" rx="4" fill="#1e3a52"/><rect x="292" y="101" width="55" height="8" rx="4" fill="#22d3ee"/>
+    </svg>
+    <p class="muted text-xs mt-3">Masukkan modal dan risiko sesuai batas pribadi. Form membatasi risiko sampai 2%. Angka ini bukan jaminan kerugian maksimum; spread, slippage, gap, dan ukuran posisi tetap berpengaruh.</p>
+   </article>
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">04 · Analisis</span><h3 class="font-bold text-sm">Kirim dan baca hasil</h3></div>
+    <svg viewBox="0 0 560 150" role="img" aria-label="Ilustrasi panel hasil analisis dengan entry stop loss dan take profit" class="w-full rounded-xl bg-slate-950/70 border border-slate-800">
+     <rect x="18" y="16" width="524" height="118" rx="10" fill="#102238" stroke="#31506c"/><rect x="34" y="30" width="110" height="32" rx="7" fill="#164e63"/><text x="61" y="51" fill="#a5f3fc" font-size="14" font-weight="bold">WAIT</text><text x="164" y="50" fill="#dce8f4" font-size="14">Tunggu konfirmasi candle</text><path d="M35 78H520" stroke="#35516b"/><text x="38" y="101" fill="#9fb5cc" font-size="12">ENTRY</text><text x="145" y="101" fill="white" font-size="12">—</text><text x="235" y="101" fill="#9fb5cc" font-size="12">STOP LOSS</text><text x="350" y="101" fill="white" font-size="12">—</text><text x="435" y="101" fill="#9fb5cc" font-size="12">TAKE PROFIT</text>
+    </svg>
+    <p class="muted text-xs mt-3">Tekan Siapkan analisis. Baca keputusan BUY/SELL/WAIT beserta alasan, trend, support/resistance, indikator, entry, Stop Loss, dan Take Profit. Jika hasil WAIT atau data tidak jelas, jangan memaksakan entry.</p>
+   </article>
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">05 · Berita</span><h3 class="font-bold text-sm">Pantau harga dan kalender</h3></div>
+    <div class="grid grid-cols-2 gap-2"><div class="rounded-xl bg-slate-950/70 p-4 border border-slate-800"><div class="muted text-[10px]">MARKET QUOTE</div><div class="text-cyan-300 font-bold mt-2">XAUUSD</div><div class="text-xs muted mt-1">Periksa waktu pembaruan</div></div><div class="rounded-xl bg-slate-950/70 p-4 border border-slate-800"><div class="muted text-[10px]">ECONOMIC CALENDAR</div><div class="text-cyan-300 font-bold mt-2">NFP · CPI · FOMC</div><div class="text-xs muted mt-1">Periksa waktu WIB & dampak</div></div></div>
+    <p class="muted text-xs mt-3">Buka tab News & Kalender, tekan Perbarui data, lalu periksa status koneksi dan waktu pembaruan. Perhatikan rilis berdampak tinggi dan hindari membuka posisi hanya berdasarkan skor sentimen.</p>
+   </article>
+   <article class="glass rounded-2xl p-4 md:p-5">
+    <div class="flex items-center gap-2 mb-3"><span class="pill">06 · MT5 Demo</span><h3 class="font-bold text-sm">Gunakan terminal latihan</h3></div>
+    <div class="flex items-center gap-3 rounded-xl bg-slate-950/70 border border-slate-800 p-4"><i class="fa-solid fa-laptop text-cyan-300 text-3xl"></i><div><b class="text-sm">MetaTrader 5 · DEMO</b><p class="muted text-[10px] mt-1">Pairing dan heartbeat tidak berarti order otomatis aktif.</p></div></div>
+    <p class="muted text-xs mt-3">Buka tab MT5 Demo dan ikuti instruksi pairing. Jangan pernah memasukkan password terminal ke website. Fitur eksekusi otomatis belum tersedia pada tahap ini; lakukan uji hanya pada akun demo.</p>
+   </article>
+  </div>
+  <div class="rounded-2xl border border-amber-800/60 bg-amber-950/20 p-4 mt-4"><div class="flex gap-2 items-center text-amber-200 font-bold text-sm"><i class="fa-solid fa-triangle-exclamation"></i> Pengingat risiko</div><p class="text-amber-100/80 text-xs mt-2 leading-5">RitelAI Chart Vision adalah alat bantu analisis, bukan penasihat investasi dan bukan layanan pengelolaan dana. Tidak ada target akurasi atau persentase kemenangan yang dijamin. Uji strategi dengan data historis dan akun DEMO sebelum mempertimbangkan risiko dana nyata.</p></div>
+ </section>
  <section id="tab-admin" class="panel">
   <div class="flex flex-wrap justify-between items-center gap-3 mb-4"><div><div class="text-[10px] tracking-widest text-cyan-300 font-bold">AREA TERBATAS</div><h2 class="text-xl font-extrabold">Dashboard Super Admin</h2><p class="muted text-xs mt-1">Data dibaca dari Supabase sesuai kebijakan akses akun.</p></div><button class="btn primary" onclick="loadAdminData()"><i class="fa-solid fa-rotate mr-1"></i>Muat ulang</button></div>
   <div id="adminNotice" class="rounded-xl border border-amber-800/60 bg-amber-950/20 text-amber-200 p-3 text-xs mb-4">Memeriksa hak akses...</div>
