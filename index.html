@@ -138,6 +138,11 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
     <input id="chartFile" type="file" accept="image/*" class="field mb-3">
     <div id="preview" class="hidden mb-3 rounded-xl overflow-hidden border border-slate-700"><img id="previewImage" class="max-h-56 w-full object-contain bg-slate-950" alt="Pratinjau chart"></div>
     <div class="grid grid-cols-2 gap-2 mb-3"><div><label class="text-[11px] muted block mb-1.5">Modal akun (USD)</label><input id="balance" type="number" min="0" value="1000" class="field"></div><div><label class="text-[11px] muted block mb-1.5">Risiko per transaksi (%)</label><input id="risk" type="number" min=".1" max="2" step=".1" value="1" class="field"></div></div>
+    <div id="analysisQuotaCard" class="rounded-xl border border-cyan-800/50 bg-cyan-950/20 p-3 mb-3">
+     <div class="flex items-center justify-between gap-2"><span class="text-[11px] muted">Sisa kuota analisis</span><b id="analysisQuotaValue" class="text-sm text-cyan-200">Memuat...</b></div>
+     <div class="h-1.5 rounded-full bg-slate-800 mt-2 overflow-hidden"><div id="analysisQuotaBar" class="h-full bg-cyan-400 rounded-full" style="width:0%"></div></div>
+     <p id="analysisQuotaPlan" class="text-[10px] muted mt-2">Login untuk melihat kuota paket.</p>
+    </div>
     <button class="btn primary w-full py-3" onclick="requestAnalysis()"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Siapkan analisis</button>
     <p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis dikirim ke Edge Function yang aman. Hasil gambar bukan data harga live dan bukan jaminan profit.</p>
    </div>
@@ -388,14 +393,30 @@ function setAuthUI(user, role='customer'){
  if(user){out.classList.add('hidden');inside.classList.remove('hidden');document.getElementById('signedInEmail').textContent=user.email||'Akun aktif';document.getElementById('signedInRole').textContent=role==='owner'?'Super Admin':role==='admin'?'Admin':'Customer';}
  else {inside.classList.add('hidden');out.classList.remove('hidden');}
 }
+async function refreshAnalysisQuota(){
+ const value=document.getElementById('analysisQuotaValue'),plan=document.getElementById('analysisQuotaPlan'),bar=document.getElementById('analysisQuotaBar');
+ if(!value||!plan||!bar)return;
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session){value.textContent='—';plan.textContent='Login untuk melihat kuota paket.';bar.style.width='0%';return}
+  const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'quota_status'}});
+  if(error||data?.error)throw error||new Error(data.error);
+  const q=data.quota||{};
+  value.textContent=String(q.remaining??0)+'/'+String(q.total??0);
+  plan.textContent=(q.planName||'Paket')+' · '+(q.periodLabel||'30 hari');
+  bar.style.width=(q.total>0?Math.max(0,Math.min(100,(q.remaining/q.total)*100)):0)+'%';
+  bar.className='h-full rounded-full '+(q.remaining>0?'bg-cyan-400':'bg-rose-400');
+ }catch(e){value.textContent='—';plan.textContent='Kuota belum dapat dimuat.';bar.style.width='0%';console.error('quota status',e)}
+}
 async function refreshAuth(){
  if(!supabaseClient)return;
  const {data:{session}}=await supabaseClient.auth.getSession();
- if(!session){setAuthUI(null);if(document.getElementById('tab-mt5'))refreshMT5Access();return}
+ if(!session){setAuthUI(null);refreshAnalysisQuota();if(document.getElementById('tab-mt5'))refreshMT5Access();return}
  let role='customer';
  const {data:profile}=await supabaseClient.from('profiles').select('role').eq('id',session.user.id).maybeSingle();
  if(profile?.role)role=profile.role;
  setAuthUI(session.user,role);
+ await refreshAnalysisQuota();
 }
 async function signIn(){
  if(!supabaseClient)return authMessage('Koneksi Supabase belum tersedia.',true);
@@ -703,6 +724,7 @@ async function requestAnalysis(){
    putSummary('summarySR',r.support_resistance);
    putSummary('summaryIndicators',[r.rsi,r.macd].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
    putSummary('summaryVolatility',[r.volume,r.volatility].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
+   await refreshAnalysisQuota();
    toast('Analisis chart selesai.');
   }catch(e){
    console.error(e);
