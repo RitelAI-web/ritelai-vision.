@@ -181,7 +181,15 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
    <p id="marketDisclaimer" class="muted text-[10px] leading-5 mt-4">Harga indikatif dari penyedia pihak ketiga, bukan kuotasi broker. Persentase BUY/SELL/WAIT adalah skor skenario model, bukan probabilitas profit atau win rate. Keyakinan model ditampilkan terpisah. Pembaruan dipercepat menjelang dan sesudah rilis.</p>
   </div>
  </section>
- <section id="tab-history" class="panel"><div class="glass rounded-2xl p-5"><h2 class="font-bold text-sm">Riwayat analisis</h2><p id="emptyHistory" class="muted text-xs text-center py-12">Belum ada analisis yang tersimpan.</p><div id="historyItems" class="space-y-2"></div></div></section>
+ <section id="tab-history" class="panel">
+  <div class="glass rounded-2xl p-5 mb-4">
+   <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-sm">News History · Evaluasi rilis ekonomi</h2><p class="muted text-xs mt-1">Arsip per akun untuk Pro dan ELITE. Sinyal AI dipisahkan dari simulasi dan transaksi EA.</p></div><button class="btn primary" onclick="loadNewsHistory()">Muat ulang</button></div>
+   <div class="text-[10px] muted mt-3">Checkpoint 1, 2, 5, 15, dan 30 menit setelah rilis. Pengambilan otomatis memerlukan halaman tetap terbuka dan koneksi aktif; data yang tidak tersedia ditandai belum tervalidasi.</div>
+   <div id="newsHistoryStatus" class="pill mt-3 inline-block">Memeriksa akses...</div>
+   <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
+  </div>
+  <div class="glass rounded-2xl p-5"><h2 class="font-bold text-sm">Riwayat analisis chart</h2><p id="emptyHistory" class="muted text-xs text-center py-8">Belum ada analisis yang tersimpan.</p><div id="historyItems" class="space-y-2"></div></div>
+ </section>
  <section id="tab-guide" class="panel">
   <div class="glass rounded-2xl p-5 md:p-6 mb-4">
    <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">PANDUAN PENGGUNA</div>
@@ -291,6 +299,14 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 async function showTab(name,btn){
+ if(name==='news'||name==='history'){
+  if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan.');openModal('plansModal');return}
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  if(!session){toast('Silakan login dan gunakan paket Pro atau Elite.');openModal('accountModal');return}
+  const {data:access,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'check_news_access'}});
+  if(error||!access?.allowed){toast('Fitur News dan News History tersedia untuk Pro atau Elite aktif.');openModal('plansModal');return}
+  if(name==='history')await loadNewsHistory();
+ }
  if(name==='news'){
   const panel=document.getElementById('tab-news');
   if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan untuk membuka News & Kalender.');openModal('plansModal');return}
@@ -640,7 +656,45 @@ function mergeOfficialFallbackEvents(events){
  }
  return [...map.values()].filter(e=>Date.parse(e.time)>now).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
 }
-async function loadMarketIntelligence(options={}){if(marketRequestInFlight)return;const btn=document.getElementById('refreshMarketBtn'),status=document.getElementById('marketConnectionStatus'),warn=document.getElementById('marketWarnings');marketRequestInFlight=true;if(btn){btn.disabled=true;btn.textContent='Memuat...'}try{const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar',assets:RITELAI_SYMBOLS}});if(error)throw error;if(!data||data.status!=='ok')throw new Error(data?.error||'Respons quick-service tidak valid.');window.ritelaiLiveQuotes=Object.fromEntries((data.quotes||[]).map(q=>[q.key,q]));renderLiveQuotes(window.ritelaiLiveQuotes);const calendarEvents=mergeOfficialFallbackEvents(data.events||[]);renderEconomicCalendar(calendarEvents);const upcomingCount=calendarEvents.filter(e=>{const d=e.time?new Date(e.time):null;return d&&!Number.isNaN(d.getTime())&&d.getTime()>Date.now()&&d.getTime()<=Date.UTC(2026,11,31,23,59,59,999)-7*60*60*1000&&String(e.importance||'').toLowerCase()==='high';}).length;const updated=document.getElementById('marketUpdated');if(updated)updated.textContent='Jadwal diperbarui: '+new Date(data.generatedAt||Date.now()).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';const cs=document.getElementById('calendarStatus');if(cs){cs.textContent=`${upcomingCount} agenda HIGH IMPACT · sisa November–Desember 2026 · BiQuote + jadwal resmi BLS/Fed/BEA`;cs.className='pill text-emerald-300'}if(status){status.textContent='Kalender tersambung · harga menunggu tick';status.className='pill text-emerald-300'}if(warn){const warnings=[];if(data.calendarError)warnings.push('Kalender: '+data.calendarError);if(data.quoteErrors?.length)warnings.push('Sebagian harga belum tersedia: '+data.quoteErrors.join('; '));if(data.aiError)warnings.push('Analisis AI: '+data.aiError);warn.textContent=warnings.join(' · ');warn.classList.toggle('hidden',!warnings.length);}marketHasLoaded=true;connectLiveTicks();if(!options.silent)toast('Kalender ekonomi diperbarui.');}catch(e){console.error(e);if(status){status.textContent='Ada masalah koneksi';status.className='pill text-amber-200'}if(warn){warn.textContent=e.message||'Gagal memuat data.';warn.classList.remove('hidden')}if(!marketHasLoaded){document.getElementById('economicCalendar').innerHTML='<p class="text-amber-200 text-xs">Data kalender belum tersedia. Coba perbarui kembali.</p>';}}finally{marketRequestInFlight=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-rotate mr-1"></i>Perbarui data'}}}
+let newsHistoryScheduled=new Set();
+function newsHistoryEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function saveNewsHistoryCheckpoint(event,checkpoint){
+ if(!supabaseClient||!event?.id||!event?.time)return;
+ const {data:{session}}=await supabaseClient.auth.getSession();if(!session)return;
+ const payload={action:'save',event_id:String(event.id),event_time:event.time,checkpoint_minutes:checkpoint,event_snapshot:{id:event.id,name:event.name||event.title||'Rilis ekonomi',currency:event.currency||event.countryCode||null,actual:event.actual??null,forecast:event.forecast??null,previous:event.previous??null,revisedPrevious:event.revisedPrevious??null,unit:event.unit||null,source:event.source||event.eventSource||null,sourceUrl:event.sourceUrl||null},ai_snapshot:event.ai||{},quotes_snapshot:window.ritelaiLiveQuotes||{}};
+ const {error}=await supabaseClient.functions.invoke('news-history',{body:payload});
+ if(error)console.warn('News History checkpoint gagal:',checkpoint,error.message||error);
+}
+function scheduleNewsHistory(events){
+ for(const event of (events||[])){
+  const t=Date.parse(event.time);if(!event.id||!Number.isFinite(t))continue;
+  for(const minute of [1,2,5,15,30]){
+   const key=String(event.id)+':'+minute;if(newsHistoryScheduled.has(key))continue;
+   const delay=t+minute*60000-Date.now();if(delay<0||delay>7*24*60*60*1000)continue;
+   newsHistoryScheduled.add(key);
+   setTimeout(()=>{if(!document.hidden)saveNewsHistoryCheckpoint(event,minute);else{const wait=()=>{if(!document.hidden){document.removeEventListener('visibilitychange',wait);saveNewsHistoryCheckpoint(event,minute)}};document.addEventListener('visibilitychange',wait)}},delay);
+  }
+ }
+}
+async function loadNewsHistory(){
+ const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');if(!host||!supabaseClient)return;
+ host.innerHTML='<p class="muted text-xs">Memuat arsip...</p>';
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();if(!session)throw new Error('Login diperlukan.');
+  const {data,error}=await supabaseClient.functions.invoke('news-history',{body:{action:'list'}});if(error)throw error;if(data?.error)throw new Error(data.error);
+  const rows=Array.isArray(data?.items)?data.items:[];
+  if(status)status.textContent='Akses aktif · '+String(data.plan||'Pro/Elite').toUpperCase();
+  if(!rows.length){host.innerHTML='<p class="muted text-xs py-5">Belum ada checkpoint rilis yang terekam. Buka News & Kalender sebelum rilis dan biarkan halaman aktif selama pemantauan.</p>';return;}
+  const groups=new Map();for(const row of rows){if(!groups.has(row.event_id))groups.set(row.event_id,[]);groups.get(row.event_id).push(row);}
+  host.innerHTML=[...groups.values()].map(items=>{
+   const first=items[0],name=newsHistoryEscape(first.event_snapshot?.name||first.event_id);
+   const points=items.sort((a,b)=>a.checkpoint_minutes-b.checkpoint_minutes).map(x=>{const q=x.quotes_snapshot||{};const keys=Object.keys(q);const hasPrices=keys.some(k=>Number(q[k]?.price??q[k]?.last??q[k]?.mid)>0);return '<div class="rounded-lg border border-slate-800 bg-slate-950/60 p-3"><b class="text-xs">'+(x.checkpoint_minutes||0)+' menit</b><div class="text-[10px] muted mt-1">'+new Date(x.captured_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB</div><div class="text-[10px] mt-2">'+(hasPrices?'Harga feed terekam':'Harga belum tersedia')+' · '+(x.validation_status==='VALIDATED'?'Tervalidasi':x.validation_status==='PARTIAL'?'Parsial':'Belum tervalidasi')+'</div></div>'}).join('');
+   const e=first.event_snapshot||{};
+   return '<article class="rounded-xl border border-slate-700 p-4"><div class="font-bold text-sm">'+name+'</div><div class="text-[10px] muted mt-1">'+new Date(first.event_time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB · '+newsHistoryEscape(e.currency||'Market')+'</div><div class="grid grid-cols-3 gap-2 mt-3 text-[10px]"><div>Previous<br><b>'+(e.previous??'Belum tersedia')+'</b></div><div>Forecast<br><b>'+(e.forecast??'Belum tersedia')+'</b></div><div>Actual<br><b>'+(e.actual??'Belum tersedia')+'</b></div></div><div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 mt-3">'+points+'</div><div class="text-[10px] muted mt-3">Jenis catatan: Sinyal AI · bukan transaksi EA. Hasil arah belum dinilai sampai data harga cukup.</div></article>';
+  }).join('');
+ }catch(e){if(status)status.textContent='Akses belum tersedia';host.innerHTML='<p class="text-amber-200 text-xs">'+newsHistoryEscape(e.message||'Gagal memuat News History')+'</p>';}
+}
+async function loadMarketIntelligence(options={}){if(marketRequestInFlight)return;const btn=document.getElementById('refreshMarketBtn'),status=document.getElementById('marketConnectionStatus'),warn=document.getElementById('marketWarnings');marketRequestInFlight=true;if(btn){btn.disabled=true;btn.textContent='Memuat...'}try{const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar',assets:RITELAI_SYMBOLS}});if(error)throw error;if(!data||data.status!=='ok')throw new Error(data?.error||'Respons quick-service tidak valid.');window.ritelaiLiveQuotes=Object.fromEntries((data.quotes||[]).map(q=>[q.key,q]));renderLiveQuotes(window.ritelaiLiveQuotes);const calendarEvents=mergeOfficialFallbackEvents(data.events||[]);renderEconomicCalendar(calendarEvents);scheduleNewsHistory(calendarEvents);const upcomingCount=calendarEvents.filter(e=>{const d=e.time?new Date(e.time):null;return d&&!Number.isNaN(d.getTime())&&d.getTime()>Date.now()&&d.getTime()<=Date.UTC(2026,11,31,23,59,59,999)-7*60*60*1000&&String(e.importance||'').toLowerCase()==='high';}).length;const updated=document.getElementById('marketUpdated');if(updated)updated.textContent='Jadwal diperbarui: '+new Date(data.generatedAt||Date.now()).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';const cs=document.getElementById('calendarStatus');if(cs){cs.textContent=`${upcomingCount} agenda HIGH IMPACT · sisa November–Desember 2026 · BiQuote + jadwal resmi BLS/Fed/BEA`;cs.className='pill text-emerald-300'}if(status){status.textContent='Kalender tersambung · harga menunggu tick';status.className='pill text-emerald-300'}if(warn){const warnings=[];if(data.calendarError)warnings.push('Kalender: '+data.calendarError);if(data.quoteErrors?.length)warnings.push('Sebagian harga belum tersedia: '+data.quoteErrors.join('; '));if(data.aiError)warnings.push('Analisis AI: '+data.aiError);warn.textContent=warnings.join(' · ');warn.classList.toggle('hidden',!warnings.length);}marketHasLoaded=true;connectLiveTicks();if(!options.silent)toast('Kalender ekonomi diperbarui.');}catch(e){console.error(e);if(status){status.textContent='Ada masalah koneksi';status.className='pill text-amber-200'}if(warn){warn.textContent=e.message||'Gagal memuat data.';warn.classList.remove('hidden')}if(!marketHasLoaded){document.getElementById('economicCalendar').innerHTML='<p class="text-amber-200 text-xs">Data kalender belum tersedia. Coba perbarui kembali.</p>';}}finally{marketRequestInFlight=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-rotate mr-1"></i>Perbarui data'}}}
 function marketRefreshDelay(){
  const now=Date.now();
  const next=(latestCalendarEvents||[]).map(e=>Date.parse(e.time)).filter(t=>Number.isFinite(t)&&t>now-10*60*1000).sort((a,b)=>a-b)[0];
