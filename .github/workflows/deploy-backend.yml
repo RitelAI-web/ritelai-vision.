@@ -46,38 +46,19 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
 
-      - name: Smoke test deployed Market Intelligence endpoints
+      - name: Verify Market Intelligence endpoints require authentication
         run: |
           python3 - <<'PY'
-          import json, time, urllib.request, urllib.error
+          import json, urllib.request, urllib.error
           base = "https://brfssdpplapefjmxnpft.supabase.co/functions/v1/quick-service"
-          failures = []
-          for action, required in [("market_news", "items"), ("market_calendar", "events")]:
-              ok = False
-              for attempt in range(1, 5):
-                  req = urllib.request.Request(base, data=json.dumps({"action": action, "assets": ["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30"]}).encode(), headers={"Content-Type":"application/json"}, method="POST")
-                  try:
-                      with urllib.request.urlopen(req, timeout=35) as response:
-                          raw = response.read().decode()
-                          payload = json.loads(raw)
-                          if response.status == 200 and payload.get("status") == "ok" and required in payload:
-                              print(f"PASS {action}: HTTP {response.status}, {required}={len(payload.get(required, []))}")
-                              ok = True
-                              break
-                          detail = raw[:1500]
-                  except urllib.error.HTTPError as exc:
-                      detail = exc.read().decode(errors="replace")[:1500]
-                      print(f"Attempt {attempt} {action}: HTTP {exc.code}: {detail}")
-                  except Exception as exc:
-                      detail = f"{type(exc).__name__}: {exc}"
-                      print(f"Attempt {attempt} {action}: {detail}")
-                  if attempt < 4:
-                      time.sleep(attempt * 5)
-              if not ok:
-                  failures.append(f"{action}: {detail}")
-          if failures:
-              raise SystemExit("Smoke test failed: " + " | ".join(failures))
+          for action in ["market_news", "market_calendar"]:
+              req = urllib.request.Request(base, data=json.dumps({"action": action}).encode(), headers={"Content-Type":"application/json"}, method="POST")
+              try:
+                  with urllib.request.urlopen(req, timeout=25) as response:
+                      raise SystemExit(f"FAIL {action}: endpoint unexpectedly allowed anonymous access (HTTP {response.status})")
+              except urllib.error.HTTPError as exc:
+                  body = exc.read().decode(errors="replace")[:500]
+                  if exc.code not in (401, 403):
+                      raise SystemExit(f"FAIL {action}: expected auth denial, got HTTP {exc.code}: {body}")
+                  print(f"PASS {action}: anonymous access blocked (HTTP {exc.code})")
           PY
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
