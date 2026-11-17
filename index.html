@@ -21,6 +21,15 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
 :root{color-scheme:dark}*{box-sizing:border-box}html,body{min-height:100%;}body{font-family:'Plus Jakarta Sans',sans-serif;background:#07111f;color:#e5edf7}
+/* Touch reliability: prevent decorative layers from intercepting taps and make controls responsive on mobile. */
+button,a,input,select,textarea,label,[role="button"]{-webkit-tap-highlight-color:transparent;touch-action:manipulation;pointer-events:auto}
+button:not(:disabled),a,[role="button"]{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.6}
+.nav-menu,.navbtn{position:relative;z-index:2}
+.navbtn{min-height:44px}
+.btn{min-height:42px;touch-action:manipulation}
+.glass svg[aria-hidden="true"],.glass .pointer-events-none{pointer-events:none}
+
 /* Mobile fix: allow long account/subscription dialogs to scroll vertically. */
 #plansModal,#accountModal{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;align-items:flex-start!important;touch-action:pan-y;}
 #plansModal>.glass,#accountModal>.glass{flex-shrink:0;margin-top:auto;margin-bottom:auto;}
