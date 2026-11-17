@@ -108,7 +108,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
  </div>
  <section id="tab-mt5" class="panel">
   <div class="glass rounded-2xl p-4 md:p-5 mb-4">
-   <div class="flex items-center justify-between gap-3 flex-wrap"><div><h2 class="font-bold text-lg">Koneksi MT5 Demo</h2><p class="muted text-xs mt-1">Tahap uji koneksi dan penerimaan sinyal. Belum mengirim transaksi otomatis.</p></div><span id="mt5AccessBadge" class="pill">Memeriksa akses...</span></div>
+   <div class="flex items-center justify-between gap-3 flex-wrap"><div><h2 class="font-bold text-lg">Koneksi MT5 Demo / Real</h2><p class="muted text-xs mt-1">Tahap uji koneksi dan penerimaan sinyal. Belum mengirim transaksi otomatis.</p></div><span id="mt5AccessBadge" class="pill">Memeriksa akses...</span></div>
    <div id="mt5AccessMessage" class="text-sm mt-4 muted">Login diperlukan untuk memeriksa paket aktif.</div>
   </div>
   <div class="grid md:grid-cols-3 gap-3 mb-4">
@@ -117,13 +117,13 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
    <div class="glass rounded-2xl p-4"><div class="font-bold">Auto Trading</div><p class="muted text-xs mt-2">Eksekusi otomatis belum diaktifkan pada tahap pengujian ini.</p><span class="pill mt-3 inline-block">Belum tersedia</span></div>
   </div>
   <div class="glass rounded-2xl p-4 md:p-5">
-   <h3 class="font-bold">Pairing terminal demo</h3>
-   <p class="muted text-xs mt-1">Pilih broker dan profil demo. OWNER/ADMIN/SUPER_ADMIN mendapat akses tanpa langganan; customer memerlukan paket Elite aktif.</p>
+   <h3 class="font-bold">Pairing terminal Demo / Real</h3>
+   <p class="muted text-xs mt-1">Pilih broker, jenis akun, dan status Demo/Real. OWNER/ADMIN/SUPER_ADMIN mendapat akses tanpa langganan; customer memerlukan paket Elite aktif.</p>
    <div class="grid md:grid-cols-2 gap-3 mt-4">
     <div><label class="text-xs muted block mb-1">Broker</label><select id="mt5Broker" class="field"><option value="EXNESS">Exness</option><option value="VERSUS_TRADE">Versus Trade</option></select></div>
-    <div><label class="text-xs muted block mb-1">Jenis akun</label><select id="mt5Profile" class="field"><option value="STANDARD_CENT">Standard Cent Demo</option><option value="ZERO">Zero Demo</option><option value="STANDARD">Standard Demo</option></select></div>
+    <div><label class="text-xs muted block mb-1">Jenis akun</label><select id="mt5Profile" class="field"><option value="STANDARD_CENT" data-demo="true">Cent Demo</option><option value="STANDARD_CENT" data-demo="false">Cent Real</option><option value="ZERO" data-demo="false">Zero Real</option><option value="PRO" data-demo="false">Pro Real</option><option value="STANDARD" data-demo="false">Standard Real</option></select></div>
    </div>
-   <button id="mt5PairBtn" class="btn primary mt-4 w-full" onclick="createMT5Pairing()" disabled>Buat kode pairing demo</button>
+   <button id="mt5PairBtn" class="btn primary mt-4 w-full" onclick="createMT5Pairing()" disabled>Buat kode pairing</button>
    <div id="mt5PairResult" class="mt-3 text-sm muted" role="status">Belum ada kode pairing.</div>
    <p class="text-[11px] text-amber-200 mt-3">Gunakan akun demo saja. Jangan masukkan password MT5 ke website. EA pada tahap ini hanya untuk pairing, heartbeat, dan membaca antrean sinyal—bukan mengeksekusi order.</p>
   </div>
@@ -305,18 +305,19 @@ async function showTab(name,btn){
  if(name==='mt5')refreshMT5Access();
 }
 function updateMT5ProfileOptions(){
- const broker=document.getElementById('mt5Broker')?.value||'EXNESS';
  const profile=document.getElementById('mt5Profile');
  if(!profile)return;
  const options=[
-  ['STANDARD_CENT','Cent Demo'],
-  ['ZERO','Zero Demo'],
-  ['PRO','Pro Demo'],
-  ['STANDARD','Standard Demo']
+  ['STANDARD_CENT','true','Cent Demo'],
+  ['STANDARD_CENT','false','Cent Real'],
+  ['ZERO','false','Zero Real'],
+  ['PRO','false','Pro Real'],
+  ['STANDARD','false','Standard Real']
  ];
- const previous=profile.value;
- profile.innerHTML=options.map(([value,label])=>'<option value="'+value+'">'+label+'</option>').join('');
- profile.value=options.some(([value])=>value===previous)?previous:options[0][0];
+ const previous=profile.selectedOptions[0]?.value+'|'+(profile.selectedOptions[0]?.dataset.demo||'');
+ profile.innerHTML=options.map(([value,isDemo,label])=>'<option value="'+value+'" data-demo="'+isDemo+'">'+label+'</option>').join('');
+ const selected=Array.from(profile.options).find(o=>o.value+'|'+o.dataset.demo===previous);
+ if(selected)selected.selected=true;
 }
 let mt5EliteAccess=false;
 async function refreshMT5Access(){
@@ -358,12 +359,12 @@ async function createMT5Pairing(){
  currentUser=session.user;
  btn.disabled=true;btn.textContent='Membuat kode...';out.textContent='Menghubungi layanan pairing dan memeriksa paket...';
  try{
-  const {data,error}=await supabaseClient.functions.invoke('mt5-bridge',{body:{action:'create_pairing_code',broker:document.getElementById('mt5Broker').value,account_profile:document.getElementById('mt5Profile').value}});
+  const {data,error}=await supabaseClient.functions.invoke('mt5-bridge',{body:{action:'create_pairing_code',broker:document.getElementById('mt5Broker').value,account_profile:document.getElementById('mt5Profile').value,is_demo:document.getElementById('mt5Profile').selectedOptions[0]?.dataset.demo==='true'}});
   if(error)throw error;
   if(data?.error)throw new Error(data.error);
   const code=data?.pairing_code||data?.code||data?.data?.pairing_code;
   if(!code)throw new Error('Respons backend tidak berisi kode pairing. Periksa log mt5-bridge.');
-  out.innerHTML='<div class="font-bold text-emerald-300">Kode pairing berhasil dibuat</div><div class="text-2xl font-mono tracking-widest my-2">'+escapeHtml(code)+'</div><div class="muted text-xs">Masukkan kode ini pada EA RitelAI di MT5 demo. Kode bersifat sementara; jangan bagikan ke orang lain.</div>';
+  out.innerHTML='<div class="font-bold text-emerald-300">Kode pairing berhasil dibuat</div><div class="text-2xl font-mono tracking-widest my-2">'+escapeHtml(code)+'</div><div class="muted text-xs">Masukkan kode ini pada EA RitelAI pada terminal MT5 yang dipilih. Kode bersifat sementara; jangan bagikan ke orang lain.</div>';
  }catch(e){
   let detail=e?.message||'Kesalahan tidak diketahui';
   try{
@@ -379,7 +380,7 @@ async function createMT5Pairing(){
   }catch(_){}
   out.textContent='Pairing gagal: '+detail;
  }
- finally{btn.disabled=!currentUser;btn.textContent='Buat kode pairing demo'}
+ finally{btn.disabled=!currentUser;btn.textContent='Buat kode pairing'}
 }
 function showAdmin(){if(!['owner','admin','super_admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
