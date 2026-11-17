@@ -154,12 +154,20 @@ void EvaluateAndTrade() {
    trade.SetExpertMagicNumber(InpMagic);
    trade.SetDeviationInPoints(20);
    trade.SetTypeFillingBySymbol(InpSymbol);
-   bool ok=buy?trade.Buy(lots,InpSymbol,0,sl,tp,"RitelAI DEMO EMA RSI MACD"):
-               trade.Sell(lots,InpSymbol,0,sl,tp,"RitelAI DEMO EMA RSI MACD");
-   Print("RitelAI DEMO signal=",buy?"BUY":"SELL"," lots=",lots,
-         " entry=",entry," SL=",sl," TP=",tp,
-         " retcode=",trade.ResultRetcode()," ",trade.ResultRetcodeDescription(),
-         " success=",ok);
+   bool sent=buy?trade.Buy(lots,InpSymbol,0,sl,tp,"RitelAI DEMO EMA RSI MACD"):
+                 trade.Sell(lots,InpSymbol,0,sl,tp,"RitelAI DEMO EMA RSI MACD");
+   uint rc=trade.ResultRetcode();
+   bool accepted=(rc==TRADE_RETCODE_DONE || rc==TRADE_RETCODE_DONE_PARTIAL ||
+                  rc==TRADE_RETCODE_PLACED);
+   if(!sent || !accepted) {
+      Print("RitelAI ORDER NOT CONFIRMED: signal=",buy?"BUY":"SELL",
+            " retcode=",rc," ",trade.ResultRetcodeDescription(),
+            " sent=",sent);
+      return;
+   }
+   Print("RitelAI DEMO ORDER CONFIRMED: signal=",buy?"BUY":"SELL",
+         " lots=",lots," entry=",entry," SL=",sl," TP=",tp,
+         " retcode=",rc," ",trade.ResultRetcodeDescription());
 }
 int OnInit() {
    if(InpRequireDemo && AccountInfoInteger(ACCOUNT_TRADE_MODE)!=ACCOUNT_TRADE_MODE_DEMO) {
