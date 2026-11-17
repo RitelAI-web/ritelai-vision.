@@ -666,6 +666,16 @@ async function requestAnalysis(){
    resultBox.innerHTML=`<div class="text-[10px] tracking-widest muted">HASIL PEMBACAAN CHART</div>
     <div class="text-3xl font-extrabold ${tone} mt-2">${safe(signal)}</div>
     <p class="text-sm mt-3">${safe(r.summary)}</p>
+    <div class="mt-3 rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-left">
+     <div class="flex flex-wrap items-center justify-between gap-2 text-xs"><b>BIAS ARAH PASAR: ${safe(r.directional_bias||signal)}</b><span class="font-bold">${safe(r.trend)}</span></div>
+     <div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs">
+      <div class="rounded bg-emerald-950/50 p-2"><b class="text-emerald-300">${safe(r.buy_score_pct??"—")}%</b><div>BUY</div></div>
+      <div class="rounded bg-rose-950/50 p-2"><b class="text-rose-300">${safe(r.sell_score_pct??"—")}%</b><div>SELL</div></div>
+      <div class="rounded bg-amber-950/50 p-2"><b class="text-amber-300">${safe(r.wait_score_pct??"—")}%</b><div>WAIT</div></div>
+     </div>
+     <p class="muted text-[10px] mt-2">Bobot skenario dari bukti chart, bukan probabilitas profit atau win rate.</p>
+     <p class="text-xs mt-2"><b>Kesiapan entry:</b> ${safe(r.entry_readiness||"WAIT_CONFIRMATION")}</p>
+    </div>
     <div class="mt-5 text-left">
      <div class="font-bold text-xs mb-3">SKENARIO BUY &amp; SELL — RENCANA BERSYARAT</div>
      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -692,7 +702,7 @@ async function requestAnalysis(){
        </div>
       </section>
      </div>
-     <p class="muted text-[10px] mt-3">Kedua skenario adalah rencana kondisional, bukan dua order aktif. Status utama tetap WAIT sampai salah satu pemicu terkonfirmasi. Jangan entry bila harga/level numerik belum terbaca.</p>
+     <p class="muted text-[10px] mt-3">Kedua skenario adalah rencana kondisional, bukan dua order aktif. Bias arah utama ditampilkan terpisah dari kesiapan entry. Tunggu pemicu yang tertulis; jangan entry bila harga/level numerik belum terbaca.</p>
     </div>
     <div class="mt-5 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4">
      <div class="font-bold text-xs mb-3">LEVEL RENCANA TRANSAKSI</div>
