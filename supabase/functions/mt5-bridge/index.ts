@@ -51,7 +51,7 @@ async function getAccountAccess(admin:any,userId:string){
   if(["owner","admin","super_admin"].includes(role)){
     return {allowed:true,error:null,role,subscriptionCount:0,planCodes:[role.toUpperCase()]};
   }
-  const entitlement=await getAccountAccess(admin,userId);
+  const entitlement=await hasActiveEnterprise(admin,userId);
   return {...entitlement,role};
 }
 
@@ -76,8 +76,8 @@ Deno.serve(async req=>{
     // Fail closed, but resolve the subscription -> plan relation explicitly.
     // Some Supabase deployments return the nested plans relation inconsistently;
     // querying plan IDs separately avoids a false 403 for a valid Elite subscription.
-    const entitlement=await hasActiveEnterprise(admin,userId);
-    if(entitlement.error) return reply({error:"Tidak dapat memverifikasi paket Elite/Enterprise.",detail:entitlement.error},503);
+    const entitlement=await getAccountAccess(admin,userId);
+    if(entitlement.error) return reply({error:"Tidak dapat memverifikasi role dan paket akun.",detail:entitlement.error},503);
     if(!entitlement.allowed) return reply({
       error:"Akun customer memerlukan paket Elite/Enterprise aktif. Akun OWNER/ADMIN/SUPER_ADMIN mendapat akses penuh tanpa langganan.",
       diagnostic:{account_role:entitlement.role,active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
