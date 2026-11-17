@@ -15,6 +15,7 @@ input int InpPollSeconds=5;
 input bool InpRequireDemoAccount=true;
 
 bool g_demo=false;
+bool g_demo=false;
 string g_broker="UNKNOWN",g_profile="UNKNOWN",g_symbol="",g_token="",g_status="Starting";
 string Esc(string s){StringReplace(s,"\\","\\\\");StringReplace(s,"\"","\\\"");StringReplace(s,"\r","\\r");StringReplace(s,"\n","\\n");return s;}
 string S(string k,string v){return "\""+k+"\":\""+Esc(v)+"\"";}
