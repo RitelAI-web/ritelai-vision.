@@ -195,6 +195,10 @@ Deno.serve(async req=>{
     return reply({status:"ok",heartbeat:true,device_id:device.id});
   }
   if(action==="poll"){
+    // Treat a successful authenticated poll as live terminal activity too.
+    // The Admin dashboard derives Online/Offline from last_seen_at.
+    const {error:seenErr}=await admin.from("mt5_devices").update({last_seen_at:new Date().toISOString()}).eq("id",device.id);
+    if(seenErr) return reply({error:"Gagal memperbarui waktu aktivitas terminal."},503);
     const {data:controls,error:controlErr}=await admin.from("mt5_devices")
       .select("execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions,is_demo,enabled")
       .eq("id",device.id).single();
