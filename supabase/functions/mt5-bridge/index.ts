@@ -66,7 +66,7 @@ Deno.serve(async req=>{
   const action=clean(body.action,40);
 
   // Website-only actions require a valid Supabase user JWT.
-  if(action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal" || action==="set_execution_controls"){
+  if(action==="check_access" || action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal" || action==="set_execution_controls"){
     const auth=req.headers.get("Authorization")||"";
     if(!auth.startsWith("Bearer ")) return reply({error:"Login diperlukan."},401);
     const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
@@ -84,6 +84,9 @@ Deno.serve(async req=>{
       diagnostic:{account_role:entitlement.role,active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
     },403);
 
+    if(action==="check_access"){
+      return reply({allowed:true,role:entitlement.role,planCodes:entitlement.planCodes});
+    }
     if(action==="set_execution_controls"){
       if(!["owner","admin","super_admin"].includes(entitlement.role)) return reply({error:"Hanya OWNER/ADMIN yang boleh mengubah kontrol eksekusi."},403);
       const deviceId=clean(body.device_id,64);
