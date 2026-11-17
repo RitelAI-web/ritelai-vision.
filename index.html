@@ -538,6 +538,7 @@ async function requestAnalysis(){
       <section class="rounded-xl border border-emerald-700/60 bg-emerald-950/20 p-4">
        <div class="font-extrabold text-sm text-emerald-200">BUY · BREAKOUT / RETEST</div>
        <div class="text-xs mt-3 space-y-2">
+        <div class="rounded-lg bg-slate-950/50 p-3 space-y-1"><p><b>Harga entry BUY:</b> <span class="text-emerald-200 font-bold">${r.scenario_buy?.entry_price != null ? safe(r.scenario_buy.entry_price) : "Belum terbaca dari chart"}</span></p><p><b>Zona entry:</b> ${r.scenario_buy?.entry_zone_low != null && r.scenario_buy?.entry_zone_high != null ? safe(r.scenario_buy.entry_zone_low)+" – "+safe(r.scenario_buy.entry_zone_high) : "Belum tersedia"}</p><p><b>Stop Loss:</b> ${r.scenario_buy?.stop_loss != null ? safe(r.scenario_buy.stop_loss) : "Belum tersedia"} · <b>TP1:</b> ${r.scenario_buy?.take_profit_1 != null ? safe(r.scenario_buy.take_profit_1) : "—"} · <b>TP2:</b> ${r.scenario_buy?.take_profit_2 != null ? safe(r.scenario_buy.take_profit_2) : "—"}</p><p><b>Risk/Reward:</b> ${r.scenario_buy?.risk_reward != null ? safe(r.scenario_buy.risk_reward) : "Belum tersedia"}</p></div>
         <p><b>Pemicu:</b> ${safe(r.scenario_buy?.trigger || "Tunggu harga menguji resistance terdekat.")}</p>
         <p><b>Konfirmasi:</b> ${safe(r.scenario_buy?.confirmation || "Tunggu candle bullish close di atas resistance; idealnya retest bertahan.")}</p>
         <p><b>Kondisi entry:</b> ${safe(r.scenario_buy?.entry_condition || "Entry hanya setelah breakout terkonfirmasi dan level entry terbaca.")}</p>
@@ -548,6 +549,7 @@ async function requestAnalysis(){
       <section class="rounded-xl border border-rose-700/60 bg-rose-950/20 p-4">
        <div class="font-extrabold text-sm text-rose-200">SELL · REJECTION / BREAKDOWN</div>
        <div class="text-xs mt-3 space-y-2">
+        <div class="rounded-lg bg-slate-950/50 p-3 space-y-1"><p><b>Harga entry SELL:</b> <span class="text-rose-200 font-bold">${r.scenario_sell?.entry_price != null ? safe(r.scenario_sell.entry_price) : "Belum terbaca dari chart"}</span></p><p><b>Zona entry:</b> ${r.scenario_sell?.entry_zone_low != null && r.scenario_sell?.entry_zone_high != null ? safe(r.scenario_sell.entry_zone_low)+" – "+safe(r.scenario_sell.entry_zone_high) : "Belum tersedia"}</p><p><b>Stop Loss:</b> ${r.scenario_sell?.stop_loss != null ? safe(r.scenario_sell.stop_loss) : "Belum tersedia"} · <b>TP1:</b> ${r.scenario_sell?.take_profit_1 != null ? safe(r.scenario_sell.take_profit_1) : "—"} · <b>TP2:</b> ${r.scenario_sell?.take_profit_2 != null ? safe(r.scenario_sell.take_profit_2) : "—"}</p><p><b>Risk/Reward:</b> ${r.scenario_sell?.risk_reward != null ? safe(r.scenario_sell.risk_reward) : "Belum tersedia"}</p></div>
         <p><b>Pemicu:</b> ${safe(r.scenario_sell?.trigger || "Tunggu penolakan harga di resistance atau breakdown support.")}</p>
         <p><b>Konfirmasi:</b> ${safe(r.scenario_sell?.confirmation || "Tunggu candle bearish rejection atau close di bawah support.")}</p>
         <p><b>Kondisi entry:</b> ${safe(r.scenario_sell?.entry_condition || "Entry hanya setelah rejection/breakdown terkonfirmasi dan level terbaca.")}</p>
