@@ -182,11 +182,25 @@ Deno.serve(async req=>{
     return reply({status:"ok",heartbeat:true,device_id:device.id});
   }
   if(action==="poll"){
+    const {data:controls,error:controlErr}=await admin.from("mt5_devices")
+      .select("execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions,is_demo,enabled")
+      .eq("id",device.id).single();
+    if(controlErr || !controls) return reply({error:"Kontrol perangkat tidak dapat diverifikasi; polling dihentikan."},503);
+    if(controls.is_demo!==true || controls.enabled!==true)
+      return reply({error:"Perangkat bukan terminal DEMO aktif; polling dihentikan."},403);
+    // Fail closed: never claim signals while the emergency stop is active.
+    if(controls.emergency_stop===true)
+      return reply({status:"paused",signals:[],controls,device_id:device.id,mode:"DEMO_ONLY",
+        message:"Emergency Stop aktif. Sinyal tetap di antrean dan tidak diklaim."},200);
+    if(!["SEMI_AUTO","FULL_AUTO"].includes(String(controls.execution_mode||"")))
+      return reply({error:"Mode eksekusi tidak valid; polling dihentikan."},409);
+    if(Number(controls.max_risk_pct)<=0 || Number(controls.max_risk_pct)>0.5 ||
+       Number(controls.max_daily_loss_pct)<=0 || Number(controls.max_daily_loss_pct)>2 ||
+       Number(controls.max_spread_points)<1 || Number(controls.max_spread_points)>80 ||
+       Number(controls.max_open_positions)!==1)
+      return reply({error:"Kontrol risiko perangkat di luar batas DEMO yang diizinkan; polling dihentikan."},409);
     const {data:rows,error:pollErr}=await admin.rpc("claim_mt5_signals",{p_device_id:device.id});
     if(pollErr) return reply({error:"Gagal mengunci antrean sinyal.",detail:pollErr.message},500);
-    const {data:controls}=await admin.from("mt5_devices")
-      .select("execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions")
-      .eq("id",device.id).single();
     return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:"DEMO_ONLY"});
   }
   if(action==="receipt"){
