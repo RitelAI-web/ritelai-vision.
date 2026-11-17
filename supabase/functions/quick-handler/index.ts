@@ -53,6 +53,7 @@ Deno.serve(async(req)=>{
   const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
   const {data:ud,error:ue}=await userClient.auth.getUser(); if(ue||!ud.user)return reply({error:"Sesi login tidak valid."},401);
   const admin=createClient(url,service,{auth:{persistSession:false}});
+  const body=await req.json();
   const since=new Date();since.setDate(since.getDate()-30);
   const [profileResult,subResult,historyResult,freePlanResult]=await Promise.all([
    admin.from("profiles").select("role").eq("id",ud.user.id).maybeSingle(),
@@ -71,7 +72,7 @@ Deno.serve(async(req)=>{
   if(!profile)return reply({error:"Profil akun belum tersedia. Hubungi Admin."},403);
   if(!isAdmin&&quota<=0)return reply({error:"Kuota paket belum dikonfigurasi. Hubungi Admin."},403);
   if(!isAdmin&&count>=quota)return reply({error:`Kuota paket ${planName} habis (${count}/${quota} analisis dalam 30 hari).`},403);
-  const body=await req.json(),image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
+  const image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
   if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
   const prompt=`Anda adalah analis teknikal profesional untuk RitelAI Vision. Analisis HANYA bukti yang benar-benar terlihat pada screenshot. Instrumen ${instrument}; timeframe ${timeframe}; risiko maksimum ${risk}% per transaksi. Jawab JSON valid saja dalam Bahasa Indonesia.
