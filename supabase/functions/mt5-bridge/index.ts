@@ -43,6 +43,18 @@ async function hasActiveEnterprise(admin:any,userId:string){
   return {allowed,error:null,subscriptionCount:subs.length,planCodes};
 }
 
+async function getAccountAccess(admin:any,userId:string){
+  const {data:profile,error:profileErr}=await admin.from("profiles")
+    .select("role").eq("id",userId).maybeSingle();
+  if(profileErr) return {allowed:false,error:profileErr.message,role:"customer",subscriptionCount:0,planCodes:[] as string[]};
+  const role=String(profile?.role||"customer").trim().toLowerCase();
+  if(["owner","admin","super_admin"].includes(role)){
+    return {allowed:true,error:null,role,subscriptionCount:0,planCodes:[role.toUpperCase()]};
+  }
+  const entitlement=await getAccountAccess(admin,userId);
+  return {...entitlement,role};
+}
+
 Deno.serve(async req=>{
   if(req.method==="OPTIONS") return new Response("ok",{headers:cors});
   if(req.method!=="POST") return reply({error:"Gunakan POST."},405);
@@ -67,8 +79,8 @@ Deno.serve(async req=>{
     const entitlement=await hasActiveEnterprise(admin,userId);
     if(entitlement.error) return reply({error:"Tidak dapat memverifikasi paket Elite/Enterprise.",detail:entitlement.error},503);
     if(!entitlement.allowed) return reply({
-      error:"Akun belum memiliki paket Elite/Enterprise yang aktif. Periksa status langganan dan tanggal berlakunya.",
-      diagnostic:{active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
+      error:"Akun customer memerlukan paket Elite/Enterprise aktif. Akun OWNER/ADMIN/SUPER_ADMIN mendapat akses penuh tanpa langganan.",
+      diagnostic:{account_role:entitlement.role,active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
     },403);
 
     if(action==="create_pairing_code"){
@@ -132,13 +144,13 @@ Deno.serve(async req=>{
 
   // Re-check entitlement on every terminal operation. A downgraded account
   // cannot keep a previously paired terminal connected.
-  const entitlement=await hasActiveEnterprise(admin,device.user_id);
+  const entitlement=await getAccountAccess(admin,device.user_id);
   if(entitlement.error) return reply({error:"Tidak dapat memverifikasi hak akses terminal.",detail:entitlement.error},503);
   if(!entitlement.allowed){
     await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id);
     return reply({
-      error:"Akses MT5 dikunci karena paket Elite/Enterprise tidak aktif. Perangkat dinonaktifkan.",
-      diagnostic:{active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
+      error:"Akses MT5 customer dikunci karena paket Elite/Enterprise tidak aktif. OWNER/ADMIN/SUPER_ADMIN tetap memiliki akses penuh.",
+      diagnostic:{account_role:entitlement.role,active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
     },403);
   }
 
