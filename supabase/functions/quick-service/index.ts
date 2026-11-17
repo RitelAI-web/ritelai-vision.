@@ -266,7 +266,7 @@ async function analyzeEventBatch(events: AnyRecord[]) {
     historicalMacroContext: historical[index],
   }));
   const prompt = `Anda analis makroekonomi dan dampak pasar. Tahap analisis ditentukan oleh analysisWindow pada setiap agenda. Pada H-7/H-3 buat bias awal yang konservatif dan sebutkan data yang masih ditunggu; pada H-1/1 jam/30 menit perbarui berdasarkan data aktual yang tersedia dan risiko menjelang rilis; saat agenda berlangsung atau baru dirilis prioritaskan actual vs forecast dan perubahan ekspektasi suku bunga; pada evaluasi 15 menit/1 jam/4 jam jelaskan reaksi pasar yang benar-benar tersedia. Jangan mengklaim membaca pidato atau reaksi harga jika sumbernya tidak disediakan. Analisis SETIAP agenda berikut secara terpisah untuk ENAM instrumen: XAUUSD, BTCUSD, EURUSD, GBPUSD, USDJPY, US30.
-Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Gunakan historicalMacroContext dari FRED sebagai konteks tren historis resmi (observasi terakhir, bukan data konsensus). Bandingkan pola rilis sebelumnya jika konteksnya cukup dan jelaskan keterbatasannya. Jangan menyebut nilai historis sebagai forecast konsensus. Jika forecast tidak tersedia, buat tiga skenario bersyarat lebih tinggi, sesuai, dan lebih rendah dari ekspektasi pasar yang belum diketahui; tandai konsensus tidak tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika data penting kosong atau hubungan instrumen tidak cukup kuat, pilih WAIT dan jelaskan data apa yang kurang.
+Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Gunakan historicalMacroContext dari FRED sebagai konteks tren historis resmi (observasi terakhir, bukan data konsensus). Bandingkan pola rilis sebelumnya jika konteksnya cukup dan jelaskan keterbatasannya. Jangan menyebut nilai historis sebagai forecast konsensus. Jika forecast tidak tersedia, buat tiga skenario bersyarat lebih tinggi, sesuai, dan lebih rendah dari ekspektasi pasar yang belum diketahui; tandai konsensus tidak tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika forecast belum tersedia, jangan otomatis memberi WAIT 100%: berikan tiga skenario bersyarat (data lebih kuat/lemah/sejalan) dan skor skenario BUY/SELL/WAIT yang berjumlah 100 berdasarkan konteks historis FRED, arah USD/yield bila tersedia, sifat instrumen, dan ketidakpastian. Pilih bias BUY atau SELL jika satu arah lebih didukung; gunakan WAIT hanya bila bukti benar-benar seimbang atau transmisi ke aset tidak dapat dipertanggungjawabkan. Tegaskan ini bias PRA-RILIS, bukan instruksi entry sebelum rilis. Jika data penting kosong, turunkan confidence dan jelaskan apa yang kurang; jangan jadikan kekosongan satu field sebagai alasan otomatis WAIT 100%.
 Untuk SETIAP instrumen berikan bias BUY, SELL, atau WAIT; buyPct, sellPct, waitPct dengan jumlah tepat 100; confidence 0-100 yang terpisah dari skor skenario; dan reason yang menyebut faktor data serta transmisi pasar. Jangan menyamakan arah USD dengan arah emas/crypto. Persentase adalah skor skenario model, BUKAN probabilitas profit, win rate, atau jaminan hasil. Jangan memberi angka sama untuk semua aset. Bila ragu, WAIT lebih baik daripada sinyal palsu.
 Berikan summaryBias, reason makro, dan dataStatus PRE_RELEASE, RELEASED, atau INSUFFICIENT_DATA.
 Balas JSON murni: {"items":[{"id":"id-event","summaryBias":"BULLISH|BEARISH|NEUTRAL","reason":"alasan makro dan skenario bersyarat","dataStatus":"PRE_RELEASE|RELEASED|INSUFFICIENT_DATA","impacts":[{"symbol":"XAUUSD","bias":"BUY|SELL|WAIT","buyPct":40,"sellPct":35,"waitPct":25,"confidence":65,"reason":"alasan spesifik aset"}]}]}. Setiap event wajib memuat keenam instrumen tepat satu kali.
@@ -274,8 +274,8 @@ EVENTS=${JSON.stringify(selected)}`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 2600 }),
-    signal: AbortSignal.timeout(9000),
+    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 7000 }),
+    signal: AbortSignal.timeout(20000),
   });
   const raw = await response.text();
   let data: AnyRecord;
@@ -355,13 +355,12 @@ async function analyzeEvents(events: AnyRecord[]) {
     } else ready.push(event);
   }
 
-  // Analyze one event per OpenAI request to avoid truncated JSON for six instrument impacts.
-  // Remaining events stay explicitly WAIT until a subsequent calendar refresh.
-  const batchSize = 1;
+  // Analyze up to three upcoming events per refresh; deferred rows are explicitly labeled as queued, not market WAIT.
+  const batchSize = 3;
   const errors: string[] = [];
   const deferred = ready.slice(batchSize);
   for (const event of deferred) {
-    output.set(String(event.id), { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI dijadwalkan pada pembaruan berikutnya agar kalender tetap responsif.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Menunggu analisis AI pada pembaruan berikutnya." })) } });
+    output.set(String(event.id), { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Agenda masuk antrean analisis berikutnya agar kalender tetap responsif.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Agenda belum diproses pada refresh ini; ini status antrean, bukan bias pasar WAIT." })) } });
   }
   for (let i = 0; i < Math.min(ready.length, batchSize); i += batchSize) {
     const batch = ready.slice(i, i + batchSize);
