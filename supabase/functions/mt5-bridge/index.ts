@@ -157,7 +157,7 @@ Deno.serve(async req=>{
   const token=auth.startsWith("Bearer ")?auth.slice(7).trim():clean(body.device_token,256);
   if(!token) return reply({error:"Token terminal diperlukan."},401);
   const {data:device,error:deviceErr}=await admin.from("mt5_devices").select("*").eq("token_hash",await sha(token)).eq("enabled",true).eq("is_demo",true).maybeSingle();
-  if(error||deviceErr||!device) return reply({error:"Token terminal tidak valid atau perangkat dinonaktifkan."},401);
+  if(deviceErr||!device) return reply({error:"Token terminal tidak valid atau perangkat dinonaktifkan."},401);
 
   // Re-check entitlement on every terminal operation. A downgraded account
   // cannot keep a previously paired terminal connected.
