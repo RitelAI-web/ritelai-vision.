@@ -206,9 +206,16 @@ Deno.serve(async req=>{
   if(action==="receipt"){
     const id=clean(body.signal_id,64), status=clean(body.status,20).toUpperCase();
     if(!["EXECUTED","REJECTED","EXPIRED","CANCELLED"].includes(status)) return reply({error:"Status receipt tidak valid."},400);
-    const {error:receiptErr}=await admin.from("mt5_signal_queue").update({status,completed_at:new Date().toISOString(),execution_result:body.result&&typeof body.result==="object"?body.result:{}}).eq("id",id).eq("device_id",device.id).in("status",["PENDING","CLAIMED"]);
+    if(!id) return reply({error:"ID sinyal wajib diisi."},400);
+    // Only a signal actually claimed by this paired device may be completed.
+    // Return 409 when no row changes; never report a receipt as saved falsely.
+    const {data:receipt,error:receiptErr}=await admin.from("mt5_signal_queue")
+      .update({status,completed_at:new Date().toISOString(),execution_result:body.result&&typeof body.result==="object"?body.result:{}})
+      .eq("id",id).eq("device_id",device.id).eq("status","CLAIMED")
+      .select("id,status").maybeSingle();
     if(receiptErr) return reply({error:"Gagal menyimpan receipt."},500);
-    return reply({status:"ok",receipt_saved:true});
+    if(!receipt) return reply({error:"Receipt ditolak: sinyal tidak ditemukan, bukan milik perangkat ini, atau belum berstatus CLAIMED."},409);
+    return reply({status:"ok",receipt_saved:true,signal_id:receipt.id,final_status:receipt.status});
   }
   return reply({error:"Aksi tidak dikenal."},400);
 });
