@@ -123,7 +123,8 @@ async function getCalendar() {
       // The official ECB item for 18 Nov is seasonally adjusted HICP at 12:00 CET (18:00 WIB);
       // Eurostat's October HICP release is listed separately on 17 Nov.
       const jakartaDate = new Date(timestamp).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-      if (["EUR", "EU"].includes(currency) && jakartaDate === "2026-11-18" && /cpi.*y\\/y|inflation.*y\\/y/i.test(eventName)) return false;
+      const lowerEventName = eventName.toLowerCase();
+      if (["EUR", "EU"].includes(currency) && jakartaDate === "2026-11-18" && (lowerEventName.includes("cpi y/y") || lowerEventName.includes("inflation y/y"))) return false;
       return relevantEvent.test(eventName);
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
