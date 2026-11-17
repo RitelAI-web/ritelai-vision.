@@ -1,20 +1,21 @@
-name: Publish RitelAI Vision
+name: Publish RitelAI Chart Vision
 on:
   push:
     branches: [main]
     paths:
-      - 'RitelAI_Vision_GitHub_Ready.zip'
-      - '.github/workflows/pages.yml'
-      - 'scripts/patch_frontend.py'
       - 'index.html'
+      - '.github/workflows/pages.yml'
   workflow_dispatch:
+
 permissions:
   contents: read
   pages: write
   id-token: write
+
 concurrency:
   group: pages
   cancel-in-progress: true
+
 jobs:
   build-and-deploy:
     environment:
@@ -24,18 +25,11 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Extract application package
+      - name: Prepare website
         run: |
-          mkdir -p extracted site
-          unzip -o RitelAI_Vision_GitHub_Ready.zip -d extracted
-          APP_DIR="$(dirname "$(find extracted -type f -name index.html -print -quit)")"
-          test -n "$APP_DIR"
-          cp -a "$APP_DIR"/. site/
+          mkdir -p site
+          cp index.html site/index.html
           test -s site/index.html
-      - name: Apply universal multi-market selector and news panel
-        run: python3 scripts/patch_frontend.py
-      - name: Overlay corrected root website source
-        run: cp index.html site/index.html
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload website artifact
