@@ -290,6 +290,10 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 async function showTab(name,btn){
+ if(name==='mt5'){
+  const allowed=await refreshMT5Access();
+  if(!allowed){toast('MT5 Demo terkunci. Hanya paket Elite aktif dan OWNER/ADMIN yang dapat mengakses.');openModal('plansModal');return}
+ }
  if(name==='news'){
   const panel=document.getElementById('tab-news');
   if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan untuk membuka News & Kalender.');openModal('plansModal');return}
@@ -329,21 +333,21 @@ async function refreshMT5Access(){
   if(error)throw error;
   currentUser=session?.user||null;
   if(!currentUser){mt5EliteAccess=false;badge.textContent='Login diperlukan';msg.textContent='Silakan login terlebih dahulu untuk membuat pairing.';btn.disabled=true;return}
-  // Status role hanya untuk tampilan; backend tetap menjadi sumber keputusan akses.
-  let accountRole='customer';
-  try{
-   const {data:profile}=await supabaseClient.from('profiles').select('role').eq('id',currentUser.id).maybeSingle();
-   accountRole=String(profile?.role||'customer').trim().toLowerCase();
-  }catch(_){}
-  mt5EliteAccess=true;
-  if(['owner','admin','super_admin'].includes(accountRole)){
-   badge.textContent='Akses OWNER / ADMIN';
-   msg.textContent='Akses penuh aktif tanpa langganan Elite. Server tetap memverifikasi role akun saat pairing.';
-  }else{
-   badge.textContent='Akun terhubung';
-   msg.textContent='Customer memerlukan paket Elite aktif. Server akan memeriksa langganan saat kode pairing diminta.';
+  const {data:access,error:accessError}=await supabaseClient.functions.invoke('mt5-bridge',{body:{action:'check_access'}});
+  if(accessError||!access||access.allowed!==true){
+   mt5EliteAccess=false;badge.textContent='Fitur terkunci';
+   msg.textContent=access?.error||'MT5 Demo hanya tersedia untuk paket Elite aktif dan OWNER/ADMIN.';
+   btn.disabled=true;return false;
   }
-  btn.disabled=false;
+  mt5EliteAccess=true;
+  if(['owner','admin','super_admin'].includes(String(access.role||'').toLowerCase())){
+   badge.textContent='Akses OWNER / ADMIN';
+   msg.textContent='Akses penuh aktif tanpa langganan Elite.';
+  }else{
+   badge.textContent='Elite aktif';
+   msg.textContent='Akses MT5 Demo tersedia untuk akun dengan paket Elite aktif.';
+  }
+  btn.disabled=false;return true;
  }catch(e){
   mt5EliteAccess=false;badge.textContent='Sesi belum terbaca';
   msg.textContent='Gagal membaca sesi login: '+(e.message||'kesalahan autentikasi')+'. Silakan login ulang.';
