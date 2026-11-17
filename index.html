@@ -532,6 +532,32 @@ async function requestAnalysis(){
    resultBox.innerHTML=`<div class="text-[10px] tracking-widest muted">HASIL PEMBACAAN CHART</div>
     <div class="text-3xl font-extrabold ${tone} mt-2">${safe(signal)}</div>
     <p class="text-sm mt-3">${safe(r.summary)}</p>
+    <div class="mt-5 text-left">
+     <div class="font-bold text-xs mb-3">SKENARIO BUY &amp; SELL — RENCANA BERSYARAT</div>
+     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <section class="rounded-xl border border-emerald-700/60 bg-emerald-950/20 p-4">
+       <div class="font-extrabold text-sm text-emerald-200">BUY · BREAKOUT / RETEST</div>
+       <div class="text-xs mt-3 space-y-2">
+        <p><b>Pemicu:</b> ${safe(r.scenario_buy?.trigger || "Tunggu harga menguji resistance terdekat.")}</p>
+        <p><b>Konfirmasi:</b> ${safe(r.scenario_buy?.confirmation || "Tunggu candle bullish close di atas resistance; idealnya retest bertahan.")}</p>
+        <p><b>Kondisi entry:</b> ${safe(r.scenario_buy?.entry_condition || "Entry hanya setelah breakout terkonfirmasi dan level entry terbaca.")}</p>
+        <p><b>Invalidasi:</b> ${safe(r.scenario_buy?.invalidation || "Batalkan jika harga kembali close di bawah resistance yang ditembus.")}</p>
+        <p><b>Alasan:</b> ${safe(r.scenario_buy?.rationale || "Skenario alternatif jika resistance berhasil ditembus.")}</p>
+       </div>
+      </section>
+      <section class="rounded-xl border border-rose-700/60 bg-rose-950/20 p-4">
+       <div class="font-extrabold text-sm text-rose-200">SELL · REJECTION / BREAKDOWN</div>
+       <div class="text-xs mt-3 space-y-2">
+        <p><b>Pemicu:</b> ${safe(r.scenario_sell?.trigger || "Tunggu penolakan harga di resistance atau breakdown support.")}</p>
+        <p><b>Konfirmasi:</b> ${safe(r.scenario_sell?.confirmation || "Tunggu candle bearish rejection atau close di bawah support.")}</p>
+        <p><b>Kondisi entry:</b> ${safe(r.scenario_sell?.entry_condition || "Entry hanya setelah rejection/breakdown terkonfirmasi dan level terbaca.")}</p>
+        <p><b>Invalidasi:</b> ${safe(r.scenario_sell?.invalidation || "Batalkan jika harga close kembali di atas zona rejection atau support.")}</p>
+        <p><b>Alasan:</b> ${safe(r.scenario_sell?.rationale || "Skenario alternatif jika resistance menolak harga atau support jebol.")}</p>
+       </div>
+      </section>
+     </div>
+     <p class="muted text-[10px] mt-3">Kedua skenario adalah rencana kondisional, bukan dua order aktif. Status utama tetap WAIT sampai salah satu pemicu terkonfirmasi. Jangan entry bila harga/level numerik belum terbaca.</p>
+    </div>
     <div class="mt-5 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4">
      <div class="font-bold text-xs mb-3">LEVEL RENCANA TRANSAKSI</div>
      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
