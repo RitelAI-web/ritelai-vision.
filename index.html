@@ -402,10 +402,16 @@ async function refreshAnalysisQuota(){
   const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'quota_status'}});
   if(error||data?.error)throw error||new Error(data.error);
   const q=data.quota||{};
-  value.textContent=String(q.remaining??0)+'/'+String(q.total??0);
-  plan.textContent=(q.planName||'Paket')+' · '+(q.periodLabel||'30 hari');
-  bar.style.width=(q.total>0?Math.max(0,Math.min(100,(q.remaining/q.total)*100)):0)+'%';
-  bar.className='h-full rounded-full '+(q.remaining>0?'bg-cyan-400':'bg-rose-400');
+  if(q.isUnlimited){
+   value.textContent='TANPA BATAS';
+   plan.textContent=(q.planName||'Akses Owner')+' · tidak memakai kuota analisis';
+   bar.style.width='100%';bar.className='h-full rounded-full bg-cyan-400';
+  }else{
+   value.textContent=String(q.remaining??0)+'/'+String(q.total??0);
+   plan.textContent=(q.planName||'Paket')+' · '+(q.periodLabel||'30 hari');
+   bar.style.width=(q.total>0?Math.max(0,Math.min(100,(q.remaining/q.total)*100)):0)+'%';
+   bar.className='h-full rounded-full '+(q.remaining>0?'bg-cyan-400':'bg-rose-400');
+  }
  }catch(e){value.textContent='—';plan.textContent='Kuota belum dapat dimuat.';bar.style.width='0%';console.error('quota status',e)}
 }
 async function refreshAuth(){
