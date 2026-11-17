@@ -66,7 +66,7 @@ Deno.serve(async req=>{
   const action=clean(body.action,40);
 
   // Website-only actions require a valid Supabase user JWT.
-  if(action==="check_access" || action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal" || action==="set_execution_controls"){
+  if(action==="check_access" || action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal" || action==="set_execution_controls" || action==="admin_list_devices"){
     const auth=req.headers.get("Authorization")||"";
     if(!auth.startsWith("Bearer ")) return reply({error:"Login diperlukan."},401);
     const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
@@ -86,6 +86,12 @@ Deno.serve(async req=>{
 
     if(action==="check_access"){
       return reply({allowed:true,role:entitlement.role,planCodes:entitlement.planCodes});
+    }
+    if(action==="admin_list_devices"){
+      if(!["owner","admin","super_admin"].includes(entitlement.role)) return reply({error:"Monitoring perangkat hanya untuk admin."},403);
+      const {data:devices,error:devicesErr}=await admin.from("mt5_devices").select("id,user_id,broker,account_profile,is_demo,terminal_server,account_login,symbol_name,enabled,last_seen_at,created_at").order("last_seen_at",{ascending:false}).limit(200);
+      if(devicesErr) return reply({error:"Gagal membaca daftar perangkat MT5.",detail:devicesErr.message},503);
+      return reply({status:"ok",devices:devices||[]});
     }
     if(action==="set_execution_controls"){
       if(!["owner","admin","super_admin"].includes(entitlement.role)) return reply({error:"Hanya OWNER/ADMIN yang boleh mengubah kontrol eksekusi."},403);
