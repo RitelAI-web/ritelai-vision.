@@ -118,7 +118,13 @@ async function getCalendar() {
       if (!highImpact) return false;
       const currency = String(event.currency ?? event.countryCode ?? event.country ?? "").trim().toUpperCase();
       if (currency && !allowedCurrencies.has(currency)) return false;
-      return relevantEvent.test(String(event.name ?? event.title ?? event.event ?? ""));
+      const eventName = String(event.name ?? event.title ?? event.event ?? "");
+      // Suppress the unverified Euro-area CPI y/y card shown as 18 Nov 17:00 WIB.
+      // The official ECB item for 18 Nov is seasonally adjusted HICP at 12:00 CET (18:00 WIB);
+      // Eurostat's October HICP release is listed separately on 17 Nov.
+      const jakartaDate = new Date(timestamp).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
+      if (["EUR", "EU"].includes(currency) && jakartaDate === "2026-11-18" && /cpi.*y\\/y|inflation.*y\\/y/i.test(eventName)) return false;
+      return relevantEvent.test(eventName);
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
       ...event,
