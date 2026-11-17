@@ -3,7 +3,7 @@
 //| Pairing + heartbeat + signal inbox. NO trade execution.           |
 //+------------------------------------------------------------------+
 #property strict
-#property version   "0.2.1"
+#property version   "0.2.2"
 #property description "RitelAI demo-only bridge connector. Displays signals; never places orders."
 
 enum RITELAI_PROFILE { EXNESS_STANDARD_CENT=0, VERSUS_TRADE_STANDARD=1 };
@@ -14,7 +14,6 @@ input string InpPreferredSymbol="XAUUSD";
 input int InpPollSeconds=5;
 input bool InpRequireDemoAccount=true;
 
-bool g_demo=false;
 bool g_demo=false;
 string g_broker="UNKNOWN",g_profile="UNKNOWN",g_symbol="",g_token="",g_status="Starting";
 string Esc(string s){StringReplace(s,"\\","\\\\");StringReplace(s,"\"","\\\"");StringReplace(s,"\r","\\r");StringReplace(s,"\n","\\n");return s;}
