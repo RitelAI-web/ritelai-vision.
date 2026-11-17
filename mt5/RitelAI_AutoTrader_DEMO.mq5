@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
-//| RitelAI Auto Trader DEMO v1.2                                    |
+//| RitelAI Auto Trader DEMO v1.3                                    |
 //| Local rule-based test EA. DEMO ONLY; not an AI accuracy claim.   |
 //+------------------------------------------------------------------+
 #property strict
-#property version   "1.20"
+#property version   "1.30"
 #property description "RitelAI XAUUSD demo strategy: EMA + RSI + MACD + ATR risk controls"
 
 #include <Trade/Trade.mqh>
@@ -12,15 +12,17 @@ CTrade trade;
 input string InpSymbol = "XAUUSD.s";
 input ENUM_TIMEFRAMES InpTimeframe = PERIOD_M5;
 input double InpRiskPercent = 0.5;          // Hard cap: 0.5% equity per trade
-input double InpDailyLossLimitPct = 2.0;   // Stop new entries after 2% daily equity loss
+input double InpDailyLossLimitPct = 1.0;   // Conservative daily equity-loss cap
 input int InpMaxSpreadPoints = 80;
 input ulong InpMagic = 26111701;
 input int InpFastEMA = 20;
 input int InpSlowEMA = 50;
 input int InpRSIPeriod = 14;
 input int InpATRPeriod = 14;
-input double InpSL_ATR = 1.5;
-input double InpTP_ATR = 2.25;
+input double InpSL_Pips = 50.0;           // User-selected fixed stop distance
+input double InpPipSize = 0.01;           // Explicit symbol pip size; verify against broker contract
+input double InpMinRewardRisk = 1.5;       // Automatic TP floor: 1.5R
+input double InpTP_ATR = 2.25;             // TP may extend farther when ATR requires it
 input bool InpRequireDemo = true;
 
 int hFast=INVALID_HANDLE, hSlow=INVALID_HANDLE, hRSI=INVALID_HANDLE;
@@ -141,8 +143,11 @@ void EvaluateAndTrade() {
 
    int digits=(int)SymbolInfoInteger(InpSymbol,SYMBOL_DIGITS);
    double entry=buy?tick.ask:tick.bid;
-   double sl=buy?entry-InpSL_ATR*atr:entry+InpSL_ATR*atr;
-   double tp=buy?entry+InpTP_ATR*atr:entry-InpTP_ATR*atr;
+   // Fixed 50-pip SL; pip size is explicit because broker symbol conventions differ.
+   double slDistance=InpSL_Pips*InpPipSize;
+   double tpDistance=MathMax(slDistance*InpMinRewardRisk,InpTP_ATR*atr);
+   double sl=buy?entry-slDistance:entry+slDistance;
+   double tp=buy?entry+tpDistance:entry-tpDistance;
    sl=NormalizeDouble(sl,digits); tp=NormalizeDouble(tp,digits);
    // Broker-side trade permissions and stop-distance preflight.
    if(!TerminalInfoInteger(TERMINAL_CONNECTED) ||
@@ -203,8 +208,8 @@ int OnInit() {
       return INIT_FAILED;
    }
    if(InpRiskPercent<=0 || InpRiskPercent>0.5 || InpDailyLossLimitPct<=0 ||
-      InpDailyLossLimitPct>2.0 || InpMaxSpreadPoints<1 || InpMaxSpreadPoints>80 ||
-      InpSL_ATR<=0 || InpTP_ATR<=0) {
+      InpDailyLossLimitPct>1.0 || InpMaxSpreadPoints<1 || InpMaxSpreadPoints>80 ||
+      InpSL_Pips<=0 || InpPipSize<=0 || InpMinRewardRisk<1.5 || InpTP_ATR<=0) {
       Print("RitelAI STOP: risk settings exceed hard safety limits.");
       return INIT_PARAMETERS_INCORRECT;
    }
@@ -226,7 +231,7 @@ int OnInit() {
    if(GlobalVariableCheck(key)) dayStartEquity=GlobalVariableGet(key);
    else { dayStartEquity=AccountInfoDouble(ACCOUNT_EQUITY); GlobalVariableSet(key,dayStartEquity); }
    EventSetTimer(2);
-   Print("RitelAI Auto Trader DEMO v1.2 initialized. Strategy signals are rule-based, not guaranteed.");
+   Print("RitelAI Auto Trader DEMO v1.3 initialized | SL=",InpSL_Pips," pips | minimum TP RR=",InpMinRewardRisk,":1 | risk=",InpRiskPercent,"% | daily cap=",InpDailyLossLimitPct,"%. Rule-based; no profit guarantee.");
    return INIT_SUCCEEDED;
 }
 void OnTimer() { RefreshDailyLimit(); EvaluateAndTrade(); }
