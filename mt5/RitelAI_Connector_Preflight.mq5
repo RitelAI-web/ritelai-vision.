@@ -6,10 +6,10 @@
 #property version   "0.2.2"
 #property description "RitelAI demo-only bridge connector. Displays signals; never places orders."
 
-enum RITELAI_PROFILE { EXNESS_STANDARD_CENT=0, VERSUS_TRADE_STANDARD=1 };
+enum RITELAI_PROFILE { CENT=0, STANDARD_CENT=1, STANDARD=2, ZERO=3, RAW=4, PRO=5, ECN=6, ISLAMIC=7, OTHER=8 };
 input string InpBridgeUrl="https://brfssdpplapefjmxnpft.supabase.co/functions/v1/mt5-bridge";
 input string InpPairingCode="";
-input RITELAI_PROFILE InpAccountProfile=EXNESS_STANDARD_CENT;
+input RITELAI_PROFILE InpAccountProfile=STANDARD;
 input string InpPreferredSymbol="XAUUSD";
 input int InpPollSeconds=5;
 input bool InpRequireDemoAccount=true;
@@ -23,10 +23,26 @@ string I(string k,long v){return "\""+k+"\":"+(string)v;}
 string B(string k,bool v){return "\""+k+"\":"+(v?"true":"false");}
 
 string DetectBroker(){
- string h=AccountInfoString(ACCOUNT_COMPANY)+" "+AccountInfoString(ACCOUNT_SERVER);StringToLower(h);
- if(StringFind(h,"exness")>=0)return "EXNESS";
- if(StringFind(h,"versus")>=0||StringFind(h,"vtmarkets")>=0)return "VERSUS_TRADE";
- return "UNKNOWN";
+ string h=AccountInfoString(ACCOUNT_COMPANY);
+ if(StringLen(h)<2) h=AccountInfoString(ACCOUNT_SERVER);
+ StringToUpper(h);
+ string out="";
+ for(int i=0;i<StringLen(h);i++){
+   ushort ch=StringGetCharacter(h,i);
+   if((ch>='A'&&ch<='Z')||(ch>='0'&&ch<='9')) out+=CharToString((uchar)ch);
+   else if(ch==' '||ch=='-'||ch=='_') out+="_";
+   if(StringLen(out)>=24) break;
+ }
+ while(StringFind(out,"__")>=0) StringReplace(out,"__","_");
+ return StringLen(out)>=2?out:"UNKNOWN";
+}
+string ProfileName(){
+ switch(InpAccountProfile){
+ case CENT:return "CENT"; case STANDARD_CENT:return "STANDARD_CENT";
+ case STANDARD:return "STANDARD"; case ZERO:return "ZERO"; case RAW:return "RAW";
+ case PRO:return "PRO"; case ECN:return "ECN"; case ISLAMIC:return "ISLAMIC";
+ default:return "OTHER";
+ }
 }
 string ResolveGold(){
  if(SymbolSelect(InpPreferredSymbol,true))return InpPreferredSymbol;
@@ -49,7 +65,7 @@ string LoadToken(){int h=FileOpen("RitelAI_MT5_device_token.txt",FILE_READ|FILE_
 
 bool Pair(){
  if(InpPairingCode==""){g_status="Pairing code belum diisi.";return false;}
- string p=InpAccountProfile==EXNESS_STANDARD_CENT?"STANDARD_CENT":"STANDARD";
+ string p=ProfileName();
  string body="{"+S("action","pair_terminal")+","+S("pairing_code",InpPairingCode)+","+S("broker",g_broker)+","+S("account_profile",p)+","+B("is_demo",g_demo)+","+S("server",AccountInfoString(ACCOUNT_SERVER))+","+S("login",(string)AccountInfoInteger(ACCOUNT_LOGIN))+","+S("symbol",g_symbol)+","+I("digits",SymbolInfoInteger(g_symbol,SYMBOL_DIGITS))+","+N("contract_size",SymbolInfoDouble(g_symbol,SYMBOL_TRADE_CONTRACT_SIZE))+","+N("volume_min",SymbolInfoDouble(g_symbol,SYMBOL_VOLUME_MIN))+","+N("volume_max",SymbolInfoDouble(g_symbol,SYMBOL_VOLUME_MAX))+","+N("volume_step",SymbolInfoDouble(g_symbol,SYMBOL_VOLUME_STEP))+"}";
  string r;int c;if(!Post(body,r,c)){g_status="Pairing HTTP "+(string)c+": "+r;return false;}
  string t=GetJsonString(r,"device_token");if(t==""){g_status="Pairing ditolak: "+r;return false;}
@@ -74,10 +90,9 @@ void Panel(){
  Comment(m);
 }
 int OnInit(){
- g_demo=AccountInfoInteger(ACCOUNT_TRADE_MODE)==ACCOUNT_TRADE_MODE_DEMO;g_broker=DetectBroker();g_profile=InpAccountProfile==EXNESS_STANDARD_CENT?"STANDARD_CENT":"STANDARD";g_symbol=ResolveGold();
+ g_demo=AccountInfoInteger(ACCOUNT_TRADE_MODE)==ACCOUNT_TRADE_MODE_DEMO;g_broker=DetectBroker();g_profile=ProfileName();g_symbol=ResolveGold();
  if(InpRequireDemoAccount&&!g_demo){Print("RitelAI STOP: DEMO required.");return INIT_FAILED;}
- if(g_broker=="UNKNOWN"){Print("RitelAI STOP: broker not recognized.");return INIT_FAILED;}
- if((g_broker=="EXNESS"&&g_profile!="STANDARD_CENT")||(g_broker=="VERSUS_TRADE"&&g_profile!="STANDARD")){Print("RitelAI STOP: selected profile mismatch.");return INIT_FAILED;}
+ if(g_broker=="UNKNOWN"){Print("RitelAI STOP: broker/server identity unavailable.");return INIT_FAILED;}
  if(g_symbol==""){Print("RitelAI STOP: XAUUSD not found.");return INIT_FAILED;}
  g_token=LoadToken();if(g_token=="")Pair();EventSetTimer(MathMax(5,InpPollSeconds));Panel();return INIT_SUCCEEDED;
 }
