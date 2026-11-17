@@ -30,6 +30,10 @@ button:disabled{cursor:not-allowed;opacity:.6}
 .btn{min-height:42px;touch-action:manipulation}
 .glass svg[aria-hidden="true"],.glass .pointer-events-none{pointer-events:none}
 
+/* Ensure hero decoration never captures taps; keep CTA hit areas above decorative layers. */
+main>section.relative.overflow-hidden{isolation:isolate}
+main>section.relative.overflow-hidden button{position:relative;z-index:5;pointer-events:auto;min-height:44px}
+main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!important}
 /* Mobile fix: allow long account/subscription dialogs to scroll vertically. */
 #plansModal,#accountModal{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;align-items:flex-start!important;touch-action:pan-y;}
 #plansModal>.glass,#accountModal>.glass{flex-shrink:0;margin-top:auto;margin-bottom:auto;}
@@ -68,7 +72,7 @@ button:disabled{cursor:not-allowed;opacity:.6}
   <div class="flex gap-2"><span class="pill"><i class="fa-solid fa-shield-halved mr-1"></i> Risk-first</span><span class="pill"><i class="fa-solid fa-mobile-screen mr-1"></i> Responsive</span></div>
  </section>
  <section class="mb-6 relative overflow-hidden rounded-2xl border border-cyan-800/50 bg-gradient-to-br from-[#102b43] via-[#0b1b30] to-[#101b39] p-5 md:p-7">
-  <div class="absolute -right-10 -top-12 h-52 w-52 rounded-full border border-cyan-300/10"></div><div class="absolute right-8 top-7 h-32 w-32 rounded-full border border-blue-300/10"></div>
+  <div aria-hidden="true" class="absolute -right-10 -top-12 h-52 w-52 rounded-full border border-cyan-300/10 pointer-events-none" style="pointer-events:none"></div><div aria-hidden="true" class="absolute right-8 top-7 h-32 w-32 rounded-full border border-blue-300/10 pointer-events-none" style="pointer-events:none"></div>
   <div class="grid md:grid-cols-[1.3fr_.7fr] gap-5 items-center relative">
    <div><span class="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[10px] font-bold tracking-wider text-cyan-200"><i class="fa-solid fa-sparkles"></i> AI-ASSISTED MARKET WORKSPACE</span>
     <h2 class="text-2xl md:text-3xl font-extrabold leading-tight mt-3">Baca pasar lebih terstruktur.<br><span class="text-cyan-300">Rencanakan risiko dengan disiplin.</span></h2>
