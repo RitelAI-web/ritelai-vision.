@@ -3,7 +3,7 @@
 //| Pairing + heartbeat + signal inbox. NO trade execution.           |
 //+------------------------------------------------------------------+
 #property strict
-#property version   "0.2.0"
+#property version   "0.2.1"
 #property description "RitelAI demo-only bridge connector. Displays signals; never places orders."
 
 enum RITELAI_PROFILE { EXNESS_STANDARD_CENT=0, VERSUS_TRADE_STANDARD=1 };
@@ -14,6 +14,7 @@ input string InpPreferredSymbol="XAUUSD";
 input int InpPollSeconds=5;
 input bool InpRequireDemoAccount=true;
 
+bool g_demo=false;
 string g_broker="UNKNOWN",g_profile="UNKNOWN",g_symbol="",g_token="",g_status="Starting";
 string Esc(string s){StringReplace(s,"\\","\\\\");StringReplace(s,"\"","\\\"");StringReplace(s,"\r","\\r");StringReplace(s,"\n","\\n");return s;}
 string S(string k,string v){return "\""+k+"\":\""+Esc(v)+"\"";}
@@ -69,7 +70,7 @@ void Poll(){
  }else g_status="Poll HTTP "+(string)c+": "+r;
 }
 void Panel(){
- string m="RitelAI MT5 Connector 0.2.0\nBroker: "+g_broker+" | Profile: "+g_profile+"\nServer: "+AccountInfoString(ACCOUNT_SERVER)+"\nLogin: "+(string)AccountInfoInteger(ACCOUNT_LOGIN)+" | Demo: "+(g_demo?"YES":"NO")+"\nXAUUSD: "+g_symbol+"\nBridge: "+g_status+"\n\nSAFE MODE: NO ORDERS WILL BE SENT.";
+ string m="RitelAI MT5 Connector 0.2.1\nBroker: "+g_broker+" | Profile: "+g_profile+"\nServer: "+AccountInfoString(ACCOUNT_SERVER)+"\nLogin: "+(string)AccountInfoInteger(ACCOUNT_LOGIN)+" | Demo: "+(g_demo?"YES":"NO")+"\nXAUUSD: "+g_symbol+"\nBridge: "+g_status+"\n\nSAFE MODE: NO ORDERS WILL BE SENT.";
  Comment(m);
 }
 int OnInit(){
