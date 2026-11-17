@@ -1,0 +1,30 @@
+name: Deploy RitelAI Supabase Edge Functions
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/quick-handler/**'
+      - 'supabase/functions/quick-service/**'
+      - '.github/workflows/supabase-deploy.yml'
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link Supabase project
+        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      - name: Deploy chart analysis handler
+        run: supabase functions deploy quick-handler --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      - name: Deploy market intelligence service
+        run: supabase functions deploy quick-service --no-verify-jwt
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
