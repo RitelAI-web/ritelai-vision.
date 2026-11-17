@@ -32,6 +32,7 @@ string ProfileName(){
  }
 }
 string TokenFile(){return "RitelAI_REAL_"+(string)AccountInfoInteger(ACCOUNT_LOGIN)+".txt";}
+string TickTime(){string t=TimeToString(TimeCurrent(),TIME_DATE|TIME_SECONDS);StringReplace(t,".","-");return t;}
 bool SaveToken(string t){int h=FileOpen(TokenFile(),FILE_WRITE|FILE_TXT|FILE_ANSI);if(h==INVALID_HANDLE)return false;FileWriteString(h,t);FileClose(h);return true;}
 string LoadToken(){int h=FileOpen(TokenFile(),FILE_READ|FILE_TXT|FILE_ANSI);if(h==INVALID_HANDLE)return "";string t=FileReadString(h);FileClose(h);return t;}
 bool Post(string body,string &response,int &code){
