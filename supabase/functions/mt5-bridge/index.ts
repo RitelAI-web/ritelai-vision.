@@ -118,7 +118,8 @@ Deno.serve(async req=>{
       const deviceId=clean(body.device_id,64), symbol=clean(body.symbol,"12").toUpperCase();
       if(symbol!=="XAUUSD") return reply({error:"Tahap pertama hanya mengizinkan XAUUSD."},400);
       const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",true).maybeSingle();
-      if(!device) return reply({error:"Terminal demo aktif tidak ditemukan."},403);\n      if(device.emergency_stop) return reply({error:"Emergency Stop aktif. Sinyal baru diblokir."},423);
+      if(!device) return reply({error:"Terminal demo aktif tidak ditemukan."},403);
+      if(device.emergency_stop) return reply({error:"Emergency Stop aktif. Sinyal baru diblokir."},423);
       const signal=clean(body.signal_type,20).toUpperCase();
       if(!["BUY","SELL","BUY_LIMIT","SELL_LIMIT","CANCEL"].includes(signal)) return reply({error:"Jenis sinyal tidak valid."},400);
       const payload=body.payload&&typeof body.payload==="object"?body.payload:{};
