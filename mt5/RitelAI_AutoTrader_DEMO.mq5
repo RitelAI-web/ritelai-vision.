@@ -116,8 +116,40 @@ void EvaluateAndTrade() {
    double sl=buy?entry-InpSL_ATR*atr:entry+InpSL_ATR*atr;
    double tp=buy?entry+InpTP_ATR*atr:entry-InpTP_ATR*atr;
    sl=NormalizeDouble(sl,digits); tp=NormalizeDouble(tp,digits);
+   // Broker-side trade permissions and stop-distance preflight.
+   if(!TerminalInfoInteger(TERMINAL_CONNECTED) ||
+      !TerminalInfoInteger(TERMINAL_TRADE_ALLOWED) ||
+      !MQLInfoInteger(MQL_TRADE_ALLOWED) ||
+      !AccountInfoInteger(ACCOUNT_TRADE_ALLOWED)) {
+      Print("RitelAI STOP: terminal/account trading permission unavailable.");
+      return;
+   }
+   long symbolMode=SymbolInfoInteger(InpSymbol,SYMBOL_TRADE_MODE);
+   if(symbolMode==SYMBOL_TRADE_MODE_DISABLED ||
+      (buy && symbolMode==SYMBOL_TRADE_MODE_SHORTONLY) ||
+      (!buy && symbolMode==SYMBOL_TRADE_MODE_LONGONLY) ||
+      symbolMode==SYMBOL_TRADE_MODE_CLOSEONLY) {
+      Print("RitelAI STOP: broker symbol trade mode blocks this direction.");
+      return;
+   }
+   double stopLevel=SymbolInfoInteger(InpSymbol,SYMBOL_TRADE_STOPS_LEVEL)*point;
+   if((buy && (entry-sl<stopLevel || tp-entry<stopLevel)) ||
+      (!buy && (sl-entry<stopLevel || entry-tp<stopLevel))) {
+      Print("RitelAI STOP: SL/TP is inside broker minimum stop distance.");
+      return;
+   }
+
    double lots=CalcLots(entry,sl);
    if(lots<=0) { Print("RitelAI: volume below broker minimum or risk calculation unavailable; skipped."); return; }
+
+   // Reject trades that cannot be covered by available free margin.
+   double requiredMargin=0;
+   ENUM_ORDER_TYPE orderType=buy?ORDER_TYPE_BUY:ORDER_TYPE_SELL;
+   if(!OrderCalcMargin(orderType,InpSymbol,lots,entry,requiredMargin) ||
+      requiredMargin<=0 || AccountInfoDouble(ACCOUNT_MARGIN_FREE)<requiredMargin) {
+      Print("RitelAI STOP: margin preflight failed; order skipped.");
+      return;
+   }
 
    trade.SetExpertMagicNumber(InpMagic);
    trade.SetDeviationInPoints(20);
