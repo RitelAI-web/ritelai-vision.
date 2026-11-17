@@ -58,6 +58,26 @@
   <div><div class="text-[10px] tracking-[.22em] text-cyan-300 font-bold mb-2">AI-ASSISTED TRADING WORKSPACE</div><h1 class="text-2xl md:text-3xl font-extrabold">Selamat datang di <span class="text-cyan-300">RitelAI Chart Vision</span></h1><p class="muted text-xs mt-2 max-w-2xl">Ruang kerja analisis pasar untuk membaca chart, memahami berita, dan menyusun rencana risiko dengan lebih disiplin.</p></div>
   <div class="flex gap-2"><span class="pill"><i class="fa-solid fa-shield-halved mr-1"></i> Risk-first</span><span class="pill"><i class="fa-solid fa-mobile-screen mr-1"></i> Responsive</span></div>
  </section>
+ <section class="mb-6 relative overflow-hidden rounded-2xl border border-cyan-800/50 bg-gradient-to-br from-[#102b43] via-[#0b1b30] to-[#101b39] p-5 md:p-7">
+  <div class="absolute -right-10 -top-12 h-52 w-52 rounded-full border border-cyan-300/10"></div><div class="absolute right-8 top-7 h-32 w-32 rounded-full border border-blue-300/10"></div>
+  <div class="grid md:grid-cols-[1.3fr_.7fr] gap-5 items-center relative">
+   <div><span class="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/10 px-3 py-1 text-[10px] font-bold tracking-wider text-cyan-200"><i class="fa-solid fa-sparkles"></i> AI-ASSISTED MARKET WORKSPACE</span>
+    <h2 class="text-2xl md:text-3xl font-extrabold leading-tight mt-3">Baca pasar lebih terstruktur.<br><span class="text-cyan-300">Rencanakan risiko dengan disiplin.</span></h2>
+    <p class="muted text-xs md:text-sm mt-3 max-w-xl leading-6">Satukan analisis chart, ringkasan teknikal, agenda ekonomi, dan jurnal hasil dalam satu workspace. Gunakan sebagai alat bantu keputusan—bukan jaminan profit.</p>
+    <div class="flex flex-wrap gap-2 mt-4"><button class="btn primary" onclick="showTab('analyze',document.querySelector('[data-tab=analyze]'))"><i class="fa-solid fa-chart-line mr-1"></i>Mulai analisis</button><button class="btn border border-cyan-700/70 text-cyan-100" onclick="showTab('guide',document.querySelector('[data-tab=guide]'))"><i class="fa-solid fa-book-open mr-1"></i>Lihat panduan</button><button class="btn border border-slate-600 text-slate-200" onclick="openModal('plansModal')">Lihat paket</button></div>
+   </div>
+   <div class="rounded-2xl border border-cyan-700/30 bg-[#071321]/70 p-4">
+    <div class="flex justify-between items-center text-[10px] muted"><span>MARKET SNAPSHOT WORKSPACE</span><i class="fa-solid fa-wave-square text-cyan-300"></i></div>
+    <svg viewBox="0 0 360 190" role="img" aria-label="Ilustrasi grafik pergerakan pasar" class="w-full mt-2">
+     <g stroke="#24415a" stroke-width="1"><path d="M12 30H348 M12 70H348 M12 110H348 M12 150H348"/></g>
+     <path d="M12 130 C35 120 45 138 65 108 S98 100 115 112 S145 70 165 85 S198 115 218 78 S245 68 262 83 S300 45 348 28" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
+     <path d="M12 130 C35 120 45 138 65 108 S98 100 115 112 S145 70 165 85 S198 115 218 78 S245 68 262 83 S300 45 348 28 L348 170 L12 170Z" fill="#0891b2" opacity=".10"/>
+     <circle cx="348" cy="28" r="5" fill="#67e8f9"/><text x="14" y="184" fill="#7894ad" font-size="9">Ilustrasi visual · bukan harga live</text>
+    </svg>
+    <div class="grid grid-cols-3 gap-2 mt-1 text-center"><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-solid fa-chart-simple text-cyan-300"></i><div class="text-[9px] muted mt-1">Chart</div></div><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-regular fa-calendar text-cyan-300"></i><div class="text-[9px] muted mt-1">News</div></div><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-solid fa-shield-halved text-cyan-300"></i><div class="text-[9px] muted mt-1">Risk</div></div></div>
+   </div>
+  </div>
+ </section>
  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
   <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">STATUS DATA PASAR</div><div class="mt-2 font-bold text-sm">Belum terhubung</div><div class="text-[10px] text-amber-300 mt-1">Menunggu API market data</div></div>
   <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">STATUS AI</div><div class="mt-2 font-bold text-sm">Belum aktif</div><div class="text-[10px] text-amber-300 mt-1">Menunggu konfigurasi AI server</div></div>
