@@ -299,7 +299,7 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 async function showTab(name,btn){
- if(name==='news'||name==='history'){
+ if(name==='news'){
   if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan.');openModal('plansModal');return}
   const {data:{session}}=await supabaseClient.auth.getSession();
   if(!session){toast('Silakan login dan gunakan paket Pro atau Elite.');openModal('accountModal');return}
