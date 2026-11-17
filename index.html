@@ -94,10 +94,10 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
   </div>
  </section>
  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
-  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">STATUS DATA PASAR</div><div class="mt-2 font-bold text-sm">Belum terhubung</div><div class="text-[10px] text-amber-300 mt-1">Menunggu API market data</div></div>
-  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">STATUS AI</div><div class="mt-2 font-bold text-sm">Belum aktif</div><div class="text-[10px] text-amber-300 mt-1">Menunggu konfigurasi AI server</div></div>
-  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">PAKET AKUN</div><div class="mt-2 font-bold text-sm">Gratis</div><div class="text-[10px] text-cyan-300 mt-1">Pratinjau antarmuka</div></div>
-  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">RIWAYAT ANALISIS</div><div id="historyCount" class="mt-2 font-bold text-sm">0 analisis</div><div class="text-[10px] muted mt-1">Sesi pratinjau ini</div></div>
+  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">CHART PASAR</div><div class="mt-2 font-bold text-sm">TradingView</div><div class="text-[10px] text-cyan-300 mt-1">Widget chart · harga dari penyedia chart</div></div>
+  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">LAYANAN ANALISIS AI</div><div class="mt-2 font-bold text-sm">Server-side</div><div class="text-[10px] text-cyan-300 mt-1">Permintaan diproses melalui layanan backend</div></div>
+  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">PAKET AKUN</div><div class="mt-2 font-bold text-sm">Lihat paket</div><div class="text-[10px] text-cyan-300 mt-1">Kuota mengikuti paket aktif</div></div>
+  <div class="glass rounded-2xl p-4"><div class="muted text-[10px]">RIWAYAT ANALISIS</div><div id="historyCount" class="mt-2 font-bold text-sm">0 analisis</div><div class="text-[10px] muted mt-1">Riwayat akun akan dimuat setelah login</div></div>
  </div>
  <div class="nav-menu glass rounded-2xl p-2 mb-5">
   <button class="navbtn active" data-tab="analyze" onclick="showTab('analyze',this)"><i class="fa-solid fa-chart-line"></i><span>Analisis</span></button>
@@ -398,7 +398,7 @@ async function refreshAnalysisQuota(){
  if(!value||!plan||!bar)return;
  try{
   const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){value.textContent='—';plan.textContent='Login untuk melihat kuota paket.';bar.style.width='0%';return}
+  if(!session){value.textContent='5/5';plan.textContent='Pratinjau paket Gratis · 5 analisis per 30 hari. Login untuk melihat sisa kuota akun.';bar.style.width='100%';bar.className='h-full rounded-full bg-cyan-400';return}
   const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'quota_status'}});
   if(error||data?.error)throw error||new Error(data.error);
   const q=data.quota||{};
@@ -522,8 +522,8 @@ async function loadPlans(){
   if(error)throw error;
   if(!data||!data.length){container.innerHTML='<p class="text-amber-200 text-xs">Belum ada paket aktif di database. Hubungi Admin.</p>';return}
   const defaultFeatures={
-   free:['10 upload & scan chart per 30 hari','News & Kalender: terkunci','Riwayat 3 analisis terakhir'],
-   starter:['20 upload & scan chart per 30 hari','News & Kalender: terkunci','Riwayat analisis 30 hari'],
+   free:['5 analisis chart per 30 hari','News & Kalender: terkunci','Riwayat 3 analisis terakhir'],
+   starter:['20 analisis chart per 30 hari','News & Kalender: terkunci','Riwayat analisis 30 hari'],
    pro:['20 upload & scan chart per 30 hari','Semua kategori News: dampak kecil, sedang, dan tinggi','Kalender ekonomi lengkap','Ringkasan berita dengan AI','Analisis dampak berita per aset','Notifikasi berita berdampak tinggi','Riwayat analisis 90 hari'],
    elite:['1.000 upload & scan chart per 30 hari','Semua akses News dan kalender ekonomi','Analisis berita AI mendalam dan multi-aset','Prioritas pemrosesan analisis','Notifikasi berita berdampak tinggi lebih cepat','Riwayat analisis 365 hari','Dukungan prioritas']
   };
