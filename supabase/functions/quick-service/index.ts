@@ -286,11 +286,11 @@ EVENTS=${JSON.stringify(selected)}`;
   const byId = new Map((Array.isArray(parsed.items) ? parsed.items : []).map((item: AnyRecord) => [String(item.id), item]));
   const enriched = events.map((event) => {
     const item: AnyRecord | undefined = byId.get(String(event.id));
-    if (!item) return { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI tidak mengembalikan agenda ini. Tidak ada persentase yang dibuat-buat; status WAIT sampai analisis tersedia.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Analisis untuk instrumen ini belum tersedia." })) } };
+    if (!item) return { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI tidak mengembalikan agenda ini. Tidak ada persentase yang dibuat-buat; status WAIT sampai analisis tersedia.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Analisis AI untuk instrumen ini belum selesai; belum ada bias pasar yang dinilai." })) } };
     const rawImpacts = Array.isArray(item.impacts) ? item.impacts : [];
     const impacts = SYMBOLS.map((symbol) => {
       const found = rawImpacts.find((impact: AnyRecord) => String(impact.symbol).toUpperCase() === symbol);
-      if (!found) return { symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "AI belum memberikan analisis untuk instrumen ini." };
+      if (!found) return { symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Analisis AI untuk instrumen ini belum selesai; belum ada bias pasar yang dinilai." };
       const rawBuy = Number(found.buyPct), rawSell = Number(found.sellPct), rawWait = Number(found.waitPct);
       const valid = [rawBuy, rawSell, rawWait].every((v) => Number.isFinite(v) && v >= 0);
       const sum = valid ? rawBuy + rawSell + rawWait : 0;
@@ -339,7 +339,7 @@ function analysisFingerprint(event: AnyRecord): string {
 
 async function analyzeEvents(events: AnyRecord[]) {
   const apiKey = Deno.env.get("OPENAI_API_KEY");
-  if (!apiKey) return { events: events.map((event) => ({ ...event, ai: { available: false, bias: "NEUTRAL", reason: "OPENAI_API_KEY belum dikonfigurasi. Tidak ada persentase yang dibuat-buat.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Analisis AI belum tersedia." })) } })), error: "OPENAI_API_KEY belum dikonfigurasi di Supabase Edge Function Secrets." };
+  if (!apiKey) return { events: events.map((event) => ({ ...event, ai: { available: false, bias: "NEUTRAL", reason: "OPENAI_API_KEY belum dikonfigurasi. Tidak ada persentase yang dibuat-buat.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Analisis AI belum tersedia; belum ada bias pasar yang dinilai." })) } })), error: "OPENAI_API_KEY belum dikonfigurasi di Supabase Edge Function Secrets." };
   if (!events.length) return { events, error: null };
 
   const now = Date.now();
@@ -380,7 +380,7 @@ async function analyzeEvents(events: AnyRecord[]) {
     } catch (error) {
       errors.push(messageOf(error));
       for (const event of batch) {
-        const failed = { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI gagal. Tidak ada skor BUY/SELL yang direkayasa; tunggu pembaruan.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "WAIT", buyPct: 0, sellPct: 0, waitPct: 100, confidence: 0, reason: "Analisis belum tersedia." })) } };
+        const failed = { ...event, ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI gagal. Tidak ada skor BUY/SELL yang direkayasa; tunggu pembaruan.", impacts: SYMBOLS.map((symbol) => ({ symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Analisis AI gagal dimuat; belum ada bias pasar yang dinilai." })) } };
         output.set(String(event.id), failed);
       }
     }
