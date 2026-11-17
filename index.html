@@ -290,10 +290,6 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 async function showTab(name,btn){
- if(name==='mt5'){
-  const allowed=await refreshMT5Access();
-  if(!allowed){toast('MT5 Demo terkunci. Hanya paket Elite aktif dan OWNER/ADMIN yang dapat mengakses.');openModal('plansModal');return}
- }
  if(name==='news'){
   const panel=document.getElementById('tab-news');
   if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan untuk membuka News & Kalender.');openModal('plansModal');return}
