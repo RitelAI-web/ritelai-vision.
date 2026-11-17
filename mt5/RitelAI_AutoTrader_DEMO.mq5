@@ -1,9 +1,9 @@
 //+------------------------------------------------------------------+
-//| RitelAI Auto Trader DEMO v1.0                                    |
+//| RitelAI Auto Trader DEMO v1.2                                    |
 //| Local rule-based test EA. DEMO ONLY; not an AI accuracy claim.   |
 //+------------------------------------------------------------------+
 #property strict
-#property version   "1.00"
+#property version   "1.20"
 #property description "RitelAI XAUUSD demo strategy: EMA + RSI + MACD + ATR risk controls"
 
 #include <Trade/Trade.mqh>
@@ -96,20 +96,48 @@ void RefreshDailyLimit() {
    }
 }
 void EvaluateAndTrade() {
-   if(halted || !IsNewBar() || HasOurPosition()) return;
+   // Diagnostics are emitted once per newly closed M5 candle, not every timer tick.
+   if(!IsNewBar()) return;
+   if(halted) { Print("RitelAI WAIT: daily equity-loss limit reached; new entries halted."); return; }
+   if(HasOurPosition()) { Print("RitelAI WAIT: an existing RitelAI position is still open."); return; }
    MqlTick tick;
-   if(!SymbolInfoTick(InpSymbol,tick) || tick.ask<=0 || tick.bid<=0) return;
+   if(!SymbolInfoTick(InpSymbol,tick) || tick.ask<=0 || tick.bid<=0) {
+      Print("RitelAI WAIT: no valid live tick for ",InpSymbol,"."); return;
+   }
    double point=SymbolInfoDouble(InpSymbol,SYMBOL_POINT);
-   if(point<=0 || (tick.ask-tick.bid)/point>InpMaxSpreadPoints) return;
+   if(point<=0) { Print("RitelAI WAIT: broker point size unavailable."); return; }
+   double spreadPoints=(tick.ask-tick.bid)/point;
+   if(spreadPoints>InpMaxSpreadPoints) {
+      Print("RitelAI WAIT: spread ",DoubleToString(spreadPoints,1),
+            " points exceeds limit ",InpMaxSpreadPoints,"."); return;
+   }
 
    double fast,slow,rsi,macdMain,macdSignal,atr;
    if(!ReadOne(hFast,0,1,fast) || !ReadOne(hSlow,0,1,slow) ||
       !ReadOne(hRSI,0,1,rsi) || !ReadOne(hMACD,0,1,macdMain) ||
-      !ReadOne(hMACD,1,1,macdSignal) || !ReadOne(hATR,0,1,atr) || atr<=0) return;
+      !ReadOne(hMACD,1,1,macdSignal) || !ReadOne(hATR,0,1,atr) || atr<=0) {
+      Print("RitelAI WAIT: indicator data not ready; waiting for more M5 history.");
+      return;
+   }
 
-   bool buy=(fast>slow && rsi>=55.0 && macdMain>macdSignal);
-   bool sell=(fast<slow && rsi<=45.0 && macdMain<macdSignal);
-   if(!buy && !sell) return;
+   bool emaBull=(fast>slow), emaBear=(fast<slow);
+   bool rsiBull=(rsi>=55.0), rsiBear=(rsi<=45.0);
+   bool macdBull=(macdMain>macdSignal), macdBear=(macdMain<macdSignal);
+   bool buy=(emaBull && rsiBull && macdBull);
+   bool sell=(emaBear && rsiBear && macdBear);
+   Print("RitelAI CHECK ",InpSymbol," M5 | EMA",InpFastEMA,"=",DoubleToString(fast,_Digits),
+         " EMA",InpSlowEMA,"=",DoubleToString(slow,_Digits),
+         " RSI=",DoubleToString(rsi,1),
+         " MACD=",DoubleToString(macdMain,5),
+         " signal=",DoubleToString(macdSignal,5),
+         " ATR=",DoubleToString(atr,_Digits),
+         " spread=",DoubleToString(spreadPoints,1),
+         " | BUY[EMA:",emaBull," RSI:",rsiBull," MACD:",macdBull,
+         "] SELL[EMA:",emaBear," RSI:",rsiBear," MACD:",macdBear,"]");
+   if(!buy && !sell) {
+      Print("RitelAI WAIT: no complete BUY/SELL setup on the last closed candle.");
+      return;
+   }
 
    int digits=(int)SymbolInfoInteger(InpSymbol,SYMBOL_DIGITS);
    double entry=buy?tick.ask:tick.bid;
@@ -198,7 +226,7 @@ int OnInit() {
    if(GlobalVariableCheck(key)) dayStartEquity=GlobalVariableGet(key);
    else { dayStartEquity=AccountInfoDouble(ACCOUNT_EQUITY); GlobalVariableSet(key,dayStartEquity); }
    EventSetTimer(2);
-   Print("RitelAI Auto Trader DEMO v1.0 initialized. Strategy signals are rule-based, not guaranteed.");
+   Print("RitelAI Auto Trader DEMO v1.2 initialized. Strategy signals are rule-based, not guaranteed.");
    return INIT_SUCCEEDED;
 }
 void OnTimer() { RefreshDailyLimit(); EvaluateAndTrade(); }
