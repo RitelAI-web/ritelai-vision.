@@ -73,7 +73,7 @@
   </div>
   <div class="glass rounded-2xl p-4 md:p-5">
    <h3 class="font-bold">Pairing terminal demo</h3>
-   <p class="muted text-xs mt-1">Pilih broker dan profil demo. Kode pairing hanya dibuat untuk akun dengan paket Elite aktif.</p>
+   <p class="muted text-xs mt-1">Pilih broker dan profil demo. OWNER/ADMIN/SUPER_ADMIN mendapat akses tanpa langganan; customer memerlukan paket Elite aktif.</p>
    <div class="grid md:grid-cols-2 gap-3 mt-4">
     <div><label class="text-xs muted block mb-1">Broker</label><select id="mt5Broker" class="field"><option value="EXNESS">Exness</option><option value="VERSUS_TRADE">Versus Trade</option></select></div>
     <div><label class="text-xs muted block mb-1">Jenis akun</label><select id="mt5Profile" class="field"><option value="STANDARD_CENT">Standard Cent Demo</option><option value="ZERO">Zero Demo</option><option value="STANDARD">Standard Demo</option></select></div>
@@ -219,11 +219,20 @@ async function refreshMT5Access(){
   if(error)throw error;
   currentUser=session?.user||null;
   if(!currentUser){mt5EliteAccess=false;badge.textContent='Login diperlukan';msg.textContent='Silakan login terlebih dahulu untuk membuat pairing.';btn.disabled=true;return}
-  // Tombol tidak lagi dikunci oleh pemeriksaan langganan di browser.
-  // Backend tetap memvalidasi paket Elite sebelum menerbitkan kode.
+  // Status role hanya untuk tampilan; backend tetap menjadi sumber keputusan akses.
+  let accountRole='customer';
+  try{
+   const {data:profile}=await supabaseClient.from('profiles').select('role').eq('id',currentUser.id).maybeSingle();
+   accountRole=String(profile?.role||'customer').trim().toLowerCase();
+  }catch(_){}
   mt5EliteAccess=true;
-  badge.textContent='Akun terhubung';
-  msg.textContent='Tombol pairing aktif. Server akan memeriksa paket dan izin saat kode diminta.';
+  if(['owner','admin','super_admin'].includes(accountRole)){
+   badge.textContent='Akses OWNER / ADMIN';
+   msg.textContent='Akses penuh aktif tanpa langganan Elite. Server tetap memverifikasi role akun saat pairing.';
+  }else{
+   badge.textContent='Akun terhubung';
+   msg.textContent='Customer memerlukan paket Elite aktif. Server akan memeriksa langganan saat kode pairing diminta.';
+  }
   btn.disabled=false;
  }catch(e){
   mt5EliteAccess=false;badge.textContent='Sesi belum terbaca';
