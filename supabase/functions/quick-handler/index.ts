@@ -27,19 +27,27 @@ function scenarioOrFallback(value: unknown, side: "BUY" | "SELL", levels: Record
  const s = value && typeof value === "object" ? value as Record<string,unknown> : {};
  const level = side === "BUY" ? levels.support_primary : levels.resistance_nearest;
  const levelText = level && typeof level === "object" ? formatDisplay(level) : "zona " + (side === "BUY" ? "support" : "resistance") + " yang teridentifikasi";
+ const num=(v:unknown)=>v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v):null;
+ const entry=num(s.entry_price),sl=num(s.stop_loss),tp1=num(s.take_profit_1),tp2=num(s.take_profit_2);
+ const risk=entry!==null&&sl!==null?Math.abs(entry-sl):0;
+ const reward=entry!==null&&tp1!==null?(side==="BUY"?tp1-entry:entry-tp1):0;
+ const directionValid=entry!==null&&sl!==null&&tp1!==null&&(side==="BUY"?(sl<entry&&tp1>entry):(sl>entry&&tp1<entry));
+ const rr=directionValid&&risk>0&&reward>0?Number((reward/risk).toFixed(2)):null;
+ const levelCheck=entry!==null&&sl!==null&&tp1!==null&&directionValid&&rr!==null;
  return {
   trigger: String(s.trigger || "Tunggu harga menguji " + levelText + "; jangan entry sebelum ada reaksi yang terlihat."),
   confirmation: String(s.confirmation || "Tunggu candle konfirmasi searah skenario dan penutupan candle yang jelas."),
   entry_condition: String(s.entry_condition || "Entry hanya setelah konfirmasi; jika level dan harga tidak terbaca, jangan entry."),
   invalidation: String(s.invalidation || "Batalkan skenario jika candle close menembus zona invalidasi; level numerik hanya digunakan bila terbaca pada chart."),
-  rationale: String(s.rationale || "Skenario bersyarat untuk menjaga rencana dua arah tetap tersedia; bukan sinyal entry aktif."),
-  entry_price: s.entry_price != null && s.entry_price !== "" && Number.isFinite(Number(s.entry_price)) ? Number(s.entry_price) : null,
-  entry_zone_low: s.entry_zone_low != null && s.entry_zone_low !== "" && Number.isFinite(Number(s.entry_zone_low)) ? Number(s.entry_zone_low) : null,
-  entry_zone_high: s.entry_zone_high != null && s.entry_zone_high !== "" && Number.isFinite(Number(s.entry_zone_high)) ? Number(s.entry_zone_high) : null,
-  stop_loss: s.stop_loss != null && s.stop_loss !== "" && Number.isFinite(Number(s.stop_loss)) ? Number(s.stop_loss) : null,
-  take_profit_1: s.take_profit_1 != null && s.take_profit_1 !== "" && Number.isFinite(Number(s.take_profit_1)) ? Number(s.take_profit_1) : null,
-  take_profit_2: s.take_profit_2 != null && s.take_profit_2 !== "" && Number.isFinite(Number(s.take_profit_2)) ? Number(s.take_profit_2) : null,
-  risk_reward: s.risk_reward ?? null
+  rationale: String(s.rationale || "Skenario bersyarat untuk menjaga rencana dua arah tetap tersedia; bukan sinyal entry aktif.")+(levelCheck&&rr!<1.5?" RR dihitung ulang oleh server dan di bawah 1.5; setup belum layak entry.":""),
+  entry_price: entry,
+  entry_zone_low: num(s.entry_zone_low),
+  entry_zone_high: num(s.entry_zone_high),
+  stop_loss: sl,
+  take_profit_1: tp1,
+  take_profit_2: tp2,
+  risk_reward: rr,
+  setup_status: !levelCheck?"WAIT_CONFIRMATION":rr!<1.5?"NOT_VALID":"VALID_SETUP"
  };
 }
 
