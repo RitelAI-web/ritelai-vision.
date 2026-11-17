@@ -191,6 +191,10 @@ Deno.serve(async req=>{
     if(typeof body.is_demo!=="boolean" || body.is_demo!==device.is_demo) { await admin.from("mt5_devices").update({enabled:false}).eq("id",device.id); return reply({error:"Mode akun berubah/tidak cocok. Pairing ulang diperlukan."},403); }
     if(body.account_currency) patch.account_currency=clean(body.account_currency,12);
     if(Number.isFinite(Number(body.leverage))) patch.account_leverage=Math.max(1,Math.min(10000,Number(body.leverage)));
+    if(Number.isFinite(Number(body.bid)) && Number(body.bid)>0) patch.last_bid=Number(body.bid);
+    if(Number.isFinite(Number(body.ask)) && Number(body.ask)>0) patch.last_ask=Number(body.ask);
+    if(Number.isFinite(Number(body.spread_points)) && Number(body.spread_points)>=0) patch.last_spread_points=Number(body.spread_points);
+    if(body.tick_time) { const tick=new Date(body.tick_time); if(!Number.isNaN(tick.getTime())) patch.last_tick_at=tick.toISOString(); }
     await admin.from("mt5_devices").update(patch).eq("id",device.id);
     return reply({status:"ok",heartbeat:true,device_id:device.id});
   }
