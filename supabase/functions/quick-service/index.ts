@@ -293,14 +293,18 @@ EVENTS=${JSON.stringify(selected)}`;
       const found = rawImpacts.find((impact: AnyRecord) => String(impact.symbol).toUpperCase() === symbol);
       if (!found) return { symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Analisis AI untuk instrumen ini belum selesai; belum ada bias pasar yang dinilai." };
       const rawBuy = Number(found.buyPct), rawSell = Number(found.sellPct), rawWait = Number(found.waitPct);
-      const valid = [rawBuy, rawSell, rawWait].every((v) => Number.isFinite(v) && v >= 0);
-      const sum = valid ? rawBuy + rawSell + rawWait : 0;
-      const buyPct = sum > 0 ? Math.round(rawBuy / sum * 100) : 0;
-      const sellPct = sum > 0 ? Math.round(rawSell / sum * 100) : 0;
-      const waitPct = sum > 0 ? 100 - buyPct - sellPct : 100;
-      const bias = ["BUY", "SELL", "WAIT"].includes(String(found.bias).toUpperCase()) ? String(found.bias).toUpperCase() : "WAIT";
-      const confidence = Number.isFinite(Number(found.confidence)) ? Math.max(0, Math.min(100, Math.round(Number(found.confidence)))) : 0;
-      return { symbol, bias, buyPct, sellPct, waitPct, confidence, reason: String(found.reason || "Alasan belum tersedia.") };
+      const sum = rawBuy + rawSell + rawWait;
+      const reason = String(found.reason || "").trim();
+      const confidenceRaw = Number(found.confidence);
+      const valid = [rawBuy, rawSell, rawWait].every((v) => Number.isFinite(v) && v >= 0 && v <= 100)
+        && Number.isFinite(sum) && Math.abs(sum - 100) <= 1
+        && reason.length > 12 && Number.isFinite(confidenceRaw) && confidenceRaw >= 0 && confidenceRaw <= 100;
+      if (!valid) return { symbol, bias: "PENDING", buyPct: null, sellPct: null, waitPct: null, confidence: 0, reason: "Skor BUY/SELL/WAIT atau alasan tidak lolos validasi. Persentase disembunyikan sampai analisis valid." };
+      const buyPct = Math.round(rawBuy), sellPct = Math.round(rawSell), waitPct = 100 - buyPct - sellPct;
+      const ranked = [{ bias: "BUY", score: buyPct }, { bias: "SELL", score: sellPct }, { bias: "WAIT", score: waitPct }].sort((a, b) => b.score - a.score);
+      const bias = ranked[0].score - ranked[1].score >= 8 ? ranked[0].bias : "WAIT";
+      const confidence = Math.round(confidenceRaw);
+      return { symbol, bias, buyPct, sellPct, waitPct, confidence, reason };
     });
     const summaryBias = String(item.summaryBias || "NEUTRAL").toUpperCase();
     return { ...event, ai: {
