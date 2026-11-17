@@ -49,7 +49,7 @@ Deno.serve(async(req)=>{
  try{
   const auth=req.headers.get("Authorization")||""; if(!auth.startsWith("Bearer "))return reply({error:"Silakan login terlebih dahulu."},401);
   const url=Deno.env.get("SUPABASE_URL")!,anon=Deno.env.get("SUPABASE_ANON_KEY")!,service=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,key=Deno.env.get("OPENAI_API_KEY");
-  if(!url||!anon||!service||!key)return reply({error:"Layanan AI belum dikonfigurasi di Supabase Secrets."},503);
+  if(!url||!anon||!service)return reply({error:"Konfigurasi Supabase belum lengkap."},503);
   const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
   const {data:ud,error:ue}=await userClient.auth.getUser(); if(ue||!ud.user)return reply({error:"Sesi login tidak valid."},401);
   const admin=createClient(url,service,{auth:{persistSession:false}});
@@ -72,6 +72,7 @@ Deno.serve(async(req)=>{
   if(!profile)return reply({error:"Profil akun belum tersedia. Hubungi Admin."},403);
   if(!isAdmin&&quota<=0)return reply({error:"Kuota paket belum dikonfigurasi. Hubungi Admin."},403);
   if(!isAdmin&&count>=quota)return reply({error:`Kuota paket ${planName} habis (${count}/${quota} analisis dalam 30 hari).`},403);
+  if(!key)return reply({error:"Layanan AI belum dikonfigurasi di Supabase Secrets."},503);
   const image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
   if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
