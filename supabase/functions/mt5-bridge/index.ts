@@ -65,7 +65,7 @@ Deno.serve(async req=>{
   const action=clean(body.action,40);
 
   // Website-only actions require a valid Supabase user JWT.
-  if(action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal"){
+  if(action==="create_pairing_code" || action==="revoke_device" || action==="queue_signal" || action==="set_execution_controls"){
     const auth=req.headers.get("Authorization")||"";
     if(!auth.startsWith("Bearer ")) return reply({error:"Login diperlukan."},401);
     const userClient=createClient(url,anon,{global:{headers:{Authorization:auth}},auth:{persistSession:false}});
@@ -83,6 +83,23 @@ Deno.serve(async req=>{
       diagnostic:{account_role:entitlement.role,active_subscription_count:entitlement.subscriptionCount,recognized_plan_codes:entitlement.planCodes}
     },403);
 
+    if(action==="set_execution_controls"){
+      if(!["owner","admin","super_admin"].includes(entitlement.role)) return reply({error:"Hanya OWNER/ADMIN yang boleh mengubah kontrol eksekusi."},403);
+      const deviceId=clean(body.device_id,64);
+      const mode=clean(body.execution_mode,20).toUpperCase();
+      if(!deviceId || !["SEMI_AUTO","FULL_AUTO"].includes(mode)) return reply({error:"Perangkat atau mode tidak valid."},400);
+      const risk=Number(body.max_risk_pct), daily=Number(body.max_daily_loss_pct);
+      const spread=Number(body.max_spread_points), positions=Number(body.max_open_positions);
+      if(!Number.isFinite(risk)||risk<=0||risk>0.5||!Number.isFinite(daily)||daily<=0||daily>2||
+         !Number.isInteger(spread)||spread<1||spread>80||!Number.isInteger(positions)||positions<1||positions>1)
+        return reply({error:"Batas demo: risiko maksimal 0.5% per posisi, rugi harian maksimal 2%, spread maksimal 80 points, dan maksimal 1 posisi."},400);
+      const patch={execution_mode:mode,emergency_stop:body.emergency_stop!==false,max_risk_pct:risk,
+        max_daily_loss_pct:daily,max_spread_points:spread,max_open_positions:positions};
+      const {data:updated,error:updateErr}=await admin.from("mt5_devices").update(patch)
+        .eq("id",deviceId).eq("user_id",userId).eq("is_demo",true).select("id,execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions").maybeSingle();
+      if(updateErr||!updated) return reply({error:"Gagal memperbarui kontrol atau terminal demo tidak ditemukan."},500);
+      return reply({status:"ok",controls:updated});
+    }
     if(action==="create_pairing_code"){
       const broker=clean(body.broker,24).toUpperCase(), profile=clean(body.account_profile,24).toUpperCase();
       if(!validBroker(broker)||!validProfile(broker,profile)) return reply({error:"Profil akun demo tidak valid. Pilih Cent, Zero, Pro, atau Standard."},400);
@@ -100,8 +117,8 @@ Deno.serve(async req=>{
     if(action==="queue_signal"){
       const deviceId=clean(body.device_id,64), symbol=clean(body.symbol,"12").toUpperCase();
       if(symbol!=="XAUUSD") return reply({error:"Tahap pertama hanya mengizinkan XAUUSD."},400);
-      const {data:device}=await admin.from("mt5_devices").select("id").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",true).maybeSingle();
-      if(!device) return reply({error:"Terminal demo aktif tidak ditemukan."},403);
+      const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",true).maybeSingle();
+      if(!device) return reply({error:"Terminal demo aktif tidak ditemukan."},403);\n      if(device.emergency_stop) return reply({error:"Emergency Stop aktif. Sinyal baru diblokir."},423);
       const signal=clean(body.signal_type,20).toUpperCase();
       if(!["BUY","SELL","BUY_LIMIT","SELL_LIMIT","CANCEL"].includes(signal)) return reply({error:"Jenis sinyal tidak valid."},400);
       const payload=body.payload&&typeof body.payload==="object"?body.payload:{};
@@ -133,7 +150,7 @@ Deno.serve(async req=>{
     }).select("id").single();
     if(deviceErr) return reply({error:"Gagal mendaftarkan terminal."},500);
     await admin.from("mt5_pairing_codes").update({used_at:new Date().toISOString()}).eq("id",pair.id).is("used_at",null);
-    return reply({status:"ok",device_id:device.id,device_token:token,warning:"Simpan token ini secara privat. Token hanya ditampilkan sekali. Build EA saat ini belum mengimplementasikan pairing HTTP."});
+    return reply({status:"ok",device_id:device.id,device_token:token,warning:"Simpan token ini secara privat. Token hanya ditampilkan sekali. Terminal dipasangkan dalam mode DEMO dan Emergency Stop aktif secara default."});
   }
 
   const auth=req.headers.get("Authorization")||"";
@@ -164,9 +181,12 @@ Deno.serve(async req=>{
     return reply({status:"ok",heartbeat:true,device_id:device.id});
   }
   if(action==="poll"){
-    const {data:rows,error:pollErr}=await admin.from("mt5_signal_queue").select("id,symbol,signal_type,payload,expires_at,created_at").eq("device_id",device.id).eq("status","PENDING").gt("expires_at",new Date().toISOString()).order("created_at",{ascending:true}).limit(5);
-    if(pollErr) return reply({error:"Gagal mengambil antrean sinyal."},500);
-    return reply({status:"ok",signals:rows||[],device_id:device.id,mode:"DEMO_ONLY"});
+    const {data:rows,error:pollErr}=await admin.rpc("claim_mt5_signals",{p_device_id:device.id});
+    if(pollErr) return reply({error:"Gagal mengunci antrean sinyal.",detail:pollErr.message},500);
+    const {data:controls}=await admin.from("mt5_devices")
+      .select("execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions")
+      .eq("id",device.id).single();
+    return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:"DEMO_ONLY"});
   }
   if(action==="receipt"){
     const id=clean(body.signal_id,64), status=clean(body.status,20).toUpperCase();
