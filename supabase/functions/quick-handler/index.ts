@@ -62,6 +62,11 @@ Deno.serve(async(req)=>{
   const {data:ud,error:ue}=await userClient.auth.getUser(); if(ue||!ud.user)return reply({error:"Sesi login tidak valid."},401);
   const admin=createClient(url,service,{auth:{persistSession:false}});
   const body=await req.json();
+  if(body?.action==="history_list"){
+   const {data,error}=await admin.from("analysis_history").select("id,asset,timeframe,result,created_at").eq("user_id",ud.user.id).order("created_at",{ascending:false}).limit(50);
+   if(error)throw error;
+   return reply({status:"ok",items:data||[]});
+  }
   const since=new Date();since.setDate(since.getDate()-30);
   const [profileResult,subResult,historyResult,freePlanResult]=await Promise.all([
    admin.from("profiles").select("role").eq("id",ud.user.id).maybeSingle(),
