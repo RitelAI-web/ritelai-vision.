@@ -539,15 +539,22 @@ Deno.serve(async (request: Request) => {
     if (!supabaseUrl || !serviceKey || !anonKey) return reply({ status: "error", error: "Konfigurasi akses paket belum tersedia." }, 503);
     // Server-to-server access is restricted to the project service-role credential.
     // Browser/customer calls still require a valid user session and active Pro/Elite plan.
-    const isTrustedServer = auth === `Bearer ${serviceKey}`;
+    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+    const isServiceRoleRequest = auth === `Bearer ${serviceKey}`;
+    const cronToken = request.headers.get("x-cron-secret") || "";
+    let isCronRequest = false;
+    if (!isServiceRoleRequest && cronToken) {
+      const { data: validCron, error: cronError } = await admin.rpc("verify_news_push_cron_secret", { p_token: cronToken });
+      isCronRequest = !cronError && validCron === true;
+    }
+    const isTrustedServer = isServiceRoleRequest || isCronRequest;
     trustedServerRequest = isTrustedServer;
     if (!isTrustedServer) {
       if (!auth.startsWith("Bearer ")) return reply({ status: "error", error: "Login diperlukan untuk fitur News." }, 401);
-      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
       const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
       const { data: userData, error: userError } = await userClient.auth.getUser();
       if (userError || !userData.user) return reply({ status: "error", error: "Sesi login tidak valid." }, 401);
-      const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
       const [{ data: profile }, { data: subscription }] = await Promise.all([
         admin.from("profiles").select("role").eq("id", userData.user.id).maybeSingle(),
         admin.from("subscriptions").select("status,ends_at,plans(code)").eq("user_id", userData.user.id).eq("status", "active").gt("ends_at", new Date().toISOString()).order("ends_at", { ascending: false }).limit(1).maybeSingle(),
