@@ -115,8 +115,12 @@ async function getCalendar() {
       const currency = String(event.currency ?? event.countryCode ?? event.country ?? "").trim().toUpperCase();
       if (currency && !allowedCurrencies.has(currency)) return false;
       const eventName = String(event.name ?? event.title ?? event.event ?? "").trim();
-      // Include all named economic releases for supported FX currencies.
-      return eventName.length > 0;
+      const rawImpact = String(event.importance ?? event.impact ?? event.impactLevel ?? event.impact_level ?? "").trim().toLowerCase();
+      const impactKnown = ["high", "high impact", "3", "3.0", "tinggi", "red", "medium", "med", "medium impact", "2", "2.0", "moderate", "orange", "kuning", "low", "low impact", "1", "1.0", "rendah", "yellow"].includes(rawImpact) || [1, 2, 3].includes(Number(rawImpact));
+      // Tampilkan hanya rilis makro yang relevan untuk pergerakan pasar dan
+      // memiliki klasifikasi dampak eksplisit LOW/MEDIUM/HIGH dari penyedia.
+      // Hindari agenda administratif/indikator minor dan label dampak tebakan.
+      return eventName.length > 0 && relevantEvent.test(eventName) && impactKnown;
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
       ...event,
