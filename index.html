@@ -639,17 +639,56 @@ let selectedArchiveMonth='all';
 function setArchiveMonth(month){selectedArchiveMonth=month;renderMacroReleaseArchive(window.ritelaiPastReleases||[]);}
 function macroDecisionForRelease(x){
  const category=String(x.category||'').toUpperCase(),name=String(x.name||'').toLowerCase();
- const num=v=>{if(v==null)return null;const m=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return m?Number(m[0]):null;};
+ const num=v=>{if(v===null||v===undefined||v==='')return null;const m=String(v).replace(/,/g,'').match(/-?\\d+(?:\\.\\d+)?/);return m?Number(m[0]):null;};
  const actual=num(x.actual),forecast=num(x.forecast);
- if(actual===null||forecast===null)return {usd:'BELUM TERKONFIRMASI',gold:'BELUM TERKONFIRMASI',reason:'Actual atau Forecast belum tersedia; dampak belum dapat dipastikan.'};
- if(category==='FOMC')return {usd:'PERLU BACA PERNYATAAN FED',gold:'PERLU BACA PERNYATAAN FED',reason:'Keputusan suku bunga perlu dibaca bersama pernyataan, proyeksi, dan konferensi pers Fed; perbandingan angka saja tidak cukup.'};
- let higher=actual>forecast,lower=actual<forecast;
- if(actual===forecast)return {usd:'NETRAL / SESUAI KONSENSUS',gold:'NETRAL / MENUNGGU REAKSI',reason:'Actual sesuai Forecast. Arah pasar bergantung pada rincian rilis dan reaksi yield/DXY.'};
- if(category==='NFP'&&/unemployment|jobless/.test(name)){higher=!higher;lower=!lower;}
- const usd=higher?'GOOD FOR USD · BULLISH':'BAD FOR USD · BEARISH';
- const gold=higher?'GOLD CENDERUNG BEARISH':'GOLD CENDERUNG BULLISH';
- const reason=category==='CPI'||category==='PPI'?'Inflasi di atas konsensus dapat meningkatkan ekspektasi kebijakan Fed yang lebih ketat; inflasi di bawah konsensus dapat mengurangi tekanan tersebut. Tetap periksa komponen dan revisi.':category==='NFP'?'Kejutan data tenaga kerja dibanding konsensus dapat mengubah ekspektasi suku bunga Fed; periksa juga pengangguran, upah, dan revisi payroll.':'Actual dibanding Forecast memberi indikasi awal; konfirmasi dengan rincian data dan reaksi pasar.';
- return {usd,gold,reason};
+ const neutral=()=>({usd:'NETRAL · SESUAI FORECAST',gold:'GOLD NETRAL / TUNGGU REAKSI',reason:'Actual sama dengan Forecast. Rilis ini tidak memberi kejutan terhadap konsensus; tunggu reaksi harga, DXY, dan yield.'});
+ if(actual===null||forecast===null)return {usd:'BELUM TERKONFIRMASI',gold:'BELUM TERKONFIRMASI',reason:'Actual atau Forecast belum tersedia. Keputusan arah tidak dibuat agar tidak menyesatkan.'};
+ if(actual===forecast)return neutral();
+ let usdPositive=actual>forecast;
+ let metric='';
+ let explanation='';
+ if(category==='NFP'){
+  if(/unemployment|jobless|initial claims|continuing claims/.test(name)){
+   usdPositive=actual<forecast;
+   metric='tingkat pengangguran/klaim pengangguran';
+   explanation=usdPositive
+    ?'Angka pengangguran atau klaim pengangguran lebih rendah dari perkiraan, mengindikasikan pasar tenaga kerja lebih kuat dan cenderung mendukung USD.'
+    :'Angka pengangguran atau klaim pengangguran lebih tinggi dari perkiraan, mengindikasikan pasar tenaga kerja melemah dan cenderung menekan USD.';
+  }else if(/average hourly earnings|hourly earnings|wage/.test(name)){
+   metric='pertumbuhan upah';
+   explanation=usdPositive
+    ?'Pertumbuhan upah lebih tinggi dari perkiraan, berpotensi menambah tekanan inflasi dan mendukung ekspektasi suku bunga Fed.'
+    :'Pertumbuhan upah lebih rendah dari perkiraan, berpotensi mengurangi tekanan inflasi dan melemahkan dukungan terhadap USD.';
+  }else{
+   metric='pertumbuhan payroll/tenaga kerja';
+   explanation=usdPositive
+    ?'Jumlah payroll lebih tinggi dari perkiraan, menandakan penambahan tenaga kerja lebih kuat dan cenderung mendukung USD.'
+    :'Jumlah payroll lebih rendah dari perkiraan, menandakan penambahan tenaga kerja lebih lemah dan cenderung menekan USD.';
+  }
+ }else if(category==='CPI'){
+  metric='inflasi konsumen';
+  explanation=usdPositive
+   ?'Inflasi konsumen lebih tinggi dari perkiraan, berpotensi membuat Fed mempertahankan kebijakan ketat lebih lama sehingga cenderung mendukung USD.'
+   :'Inflasi konsumen lebih rendah dari perkiraan, berpotensi mengurangi tekanan untuk kebijakan Fed yang ketat sehingga cenderung menekan USD.';
+ }else if(category==='PPI'){
+  metric='inflasi produsen';
+  explanation=usdPositive
+   ?'Inflasi produsen lebih tinggi dari perkiraan, dapat menandakan tekanan biaya dan inflasi yang lebih kuat sehingga cenderung mendukung USD.'
+   :'Inflasi produsen lebih rendah dari perkiraan, dapat menandakan tekanan biaya mereda sehingga cenderung menekan USD.';
+ }else if(category==='FOMC'){
+  metric='suku bunga/keputusan Fed';
+  explanation=usdPositive
+   ?'Suku bunga atau keputusan Fed lebih tinggi/lebih ketat dari perkiraan, cenderung mendukung USD.'
+   :'Suku bunga atau keputusan Fed lebih rendah/lebih longgar dari perkiraan, cenderung menekan USD.';
+ }else{
+  metric='indikator ekonomi';
+  explanation=usdPositive
+   ?'Actual lebih tinggi dari Forecast. Untuk indikator ini, kenaikan dibaca sebagai kejutan positif bagi USD.'
+   :'Actual lebih rendah dari Forecast. Untuk indikator ini, penurunan dibaca sebagai kejutan negatif bagi USD.';
+ }
+ const usd=usdPositive?'GOOD FOR USD · BULLISH':'BAD FOR USD · BEARISH';
+ const gold=usdPositive?'GOLD / XAUUSD CENDERUNG BEARISH':'GOLD / XAUUSD CENDERUNG BULLISH';
+ return {usd,gold,reason:'Actual '+(usdPositive?'lebih tinggi':'lebih rendah')+' dari Forecast pada '+metric+'. '+explanation+' Ini bias awal; cek komponen lain dan reaksi pasar sebelum entry.'};
 }
 function renderMacroReleaseArchive(items){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
