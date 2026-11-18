@@ -24,12 +24,12 @@ Deno.serve(async(req)=>{
    if(saveError)throw saveError;
    return reply({status:"ok"});
   }
-  const cronSecret=Deno.env.get("NEWS_PUSH_CRON_SECRET");
-  if(!cronSecret||req.headers.get("x-cron-secret")!==cronSecret)return reply({error:"Tidak diizinkan"},401);
+  const serviceRole=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
+  if(!serviceRole||req.headers.get("Authorization")!==`Bearer ${serviceRole}`)return reply({error:"Tidak diizinkan"},401);
   const publicKey=Deno.env.get("VAPID_PUBLIC_KEY"),privateKey=Deno.env.get("VAPID_PRIVATE_KEY"),subject=Deno.env.get("VAPID_SUBJECT")||"mailto:support@ritelai-vision.pages.dev";
   if(!publicKey||!privateKey)return reply({error:"VAPID belum dikonfigurasi"},503);
   webpush.setVapidDetails(subject,publicKey,privateKey);
-  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon},body:JSON.stringify({action:"market_calendar"})});
+  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon,"Authorization":`Bearer ${service}`},body:JSON.stringify({action:"market_calendar"})});
   if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar");
   const payload=await calendar.json(),now=Date.now(),events=(payload.events||[]).filter((e:any)=>{
    const t=Date.parse(e.time),impact=String(e.importance||"").toLowerCase();
