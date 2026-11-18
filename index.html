@@ -639,7 +639,7 @@ let selectedArchiveMonth='all';
 function setArchiveMonth(month){selectedArchiveMonth=month;renderMacroReleaseArchive(window.ritelaiPastReleases||[]);}
 function macroDecisionForRelease(x){
  const category=String(x.category||'').toUpperCase(),name=String(x.name||'').toLowerCase();
- const num=v=>{if(v==null)return null;const m=String(v).replace(/,/g,'').match(/-?\\d+(?:\\.\\d+)?/);return m?Number(m[0]):null;};
+ const num=v=>{if(v==null)return null;const m=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return m?Number(m[0]):null;};
  const actual=num(x.actual),forecast=num(x.forecast);
  if(actual===null||forecast===null)return {usd:'BELUM TERKONFIRMASI',gold:'BELUM TERKONFIRMASI',reason:'Actual atau Forecast belum tersedia; dampak belum dapat dipastikan.'};
  if(category==='FOMC')return {usd:'PERLU BACA PERNYATAAN FED',gold:'PERLU BACA PERNYATAAN FED',reason:'Keputusan suku bunga perlu dibaca bersama pernyataan, proyeksi, dan konferensi pers Fed; perbandingan angka saja tidak cukup.'};
@@ -657,7 +657,7 @@ function renderMacroReleaseArchive(items){
  if(!rows.length){const keys=Array.from({length:11},(_,i)=>'2026-'+String(i+1).padStart(2,'0')).reverse();const label=k=>new Date(k+'-01T00:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'});host.innerHTML='<div class="flex flex-wrap gap-2 mb-3"><button type="button" class="calendar-month-btn active" onclick="setArchiveMonth(\'all\')">Semua bulan</button>'+keys.map(k=>'<button type="button" class="calendar-month-btn" onclick="setArchiveMonth(\''+k+'\')">'+newsHistoryEscape(label(k))+'</button>').join('')+'</div><p class="muted text-xs">Data arsip belum berhasil dimuat dari penyedia kalender. Pilih bulan untuk melihat status datanya setelah feed tersedia.</p>';return;}
  const monthKey=x=>{const d=new Date(x.date);return Number.isNaN(d.getTime())?'unknown':d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);};
  const keys=Array.from({length:11},(_,i)=>'2026-'+String(i+1).padStart(2,'0')).reverse();
- const selected=selectedArchiveMonth==='all'?keys:selectedArchiveMonth;
+ const selected=selectedArchiveMonth;
  const filtered=selected==='all'?rows:rows.filter(x=>monthKey(x)===selected);
  const label=k=>{const d=new Date(k+'-01T00:00:00');return d.toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'});};
  const tabs='<div class="flex flex-wrap gap-2 mb-3"><button type="button" class="calendar-month-btn '+(selectedArchiveMonth==='all'?'active':'')+'" onclick="setArchiveMonth(\'all\')">Semua bulan</button>'+keys.map(k=>'<button type="button" class="calendar-month-btn '+(selectedArchiveMonth===k?'active':'')+'" onclick="setArchiveMonth(\''+k+'\')">'+newsHistoryEscape(label(k))+'</button>').join('')+'</div>';
