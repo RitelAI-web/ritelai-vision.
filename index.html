@@ -445,6 +445,9 @@ async function loadAnalysisHistory(){
    const r=row.result&&typeof row.result==='object'?row.result:{};
    const signal=String(r.signal||'ANALISIS').toUpperCase();
    const tone=signal==='BUY'?'text-emerald-300':signal==='SELL'?'text-rose-300':'text-amber-300';
+   const md=r.market_data||{},mi=md.indicators||{};
+   const marketIndicatorCard=md.status==='AVAILABLE'?'<div class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"><div class="font-bold text-xs mb-2">DATA ENGINE · OHLC & INDIKATOR TERHITUNG</div><p class="muted text-[10px] mb-3">Sumber: '+safe(md.source)+' · '+safe(md.symbol)+' · '+safe(md.interval)+' · '+safe(md.closed_bars)+' candle tertutup</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"><div class="bg-slate-900 rounded-lg p-2"><span class="muted">EMA 9 / 20</span><div>'+safe(mi.ema?.ema9)+' / '+safe(mi.ema?.ema20)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">EMA 50 / 200</span><div>'+safe(mi.ema?.ema50)+' / '+safe(mi.ema?.ema200)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">RSI 14</span><div>'+safe(mi.rsi14)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">MACD / Signal</span><div>'+safe(mi.macd?.line)+' / '+safe(mi.macd?.signal)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">ATR 14</span><div>'+safe(mi.atr14)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">Trend OHLC</span><div>'+safe(mi.trend)+'</div></div></div><p class="muted text-[10px] mt-3">Candle terakhir: '+safe(md.last_closed_bar_at)+' · hanya candle tertutup digunakan.</p></div>':'<div class="mt-4 rounded-xl border border-amber-800/60 bg-amber-950/20 p-4 text-left"><b class="text-xs text-amber-200">DATA ENGINE OHLC BELUM TERSEDIA</b><p class="muted text-[11px] mt-1">'+safe(md.reason||'Feed candle tidak tersedia atau stale. Hasil kembali ke pembacaan screenshot.')+'</p></div>';
+
    const when=row.created_at?new Date(row.created_at).toLocaleString('id-ID'):'Waktu tidak tersedia';
    const summary=String(r.summary||r.reasoning||'Hasil analisis tersimpan.');
    return '<article class="rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="flex items-center justify-between gap-2"><b class="'+tone+'">'+escapeHtml(signal)+'</b><span class="muted text-[10px]">'+escapeHtml(when)+'</span></div><div class="text-xs mt-2">'+escapeHtml(row.asset||'—')+' · '+escapeHtml(row.timeframe||'—')+'</div><p class="muted text-xs mt-2">'+escapeHtml(summary)+'</p></article>';
@@ -1024,6 +1027,7 @@ async function requestAnalysis(){
      <p class="text-xs mt-2"><b>Konfirmasi:</b> ${safe((r.confirmation||[]).join(' · '))}</p>
      <p class="text-xs mt-2 text-amber-200"><b>Peringatan:</b> ${safe((r.warnings||[]).join(' · '))}</p>
      <p class="muted text-[10px] mt-3">${safe(r.disclaimer||'Analisis berdasarkan screenshot, bukan data harga live atau jaminan hasil. Periksa kondisi pasar sebelum mengambil keputusan.')}</p>
+     ${marketIndicatorCard}
     </div>`;
    resultBox.insertAdjacentHTML('beforeend','<section id="setupValidityCard" class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"></section>');
    startSetupValidity(r);
