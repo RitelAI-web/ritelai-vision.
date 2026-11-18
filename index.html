@@ -309,14 +309,6 @@ async function showTab(name,btn){
   if(error||!access?.allowed){toast('Fitur ini tersedia untuk paket Pro atau Elite aktif.');openModal('plansModal');return}
   if(name==='history'){renderMacroReleaseArchive(window.ritelaiPastReleases||[]);await loadNewsHistory();}
  }
- if(name==='news'){
-  const panel=document.getElementById('tab-news');
-  if(!supabaseClient){toast('Login dan paket Pro atau Elite diperlukan untuk membuka News & Kalender.');openModal('plansModal');return}
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){toast('News & Kalender terkunci. Silakan login dan upgrade ke Pro atau Elite.');openModal('plansModal');return}
-  const {data:access,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'check_news_access'}});
-  if(error||!access?.allowed){toast('News & Kalender terkunci untuk paket Gratis dan Starter. Upgrade ke Pro atau Elite untuk membukanya.');openModal('plansModal');return}
- }
  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
  const target=document.getElementById('tab-'+name);if(!target)return;target.classList.add('active');
  document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
