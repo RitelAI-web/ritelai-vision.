@@ -626,15 +626,11 @@ function marketMoney(v,key){if(v==null||!Number.isFinite(Number(v)))return '—'
 function renderLiveQuotes(quotes){const box=document.getElementById('marketQuotes');if(!box)return;box.innerHTML=RITELAI_SYMBOLS.map(k=>{const q=quotes[k]||{};const p=Number(q.last??q.mid??(q.bid&&q.ask?(Number(q.bid)+Number(q.ask))/2:NaN));const prev=Number(q.previousClose??q.open??NaN);const ch=Number.isFinite(p)&&Number.isFinite(prev)?p-prev:null;const pct=ch!=null&&prev?ch/prev*100:null;const tone=pct==null?'text-slate-300':pct>=0?'text-emerald-300':'text-rose-300';const updated=q.time?new Date(q.time).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'waktu feed tidak tersedia';return `<article class="bg-slate-950/60 border border-slate-800 rounded-xl p-4"><div class="flex justify-between gap-2"><b class="text-xs">${RITELAI_LABELS[k]}</b><span class="text-[9px] text-emerald-300">${q.time?'LIVE TICK':'Menunggu tick'}</span></div><div class="text-xl font-extrabold mt-2">${Number.isFinite(p)?marketMoney(p,k):'—'}</div><div class="text-xs ${tone} mt-1">${pct==null?'Perubahan belum tersedia':`${ch>=0?'+':''}${marketMoney(ch,k)} (${pct>=0?'+':''}${pct.toFixed(2)}%)`}</div><div class="muted text-[9px] mt-2">${updated} WIB · ${q.source||'BiQuote MT5 feed'}${q.bid!=null&&q.ask!=null?` · Bid ${marketMoney(q.bid,k)} / Ask ${marketMoney(q.ask,k)}`:''}</div></article>`}).join('');}
 async function connectLiveTicks(){if(marketHub||!window.signalR)return;try{marketHub=new signalR.HubConnectionBuilder().withUrl('https://biquote.io/hubs/tick').withAutomaticReconnect().build();marketHub.on('ReceiveTick',tick=>{const k=String(tick.symbol||'').toUpperCase();if(!RITELAI_SYMBOLS.includes(k))return;window.ritelaiLiveQuotes=window.ritelaiLiveQuotes||{};window.ritelaiLiveQuotes[k]={...window.ritelaiLiveQuotes[k],...tick,source:'BiQuote MT5 streaming'};renderLiveQuotes(window.ritelaiLiveQuotes);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Feed harga streaming aktif';s.className='pill text-emerald-300';}});await marketHub.start();await marketHub.invoke('Subscribe',RITELAI_SYMBOLS); }catch(e){console.warn('Live tick stream unavailable:',e);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Streaming belum tersedia';s.className='pill text-amber-200';}}}
 let selectedCalendarMonth='all';
-let selectedCalendarDay='all';
-function calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
+letfunction calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
 function calendarMonthLabel(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'UTC'});}
-function calendarDaysInMonth(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m,0)).getUTCDate();}
-function setCalendarDay(day){selectedCalendarDay=day;renderEconomicCalendar(latestCalendarEvents);}
 let latestCalendarEvents=[];
 function setCalendarMonth(month){
  selectedCalendarMonth=month;
- selectedCalendarDay='all';
  document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(btn=>{
   const active=btn.dataset.month===month;
   btn.classList.toggle('active',active);
@@ -745,20 +741,13 @@ function renderEconomicCalendar(events){
  if(monthHost){
   monthHost.innerHTML='<button type="button" class="calendar-month-btn '+(selectedCalendarMonth==='all'?'active':'')+'" data-month="all" onclick="setCalendarMonth(\'all\')">Semua bulan</button>'+calendarMonthKeys().map(key=>'<button type="button" class="calendar-month-btn '+(selectedCalendarMonth===key?'active':'')+'" data-month="'+key+'" onclick="setCalendarMonth(\''+key+'\')">'+escapeHtml(calendarMonthLabel(key))+'</button>').join('');
  }
- const daySelect=document.getElementById('calendarDaySelect');
- if(daySelect){
-  const dayCount=selectedCalendarMonth==='all'?31:calendarDaysInMonth(selectedCalendarMonth);
-  daySelect.innerHTML='<option value="all">Semua tanggal</option>'+Array.from({length:dayCount},(_,i)=>i+1).map(day=>'<option value="'+day+'" '+(String(selectedCalendarDay)===String(day)?'selected':'')+'>'+day+'</option>').join('');
-  daySelect.value=selectedCalendarDay;
- }
  const filtered=upcoming.filter(e=>{
   const d=new Date(e.time);
   const monthKey=d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);
-  const day=d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',day:'2-digit'});
-  return (selectedCalendarMonth==='all'||monthKey===selectedCalendarMonth)&&(selectedCalendarDay==='all'||day===String(selectedCalendarDay).padStart(2,'0'));
+  return selectedCalendarMonth==='all'||monthKey===selectedCalendarMonth;
  });
  if(!filtered.length){
-  const monthLabel=selectedCalendarMonth==='all'?'Januari 2026 – Desember 2027':calendarMonthLabel(selectedCalendarMonth)+(selectedCalendarDay==='all'?'':' · tanggal '+selectedCalendarDay);
+  const monthLabel=selectedCalendarMonth==='all'?'Agenda mendatang · November 2026 – Desember 2027':calendarMonthLabel(selectedCalendarMonth);
   box.innerHTML=`<div class="rounded-xl border border-slate-800 bg-slate-950/60 p-4"><p class="text-cyan-200 text-xs font-bold">${monthLabel}</p><p class="muted text-xs mt-2">Belum ada rilis ekonomi mendatang yang tersedia dari penyedia data untuk bulan ini. Agenda lampau tetap digunakan untuk evaluasi pascarilis.</p></div>`;
   return;
  }
