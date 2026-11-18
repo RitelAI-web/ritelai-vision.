@@ -698,9 +698,9 @@ function renderMacroReleaseArchive(items){
  const monthKey=x=>{const d=new Date(x.date);return Number.isNaN(d.getTime())?'unknown':d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);};
  const selected=selectedArchiveMonth;
  const filtered=(selected==='all'?rows:rows.filter(x=>monthKey(x)===selected)).sort((a,b)=>new Date(b.date)-new Date(a.date));
- const tabs='<div class="flex gap-2 overflow-x-auto pb-2 mb-3">'+
+ const tabs='<div class="rounded-xl border border-cyan-800/60 bg-slate-950/60 p-3 mb-3"><div class="text-[10px] font-bold tracking-wider text-cyan-200">PERIODE ARSIP EKONOMI</div><div class="font-extrabold text-sm mt-1">Januari — November 2026</div><div class="flex gap-2 overflow-x-auto pb-2 mt-3">'+
   '<button type="button" class="calendar-month-btn '+(selected==='all'?'active':'')+'" onclick="setArchiveMonth(\'all\')">Semua</button>'+
-  keys.map(k=>'<button type="button" class="calendar-month-btn '+(selected===k?'active':'')+'" onclick="setArchiveMonth(\''+k+'\')">'+newsHistoryEscape(label(k))+'</button>').join('')+'</div>';
+  keys.map(k=>'<button type="button" class="calendar-month-btn '+(selected===k?'active':'')+'" onclick="setArchiveMonth(\''+k+'\')">'+newsHistoryEscape(label(k))+'</button>').join('')+'</div></div>';
  if(!rows.length){host.innerHTML=tabs+'<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-4"><b class="text-sm">Arsip belum tersedia</b><p class="muted text-xs mt-2">Feed kalender belum mengirim riwayat rilis. Tidak ada angka yang akan dibuat-buat.</p></div>';return;}
  const cards=filtered.map(x=>{
   const d=new Date(x.date),decision=macroDecisionForRelease(x),date=Number.isNaN(d.getTime())?'Tanggal belum tersedia':d.toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'long',year:'numeric'});
