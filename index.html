@@ -734,7 +734,7 @@ function renderEconomicCalendar(events){
  const box=document.getElementById('economicCalendar');
  if(!box)return;
  latestCalendarEvents=Array.isArray(events)?events:[];
- // Semua rilis ekonomi dari feed untuk 180 hari ke depan.
+ // Semua rilis ekonomi mendatang dari feed hingga 31 Desember 2027.
  const now=Date.now();
  const rangeEnd=Date.UTC(2027,11,31,23,59,59,999);
  const upcoming=latestCalendarEvents.filter(e=>{
@@ -743,7 +743,7 @@ function renderEconomicCalendar(events){
  }).sort((a,b)=>new Date(a.time)-new Date(b.time));
  const monthHost=document.getElementById('calendarMonthTabs');
  if(monthHost){
-  monthHost.innerHTML='<button type="button" class="calendar-month-btn '+(selectedCalendarMonth==='all'?'active':'')+'" data-month="all" onclick="setCalendarMonth(\\'all\\')">Semua bulan</button>'+calendarMonthKeys().map(key=>'<button type="button" class="calendar-month-btn '+(selectedCalendarMonth===key?'active':'')+'" data-month="'+key+'" onclick="setCalendarMonth(\\''+key+'\\')">'+escapeHtml(calendarMonthLabel(key))+'</button>').join('');
+  monthHost.innerHTML='<button type="button" class="calendar-month-btn '+(selectedCalendarMonth==='all'?'active':'')+'" data-month="all" onclick="setCalendarMonth(\'all\')">Semua bulan</button>'+calendarMonthKeys().map(key=>'<button type="button" class="calendar-month-btn '+(selectedCalendarMonth===key?'active':'')+'" data-month="'+key+'" onclick="setCalendarMonth(\''+key+'\')">'+escapeHtml(calendarMonthLabel(key))+'</button>').join('');
  }
  const daySelect=document.getElementById('calendarDaySelect');
  if(daySelect){
