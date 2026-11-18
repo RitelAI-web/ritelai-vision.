@@ -607,6 +607,8 @@ async function submitPaymentProof(){
   status.textContent='Bukti berhasil dikirim. '+(selectedPromoCode?'Nominal promo 30% akan diverifikasi admin dan hanya disetujui jika akun memenuhi syarat pelanggan baru. ':'')+'Status MENUNGGU verifikasi admin. Paket belum aktif sampai disetujui.';
   document.getElementById('proofFile').value='';
   document.getElementById('proofReference').value='';
+  selectedPromoCode='';
+  const promoInput=document.getElementById('promoCodeInput');if(promoInput)promoInput.value='';
   toast('Bukti pembayaran berhasil dikirim untuk verifikasi.');
  }catch(e){
   console.error('Submit payment proof failed:',e);
@@ -623,6 +625,7 @@ function applyRitelAIPromo(){
 }
 function choosePlan(plan){
  selectedPlan=plan;
+ if(!['pro','elite'].includes(String(plan.code).toLowerCase()))selectedPromoCode='';
  const box=document.getElementById('selectedPlanInfo');if(!box)return;
  box.classList.remove('hidden');
  const featureFallback={free:['10 upload & scan chart per 30 hari','News & Kalender: terkunci','Riwayat 3 analisis terakhir'],starter:['20 upload & scan chart per 30 hari','News & Kalender: terkunci','Riwayat analisis 30 hari'],pro:['20 upload & scan chart per 30 hari','Semua kategori News: dampak kecil, sedang, dan tinggi','Kalender ekonomi lengkap','Ringkasan berita dengan AI','Analisis dampak berita per aset','Notifikasi berita berdampak tinggi','Riwayat analisis 90 hari'],elite:['1.000 upload & scan chart per 30 hari','Semua akses News dan kalender ekonomi','Analisis berita AI mendalam dan multi-aset','Prioritas pemrosesan analisis','Notifikasi berita berdampak tinggi lebih cepat','Riwayat analisis 365 hari','Dukungan prioritas']};
