@@ -311,15 +311,25 @@ EVENTS=${JSON.stringify(selected)}`;
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ model: "gpt-4.1-mini", input: prompt, max_output_tokens: 7000 }),
-    signal: AbortSignal.timeout(20000),
+    body: JSON.stringify({
+      model: "gpt-4.1-mini",
+      input: prompt,
+      max_output_tokens: 12000,
+      text: { format: { type: "json_object" } },
+    }),
+    signal: AbortSignal.timeout(45000),
   });
   const raw = await response.text();
   let data: AnyRecord;
   try { data = raw ? JSON.parse(raw) : {}; } catch { throw new Error(`Respons OpenAI tidak valid (HTTP ${response.status})`); }
   if (!response.ok) throw new Error(data?.error?.message || `OpenAI HTTP ${response.status}`);
+  if (data?.status === "incomplete" || data?.incomplete_details) {
+    throw new Error("Analisis AI terpotong sebelum JSON selesai. Coba refresh kembali.");
+  }
 
-  const parsed = parseJsonText(extractResponseText(data));
+  const responseText = extractResponseText(data);
+  if (!responseText.trim()) throw new Error("OpenAI tidak mengembalikan teks analisis. Periksa status respons dan batas token.");
+  const parsed = parseJsonText(responseText);
   const byId = new Map((Array.isArray(parsed.items) ? parsed.items : []).map((item: AnyRecord) => [String(item.id), item]));
   const enriched = events.map((event) => {
     const item: AnyRecord | undefined = byId.get(String(event.id));
@@ -399,8 +409,18 @@ async function analyzeEvents(events: AnyRecord[]) {
   // Prioritaskan agenda HIGH impact terdekat, lalu medium/low.
   // Sisanya diproses bertahap pada auto-refresh berikutnya.
   const impactRank = (event: AnyRecord) => event.importance === "high" ? 0 : event.importance === "medium" ? 1 : event.importance === "low" ? 2 : 3;
-  ready.sort((a, b) => impactRank(a) - impactRank(b) || Math.abs(eventTimestamp(a.time) - now) - Math.abs(eventTimestamp(b.time) - now));
-  const batchSize = 3;
+  // Dahulukan agenda terdekat; dampak menjadi pemecah seri agar berita penting
+  // tidak tertahan oleh kalender panjang yang masih jauh.
+  ready.sort((a, b) => {
+    const da = Math.abs(eventTimestamp(a.time) - now), db = Math.abs(eventTimestamp(b.time) - now);
+    const nearA = da <= 24 * 60 * 60 * 1000, nearB = db <= 24 * 60 * 60 * 1000;
+    if (nearA !== nearB) return nearA ? -1 : 1;
+    if (nearA && nearB) return da - db || impactRank(a) - impactRank(b);
+    return impactRank(a) - impactRank(b) || da - db;
+  });
+  // Tiga agenda per request menghasilkan payload yang terlalu besar dan berisiko
+  // memotong JSON enam instrumen. Satu agenda per request menjaga hasil lengkap.
+  const batchSize = 1;
   const errors: string[] = [];
   const deferred = ready.slice(batchSize);
   for (const event of deferred) {
