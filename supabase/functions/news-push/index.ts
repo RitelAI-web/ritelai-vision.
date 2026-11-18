@@ -25,32 +25,55 @@ Deno.serve(async(req)=>{
    return reply({status:"ok"});
   }
   const serviceRole=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")||"";
-  if(!serviceRole||req.headers.get("Authorization")!==`Bearer ${serviceRole}`)return reply({error:"Tidak diizinkan"},401);
-  const publicKey=Deno.env.get("VAPID_PUBLIC_KEY"),privateKey=Deno.env.get("VAPID_PRIVATE_KEY"),subject=Deno.env.get("VAPID_SUBJECT")||"mailto:support@ritelai-vision.pages.dev";
-  if(!publicKey||!privateKey)return reply({error:"VAPID belum dikonfigurasi"},503);
-  webpush.setVapidDetails(subject,publicKey,privateKey);
-  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon,"Authorization":`Bearer ${service}`},body:JSON.stringify({action:"market_calendar"})});
-  if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar");
-  const payload=await calendar.json(),now=Date.now(),events=(payload.events||[]).filter((e:any)=>{
+  const isServiceCall=!!serviceRole&&req.headers.get("Authorization")===`Bearer ${serviceRole}`;
+  const cronToken=req.headers.get("x-cron-secret")||"";
+  let isCronCall=false;
+  if(cronToken){
+   const {data:valid,error:verifyError}=await admin.rpc("verify_news_push_cron_secret",{p_token:cronToken});
+   isCronCall=!verifyError&&valid===true;
+  }
+  if(!isServiceCall&&!isCronCall)return reply({error:"Tidak diizinkan"},401);
+  const publicKey="BFFqStWjPiRarL3JUvF8BnmM3GWBA5Go8_REDbNi11PTe5n6-0ciBtnJY10KQubNJ69Ve3TdI28ADv398LvSvo8";
+  const {data:privateKey,error:privateKeyError}=await admin.rpc("get_news_push_vapid_private_key");
+  if(privateKeyError||!privateKey)return reply({error:"VAPID private key belum tersedia di Supabase Vault"},503);
+  const subject=Deno.env.get("VAPID_SUBJECT")||"mailto:support@ritelai-vision.pages.dev";
+  webpush.setVapidDetails(subject,publicKey,String(privateKey));
+  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon,"Authorization":`Bearer ${service}`},body:JSON.stringify({action:"market_calendar",pushOnly:true}),signal:AbortSignal.timeout(35000)});
+  if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar (HTTP "+calendar.status+")");
+  const payload=await calendar.json();
+  if(payload.calendarError)throw new Error("Feed kalender gagal: "+String(payload.calendarError).slice(0,180));
+  const now=Date.now(),priorityPattern=/non.?farm|payroll|employment situation|unemployment|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/i;
+  const events=(Array.isArray(payload.events)?payload.events:[]).filter((e:any)=>{
    const t=Date.parse(e.time),impact=String(e.importance||"").toLowerCase();
-   return Number.isFinite(t)&&t>now&&t<=now+15*60*1000&&["high","medium","low"].includes(impact)&&e.name;
+   return Number.isFinite(t)&&t>now&&t<=now+15*60*1000&&impact==="high"&&priorityPattern.test(String(e.name||""));
   });
-  let sent=0,skipped=0;
+  let sent=0,skipped=0,failed=0;
+  if(!events.length)return reply({status:"ok",events:0,sent,skipped,failed,calendarSource:payload.calendarSource||"unknown",message:"Tidak ada rilis prioritas HIGH dalam 15 menit ke depan."});
+  const {data:subs,error:subsError}=await admin.from("push_subscriptions").select("id,subscription");
+  if(subsError)throw subsError;
   for(const e of events){
    const key=String(e.id||e.name)+":"+String(e.time);
-   const {data:existing}=await admin.from("push_event_deliveries").select("id").eq("event_key",key).maybeSingle();
+   const {data:existing,error:existingError}=await admin.from("push_event_deliveries").select("id").eq("event_key",key).maybeSingle();
+   if(existingError)throw existingError;
    if(existing){skipped++;continue}
-   const high=String(e.importance).toLowerCase()==="high";
-   const title=(high?"🔴 PRIORITAS TINGGI · ":"🟡 NEWS ALERT · ")+String(e.name);
-   const bodyText=[String(e.currency||e.countryCode||"Market"),"Rilis "+new Date(e.time).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+" WIB",high?"Periksa potensi volatilitas pasar.":"Agenda ekonomi berdampak; pantau instrumen terkait."].join(" · ");
-   const {data:subs}=await admin.from("push_subscriptions").select("id,subscription");
+   const title="🔴 RITELAI · "+String(e.name);
+   const bodyText=[String(e.currency||e.countryCode||"Market"),"Rilis "+new Date(e.time).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+" WIB","Berita berdampak tinggi. Buka News AI untuk melihat Actual, Forecast, dan Previous."].join(" · ");
    let delivered=false;
-   for(const s of subs||[]){
-    try{await webpush.sendNotification(s.subscription,JSON.stringify({title,body:bodyText,url:"/?tab=news",tag:"ritelai-"+key,priority:high?"high":"normal"}));delivered=true}
-    catch(err:any){if(err?.statusCode===404||err?.statusCode===410)await admin.from("push_subscriptions").delete().eq("id",s.id)}
+   for(const sub of subs||[]){
+    try{
+     await webpush.sendNotification(sub.subscription,JSON.stringify({title,body:bodyText,url:"./?tab=news",tag:"ritelai-"+key,priority:"high"}));
+     delivered=true;
+    }catch(err:any){
+     failed++;
+     if(err?.statusCode===404||err?.statusCode===410)await admin.from("push_subscriptions").delete().eq("id",sub.id);
+    }
    }
-   if(delivered){await admin.from("push_event_deliveries").insert({event_key:key});sent++}
+   if(delivered){
+    const {error:insertError}=await admin.from("push_event_deliveries").insert({event_key:key});
+    if(insertError&&insertError.code!=="23505")throw insertError;
+    sent++;
+   }
   }
-  return reply({status:"ok",events:events.length,sent,skipped});
+  return reply({status:"ok",events:events.length,sent,skipped,failed,subscriptions:(subs||[]).length,calendarSource:payload.calendarSource||"unknown"});
  }catch(e){return reply({error:e instanceof Error?e.message:String(e)},500)}
 });
