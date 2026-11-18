@@ -25,7 +25,7 @@ Deno.serve(async(req:Request)=>{
     admin.from("profiles").select("role").eq("id",uid).maybeSingle(),
     admin.from("subscriptions").select("status,ends_at,plans(code)").eq("user_id",uid).eq("status","active").gt("ends_at",new Date().toISOString()).order("ends_at",{ascending:false}).limit(1).maybeSingle()
   ]);
-  const role=String(profile?.role||"").toLowerCase();
+  const role=String(profile?.role || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
   const plan=String((sub?.plans as any)?.code||"").toLowerCase();
   if(!allowedRoles.includes(role)&&!["pro","elite"].includes(plan))return reply({error:"News History hanya tersedia untuk paket Pro dan Elite aktif."},403);
   let body:any;try{body=await req.json()}catch{return reply({error:"JSON tidak valid."},400)}
