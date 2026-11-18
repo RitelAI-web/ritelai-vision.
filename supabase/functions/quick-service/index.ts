@@ -132,16 +132,17 @@ async function getCalendar() {
       })(),
       countryCode: event.countryCode ?? event.country ?? "",
       currency: event.currency ?? "",
-      actual: event.actual ?? event.actualValue ?? event.actual_value ?? null,
-      forecast: event.forecast ?? event.consensus ?? event.forecastValue ?? event.forecast_value ?? null,
+      actual: event.actual ?? event.actualValue ?? event.actual_value ?? event.actual_value_formatted ?? null,
+      forecast: event.forecast ?? event.consensus ?? event.estimate ?? event.forecastValue ?? event.forecast_value ?? event.consensus_value ?? null,
       previous: event.previous ?? event.previousValue ?? event.previous_value ?? null,
       revisedPrevious: event.revisedPrevious ?? event.revised_previous ?? event.revisedFrom ?? event.revised_from ?? null,
-      unit: event.unit ?? event.measureUnit ?? event.measure_unit ?? "",
+      unit: event.unit ?? event.measureUnit ?? event.measure_unit ?? event.units ?? "",
       referencePeriod: event.referencePeriod ?? event.reference_period ?? event.period ?? "",
-      eventSource: event.source ?? event.provider ?? "BiQuote",
-      sourceUrl: event.sourceUrl ?? event.source_url ?? null,
-      dataUpdatedAt: event.updatedAt ?? event.updated_at ?? event.lastUpdate ?? event.last_update ?? null,
-      importanceLevel: "HIGH",
+      eventSource: event.source ?? event.provider ?? event.sourceName ?? "BiQuote",
+      valueSource: event.valueSource ?? event.value_source ?? event.source ?? event.provider ?? "BiQuote",
+      sourceUrl: event.sourceUrl ?? event.source_url ?? event.url ?? null,
+      dataUpdatedAt: event.updatedAt ?? event.updated_at ?? event.lastUpdate ?? event.last_update ?? event.timestampUpdated ?? null,
+      importanceLevel: event.importance ?? "unknown",
     }))
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
 }
@@ -302,7 +303,7 @@ async function analyzeEventBatch(events: AnyRecord[]) {
     historicalMacroContext: historical[index],
   }));
   const prompt = `Anda analis makroekonomi dan dampak pasar. Tahap analisis ditentukan oleh analysisWindow pada setiap agenda. Pada H-7/H-3 buat bias awal yang konservatif dan sebutkan data yang masih ditunggu; pada H-1/1 jam/30 menit perbarui berdasarkan data aktual yang tersedia dan risiko menjelang rilis; saat agenda berlangsung atau baru dirilis prioritaskan actual vs forecast dan perubahan ekspektasi suku bunga; pada evaluasi 15 menit/1 jam/4 jam jelaskan reaksi pasar yang benar-benar tersedia. Jangan mengklaim membaca pidato atau reaksi harga jika sumbernya tidak disediakan. Analisis SETIAP agenda berikut secara terpisah untuk ENAM instrumen: XAUUSD, BTCUSD, EURUSD, GBPUSD, USDJPY, US30.
-Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Gunakan historicalMacroContext dari FRED sebagai konteks tren historis resmi (observasi terakhir, bukan data konsensus). Bandingkan pola rilis sebelumnya jika konteksnya cukup dan jelaskan keterbatasannya. Jangan menyebut nilai historis sebagai forecast konsensus. Jika forecast tidak tersedia, buat tiga skenario bersyarat lebih tinggi, sesuai, dan lebih rendah dari ekspektasi pasar yang belum diketahui; tandai konsensus tidak tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika forecast belum tersedia, jangan otomatis memberi WAIT 100%: berikan tiga skenario bersyarat (data lebih kuat/lemah/sejalan) dan skor skenario BUY/SELL/WAIT yang berjumlah 100 berdasarkan konteks historis FRED, arah USD/yield bila tersedia, sifat instrumen, dan ketidakpastian. Pilih bias BUY atau SELL jika satu arah lebih didukung; gunakan WAIT hanya bila bukti benar-benar seimbang atau transmisi ke aset tidak dapat dipertanggungjawabkan. Tegaskan ini bias PRA-RILIS, bukan instruksi entry sebelum rilis. Jika data penting kosong, turunkan confidence dan jelaskan apa yang kurang; jangan jadikan kekosongan satu field sebagai alasan otomatis WAIT 100%.
+Gunakan actual/forecast/previous/revisedPrevious hanya jika tersedia. Sebelum menilai arah, tuliskan status kelengkapan ketiga nilai tersebut: Previous, Forecast (konsensus pasar), dan Actual (hasil resmi). Forecast wajib diperlakukan sebagai ekspektasi sebelum rilis; jangan menggantinya dengan nilai historis FRED. Jika Actual dan Forecast tersedia bersamaan, jelaskan secara eksplisit apakah Actual di atas, di bawah, atau sesuai Forecast serta makna surprise-nya untuk instrumen terkait. Jika Actual belum tersedia, tandai PRA-RILIS dan jangan membuat seolah-olah perbandingan sudah terjadi. Jika Forecast kosong, sebutkan "Konsensus/Forecast belum tersedia dari feed" dan gunakan skenario bersyarat tanpa angka forecast rekaan. Gunakan historicalMacroContext dari FRED sebagai konteks tren historis resmi (observasi terakhir, bukan data konsensus). Bandingkan pola rilis sebelumnya jika konteksnya cukup dan jelaskan keterbatasannya. Jangan menyebut nilai historis sebagai forecast konsensus. Jika forecast tidak tersedia, buat tiga skenario bersyarat lebih tinggi, sesuai, dan lebih rendah dari ekspektasi pasar yang belum diketahui; tandai konsensus tidak tersedia. Jangan mengarang angka, jadwal, harga, atau berita. Jika actual belum dirilis, buat skenario bersyarat berdasarkan surprise (actual vs forecast) dan tulis jelas bahwa ini PRA-RILIS. Jika forecast belum tersedia, jangan otomatis memberi WAIT 100%: berikan tiga skenario bersyarat (data lebih kuat/lemah/sejalan) dan skor skenario BUY/SELL/WAIT yang berjumlah 100 berdasarkan konteks historis FRED, arah USD/yield bila tersedia, sifat instrumen, dan ketidakpastian. Pilih bias BUY atau SELL jika satu arah lebih didukung; gunakan WAIT hanya bila bukti benar-benar seimbang atau transmisi ke aset tidak dapat dipertanggungjawabkan. Tegaskan ini bias PRA-RILIS, bukan instruksi entry sebelum rilis. Jika data penting kosong, turunkan confidence dan jelaskan apa yang kurang; jangan jadikan kekosongan satu field sebagai alasan otomatis WAIT 100%.
 Untuk SETIAP instrumen berikan bias BUY, SELL, atau WAIT; buyPct, sellPct, waitPct dengan jumlah tepat 100; confidence 0-100 yang terpisah dari skor skenario; dan reason yang menyebut faktor data serta transmisi pasar. Jangan menyamakan arah USD dengan arah emas/crypto. Persentase adalah skor skenario model, BUKAN probabilitas profit, win rate, atau jaminan hasil. Jangan memberi angka sama untuk semua aset. Bila ragu, WAIT lebih baik daripada sinyal palsu.
 Berikan summaryBias, reason makro, dan dataStatus PRE_RELEASE, RELEASED, atau INSUFFICIENT_DATA.
 Balas JSON murni: {"items":[{"id":"id-event","summaryBias":"BULLISH|BEARISH|NEUTRAL","reason":"alasan makro dan skenario bersyarat","dataStatus":"PRE_RELEASE|RELEASED|INSUFFICIENT_DATA","impacts":[{"symbol":"XAUUSD","bias":"BUY|SELL|WAIT","buyPct":40,"sellPct":35,"waitPct":25,"confidence":65,"reason":"alasan spesifik aset"}]}]}. Setiap event wajib memuat keenam instrumen tepat satu kali.
@@ -374,7 +375,7 @@ function analysisWindowLabel(phase: string): string {
   return labels[phase] || "Pemantauan agenda";
 }
 function analysisFingerprint(event: AnyRecord): string {
-  return JSON.stringify([event.id,event.actual,event.forecast,event.previous,event.revisedPrevious,event.time]);
+  return JSON.stringify([event.id,event.actual,event.forecast,event.previous,event.revisedPrevious,event.time,event.dataUpdatedAt]);
 }
 
 async function analyzeEvents(events: AnyRecord[]) {
