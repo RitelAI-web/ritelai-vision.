@@ -91,19 +91,19 @@ async function getCalendar() {
   const now = Date.now();
   // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
   // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
-  const start = now - 4 * 60 * 60 * 1000;
+  const start = now - 24 * 60 * 60 * 1000;
   const end = now + 180 * 24 * 60 * 60 * 1000;
   const url = new URL("https://biquote.io/api/calendar");
   url.searchParams.set("from", new Date(start).toISOString());
   url.searchParams.set("to", new Date(end).toISOString());
-  url.searchParams.set("countries", "US,EU,GB,JP,CA,AU,CH,NZ,CN");
+  // Do not restrict countries: high-impact releases from every provider-supported country are eligible.
   // Ambil semua tingkat dampak, bukan HIGH saja.
   url.searchParams.set("limit", "500");
   const rows = await fetchJson(url.toString(), 5000);
   if (!Array.isArray(rows)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
 
-  const relevantEvent = /\b(nfp|non[- ]?farm payrolls?|employment situation|employment change|unemployment rate|retail sales|cpi|consumer price index|core cpi|ppi|producer price index|core ppi|pce|personal consumption expenditures|personal income|fomc|federal reserve|fed funds|federal funds rate|fed interest rate decision|ecb|european central bank|boe|bank of england|boj|bank of japan|bank of canada|reserve bank of australia|swiss national bank|reserve bank of new zealand|people.?s bank of china|interest rate decision|rate decision|policy rate|cash rate|monetary policy|gross domestic product|gdp)\b/i;
-  const allowedCurrencies = new Set(["USD", "US", "USA", "EUR", "EU", "GBP", "GB", "UK", "JPY", "JP", "CAD", "CA", "AUD", "AU", "CHF", "CH", "NZD", "NZ", "CNY", "CN"]);
+  // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
+  // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
   return rows
     .map((event: AnyRecord) => {
       const rawTime = event?.time ?? event?.timestamp ?? event?.datetime ?? event?.date;
@@ -112,15 +112,11 @@ async function getCalendar() {
     })
     .filter(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => {
       if (!event || !Number.isFinite(timestamp) || timestamp < start || timestamp > end) return false;
-      const currency = String(event.currency ?? event.countryCode ?? event.country ?? "").trim().toUpperCase();
-      if (currency && !allowedCurrencies.has(currency)) return false;
       const eventName = String(event.name ?? event.title ?? event.event ?? "").trim();
       const rawImpact = String(event.importance ?? event.impact ?? event.impactLevel ?? event.impact_level ?? "").trim().toLowerCase();
-      const impactKnown = ["high", "high impact", "3", "3.0", "tinggi", "red", "medium", "med", "medium impact", "2", "2.0", "moderate", "orange", "kuning", "low", "low impact", "1", "1.0", "rendah", "yellow"].includes(rawImpact) || [1, 2, 3].includes(Number(rawImpact));
-      // Tampilkan hanya rilis makro yang relevan untuk pergerakan pasar dan
-      // memiliki klasifikasi dampak eksplisit LOW/MEDIUM/HIGH dari penyedia.
-      // Hindari agenda administratif/indikator minor dan label dampak tebakan.
-      return eventName.length > 0 && relevantEvent.test(eventName) && impactKnown;
+      const isHighImpact = ["high", "high impact", "3", "3.0", "tinggi", "red"].includes(rawImpact) || Number(rawImpact) === 3;
+      // Only provider-labelled HIGH impact is included; no guessed impact labels or event-name whitelist.
+      return eventName.length > 0 && isHighImpact;
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
       ...event,
