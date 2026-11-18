@@ -453,7 +453,7 @@ Deno.serve(async (request: Request) => {
       admin.from("profiles").select("role").eq("id", userData.user.id).maybeSingle(),
       admin.from("subscriptions").select("status,ends_at,plans(code)").eq("user_id", userData.user.id).eq("status", "active").gt("ends_at", new Date().toISOString()).order("ends_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    const role = String(profile?.role || "").toLowerCase();
+    const role = String(profile?.role || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
     const planCode = String((subscription?.plans as any)?.code || "").toLowerCase();
     const allowed = ["owner", "admin", "super_admin"].includes(role) || ["pro", "elite"].includes(planCode);
     if (body?.action === "check_news_access") return reply({ status: "ok", allowed, planCode: ["owner","admin","super_admin"].includes(role) ? "admin" : planCode });
