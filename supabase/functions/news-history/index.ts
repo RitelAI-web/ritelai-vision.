@@ -30,9 +30,13 @@ Deno.serve(async(req:Request)=>{
   if(!allowedRoles.includes(role)&&!["pro","elite"].includes(plan))return reply({error:"News History hanya tersedia untuk paket Pro dan Elite aktif."},403);
   let body:any;try{body=await req.json()}catch{return reply({error:"JSON tidak valid."},400)}
   if(body.action==="list"){
-    const {data,error}=await admin.from("news_event_history").select("*").eq("user_id",uid).order("event_time",{ascending:false}).order("checkpoint_minutes",{ascending:true}).limit(250);
+    const {data,error}=await admin.from("analysis_history").select("id,asset,timeframe,result,created_at").eq("user_id",uid).eq("asset","NEWS_HISTORY").order("created_at",{ascending:false}).limit(250);
     if(error)return reply({error:error.message},500);
-    return reply({status:"ok",items:data||[],plan:allowedRoles.includes(role)?"admin":plan});
+    const items=(data||[]).map((row:any)=>{
+      const value=row.result||{};
+      return {id:row.id,user_id:uid,event_id:value.event_id,event_time:value.event_time,captured_at:row.created_at,checkpoint_minutes:Number(value.checkpoint_minutes)||0,event_snapshot:value.event_snapshot||{},ai_snapshot:value.ai_snapshot||{},quotes_snapshot:value.quotes_snapshot||{},validation_status:value.validation_status||"PENDING",execution_type:"AI_SIGNAL",outcome:"UNVERIFIED",created_at:row.created_at};
+    });
+    return reply({status:"ok",items,plan:allowedRoles.includes(role)?"admin":plan});
   }
   if(body.action==="save"){
     const eventId=String(body.event_id||"").slice(0,240);
@@ -44,10 +48,16 @@ Deno.serve(async(req:Request)=>{
     const actual=event.actual??event.actualValue??null;
     const hasQuote=Object.keys(quotes).length>0;
     const validation=actual!=null&&hasQuote?"PARTIAL":"PENDING";
-    const row={user_id:uid,event_id:eventId,checkpoint_minutes:checkpoint,event_time:new Date(eventTime).toISOString(),captured_at:new Date().toISOString(),event_snapshot:event,ai_snapshot:ai,quotes_snapshot:quotes,validation_status:validation,execution_type:"AI_SIGNAL",outcome:"UNVERIFIED"};
-    const {data,error}=await admin.from("news_event_history").upsert(row,{onConflict:"user_id,event_id,checkpoint_minutes"}).select("*").single();
-    if(error)return reply({error:error.message},500);
-    return reply({status:"ok",item:data});
+    const eventIso=new Date(eventTime).toISOString();
+    const snapshot={event_id:eventId,event_time:eventIso,checkpoint_minutes:checkpoint,event_snapshot:event,ai_snapshot:ai,quotes_snapshot:quotes,validation_status:validation};
+    const {data:existingRows,error:lookupError}=await admin.from("analysis_history").select("id,result").eq("user_id",uid).eq("asset","NEWS_HISTORY").order("created_at",{ascending:false}).limit(250);
+    if(lookupError)return reply({error:lookupError.message},500);
+    const existing=(existingRows||[]).find((x:any)=>x.result?.event_id===eventId&&Number(x.result?.checkpoint_minutes)===checkpoint);
+    const write=existing
+      ? await admin.from("analysis_history").update({timeframe:"T+"+checkpoint+"m",result:snapshot}).eq("id",existing.id).eq("user_id",uid).select("id,created_at").single()
+      : await admin.from("analysis_history").insert({user_id:uid,asset:"NEWS_HISTORY",timeframe:"T+"+checkpoint+"m",result:snapshot}).select("id,created_at").single();
+    if(write.error)return reply({error:write.error.message},500);
+    return reply({status:"ok",item:{id:write.data.id,user_id:uid,...snapshot,captured_at:write.data.created_at,created_at:write.data.created_at,execution_type:"AI_SIGNAL",outcome:"UNVERIFIED"}});
   }
   return reply({error:"Action tidak dikenal."},400);
 });
