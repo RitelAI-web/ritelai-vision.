@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - 'index.html'
+      - 'public/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -29,7 +30,9 @@ jobs:
         run: |
           mkdir -p site
           cp index.html site/index.html
+          if [ -d public ]; then cp -R public/. site/; fi
           test -s site/index.html
+          test -s site/sw.js
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
       - name: Upload website artifact
