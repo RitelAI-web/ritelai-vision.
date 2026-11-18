@@ -91,7 +91,7 @@ async function getCalendar() {
   const now = Date.now();
   // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
   // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
-  const start = now - 24 * 60 * 60 * 1000;
+  const start = now;
   const end = now + 180 * 24 * 60 * 60 * 1000;
   const url = new URL("https://biquote.io/api/calendar");
   url.searchParams.set("from", new Date(start).toISOString());
@@ -135,6 +135,7 @@ async function getCalendar() {
     historyByCategory.set(category,bucket);
   }
   for (const bucket of historyByCategory.values()) bucket.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.slice(-12).map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,48);
 
   // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
   // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
@@ -179,7 +180,9 @@ async function getCalendar() {
       importanceLevel: event.importance ?? "unknown",
       historicalReleases: (historyByCategory.get(categoryOf(event.name ?? event.title ?? event.event)) || []).slice(-6),
     }))
+    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
+  return Object.assign(events, { pastReleases });
 }
 function getOfficialScheduledEvents(): AnyRecord[] {
   // Jadwal yang sudah diumumkan oleh BLS, Federal Reserve, dan BEA.
@@ -594,7 +597,7 @@ Deno.serve(async (request: Request) => {
     catch (error) { calendarError = messageOf(error); }
     // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
     // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
-    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents());
+    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents()).filter((event) => { const n=String(event.name||event.title||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); });
   
     let aiError: string | null = null;
     if (events.length) {
@@ -619,6 +622,7 @@ Deno.serve(async (request: Request) => {
       quotes,
       quoteErrors,
       events,
+      pastReleases: (providerEvents as any).pastReleases || [],
       calendarError,
       aiError,
       calendarSource: "BiQuote + jadwal resmi BLS, Federal Reserve, dan BEA",
