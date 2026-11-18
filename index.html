@@ -642,7 +642,7 @@ function renderEconomicCalendar(events){
  const rangeEnd=now+180*24*60*60*1000;
  const upcoming=latestCalendarEvents.filter(e=>{
   const d=e.time?new Date(e.time):null;
-  return d&&!Number.isNaN(d.getTime())&&d.getTime()>now&&d.getTime()<=rangeEnd;
+  return d&&!Number.isNaN(d.getTime())&&d.getTime()>=now-4*60*60*1000&&d.getTime()<=rangeEnd;
  }).sort((a,b)=>new Date(a.time)-new Date(b.time));
  const monthHost=document.getElementById('calendarMonthTabs');
  if(monthHost){
