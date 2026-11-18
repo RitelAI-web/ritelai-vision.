@@ -38,7 +38,7 @@ Deno.serve(async(req)=>{
   if(privateKeyError||!privateKey)return reply({error:"VAPID private key belum tersedia di Supabase Vault"},503);
   const subject=Deno.env.get("VAPID_SUBJECT")||"mailto:support@ritelai-vision.pages.dev";
   webpush.setVapidDetails(subject,publicKey,String(privateKey));
-  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon,"Authorization":`Bearer ${service}`},body:JSON.stringify({action:"market_calendar",pushOnly:true}),signal:AbortSignal.timeout(35000)});
+  const calendar=await fetch(url+"/functions/v1/quick-service",{method:"POST",headers:{"Content-Type":"application/json","apikey":anon,"x-cron-secret":cronToken},body:JSON.stringify({action:"market_calendar",pushOnly:true}),signal:AbortSignal.timeout(35000)});
   if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar (HTTP "+calendar.status+")");
   const payload=await calendar.json();
   if(payload.calendarError)throw new Error("Feed kalender gagal: "+String(payload.calendarError).slice(0,180));
