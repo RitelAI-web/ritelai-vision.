@@ -737,12 +737,19 @@ function renderEconomicCalendar(events){
  }).sort((a,b)=>new Date(a.time)-new Date(b.time));
  const monthHost=document.getElementById('calendarMonthTabs');
  if(monthHost){
-  const months=[...new Set(upcoming.map(e=>new Date(e.time).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7)))];
-  monthHost.innerHTML='<button type="button" class="calendar-month-btn '+(selectedCalendarMonth==='all'?'active':'')+'" data-month="all" onclick="setCalendarMonth(\'all\')">Semua bulan</button>'+months.map(key=>{const d=new Date(key+'-01T00:00:00');const label=d.toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'});return '<button type="button" class="calendar-month-btn '+(selectedCalendarMonth===key?'active':'')+'" data-month="'+key+'" onclick="setCalendarMonth(\''+key+'\')">'+escapeHtml(label)+'</button>'}).join('');
+  monthHost.innerHTML='<button type="button" class="calendar-month-btn '+(selectedCalendarMonth==='all'?'active':'')+'" data-month="all" onclick="setCalendarMonth(\\'all\\')">Semua bulan</button>'+calendarMonthKeys().map(key=>'<button type="button" class="calendar-month-btn '+(selectedCalendarMonth===key?'active':'')+'" data-month="'+key+'" onclick="setCalendarMonth(\\''+key+'\\')">'+escapeHtml(calendarMonthLabel(key))+'</button>').join('');
  }
- const filtered=selectedCalendarMonth==='all'?upcoming:upcoming.filter(e=>{
-  const key=new Date(e.time).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);
-  return key===selectedCalendarMonth;
+ const daySelect=document.getElementById('calendarDaySelect');
+ if(daySelect){
+  const dayCount=selectedCalendarMonth==='all'?31:calendarDaysInMonth(selectedCalendarMonth);
+  daySelect.innerHTML='<option value="all">Semua tanggal</option>'+Array.from({length:dayCount},(_,i)=>i+1).map(day=>'<option value="'+day+'" '+(String(selectedCalendarDay)===String(day)?'selected':'')+'>'+day+'</option>').join('');
+  daySelect.value=selectedCalendarDay;
+ }
+ const filtered=upcoming.filter(e=>{
+  const d=new Date(e.time);
+  const monthKey=d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);
+  const day=d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',day:'2-digit'});
+  return (selectedCalendarMonth==='all'||monthKey===selectedCalendarMonth)&&(selectedCalendarDay==='all'||day===String(selectedCalendarDay).padStart(2,'0'));
  });
  if(!filtered.length){
   const monthLabel=selectedCalendarMonth==='all'?'180 hari ke depan':new Date(selectedCalendarMonth+'-01T00:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'});
