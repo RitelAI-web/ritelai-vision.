@@ -911,6 +911,7 @@ function renderSetupValidity(){
  const s=activeChartSetup;
  const remaining=Math.max(0,s.expiresAt-Date.now());
  if(s.status==='FRESH'&&remaining<=0){s.status='EXPIRED';s.reason='Batas waktu setup telah habis. Jalankan analisis ulang sebelum mempertimbangkan entry.';}
+ if(s.status!=='FRESH'&&setupValidityTimer){clearInterval(setupValidityTimer);setupValidityTimer=null;}
  const badge=s.status==='FRESH'?'<span class="pill text-emerald-300">FRESH</span>':s.status==='EXPIRED'?'<span class="pill text-amber-200">EXPIRED</span>':s.status==='WAIT'?'<span class="pill">WAIT · NO ACTIVE SETUP</span>':'<span class="pill text-rose-300">INVALIDATED</span>';
  const timer=s.status==='FRESH'?Math.floor(remaining/60000)+'m '+Math.floor((remaining%60000)/1000)+'s':'—';
  const message=s.status==='FRESH'?'Zona masih dalam masa berlaku. Tetap tunggu konfirmasi entry dan pastikan harga feed terbaru.':s.status==='WAIT'?'AI belum memberikan setup BUY/SELL yang aktif. Jangan gunakan zona entry sampai ada analisis baru yang terkonfirmasi.':s.reason;
