@@ -878,7 +878,7 @@ document.addEventListener('visibilitychange',()=>{
  if(!document.hidden&&newsTab&&newsTab.classList.contains('active'))loadMarketIntelligence({silent:true});
 });
 
-const NEWS_PUSH_VAPID_PUBLIC_KEY = "";
+const NEWS_PUSH_VAPID_PUBLIC_KEY = "BI4BTb1LQPEPOsb0OJRElrM8Ub632OtYmMIUIbXdHATwSL00AaD4cnsEncJjvQTMYVp2FfmK1BgU96wk9lLd1U0";
 function urlBase64ToUint8Array(base64String){const padding="=".repeat((4-base64String.length%4)%4);const raw=atob((base64String+padding).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...raw].map(ch=>ch.charCodeAt(0)));}
 async function enableRitelAIPush(){
  const status=document.getElementById("pushStatus"),button=document.getElementById("enablePushBtn"),say=s=>{if(status)status.textContent=s};
