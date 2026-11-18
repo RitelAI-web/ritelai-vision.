@@ -69,6 +69,18 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
  </div>
 </header>
 <main class="max-w-7xl mx-auto p-4 md:p-6">
+ <section id="launchPromoBanner" class="mb-5 relative overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-r from-[#3b260d] via-[#241b17] to-[#10243b] p-4 md:p-5 shadow-lg shadow-amber-950/20">
+  <div aria-hidden="true" class="absolute -right-8 -top-12 h-40 w-40 rounded-full border border-amber-200/10 pointer-events-none"></div>
+  <div class="relative flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+   <div class="min-w-0">
+    <div class="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] font-extrabold tracking-wider text-amber-200"><i class="fa-solid fa-gift"></i> PROMO PELUNCURAN RITELAI</div>
+    <h2 class="text-xl md:text-2xl font-extrabold text-white mt-2">Penawaran spesial untuk member baru</h2>
+    <p class="text-amber-100/80 text-xs md:text-sm mt-1 max-w-2xl">Diskon 30% untuk pembelian pertama paket Pro atau Elite. Gunakan kode <b class="text-amber-200">RITELAI30</b>.</p>
+    <p class="text-[10px] text-amber-100/60 mt-2">Khusus pelanggan baru · Satu kali penggunaan · Syarat dan verifikasi promo berlaku.</p>
+   </div>
+   <button type="button" class="btn shrink-0 bg-amber-300 text-slate-950 hover:bg-amber-200" onclick="openModal('plansModal')"><i class="fa-solid fa-tags mr-1"></i> Lihat penawaran</button>
+  </div>
+ </section>
  <section class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-3">
   <div><div class="text-[10px] tracking-[.22em] text-cyan-300 font-bold mb-2">AI-ASSISTED TRADING WORKSPACE</div><h1 class="text-2xl md:text-3xl font-extrabold">Selamat datang di <span class="text-cyan-300">RitelAI Chart Vision</span></h1><p class="muted text-xs mt-2 max-w-2xl">Ruang kerja analisis pasar untuk membaca chart, memahami berita, dan menyusun rencana risiko dengan lebih disiplin.</p></div>
   <div class="flex gap-2"><span class="pill"><i class="fa-solid fa-shield-halved mr-1"></i> Risk-first</span><span class="pill"><i class="fa-solid fa-mobile-screen mr-1"></i> Responsive</span></div>
