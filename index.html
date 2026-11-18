@@ -432,6 +432,29 @@ async function refreshAnalysisQuota(){
   }
  }catch(e){value.textContent='—';plan.textContent='Kuota belum dapat dimuat.';bar.style.width='0%';console.error('quota status',e)}
 }
+async function loadAnalysisHistory(){
+ const host=document.getElementById('historyItems'),empty=document.getElementById('emptyHistory'),count=document.getElementById('historyCount');
+ if(!host||!supabaseClient)return;
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(!session){host.innerHTML='';if(empty)empty.textContent='Login untuk melihat riwayat analisis akun.';if(count)count.textContent='0 analisis';return}
+ if(empty)empty.textContent='Memuat riwayat...';
+ try{
+  const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'history_list'}});
+  if(error)throw error;if(data?.error)throw new Error(data.error);
+  const rows=Array.isArray(data?.items)?data.items:[];
+  if(count)count.textContent=rows.length+' analisis';
+  if(!rows.length){host.innerHTML='';if(empty)empty.textContent='Belum ada analisis tersimpan untuk akun ini.';return}
+  if(empty)empty.textContent='';
+  host.innerHTML=rows.map(row=>{
+   const r=row.result&&typeof row.result==='object'?row.result:{};
+   const signal=String(r.signal||'ANALISIS').toUpperCase();
+   const tone=signal==='BUY'?'text-emerald-300':signal==='SELL'?'text-rose-300':'text-amber-300';
+   const when=row.created_at?new Date(row.created_at).toLocaleString('id-ID'):'Waktu tidak tersedia';
+   const summary=String(r.summary||r.reasoning||'Hasil analisis tersimpan.');
+   return '<article class="rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="flex items-center justify-between gap-2"><b class="'+tone+'">'+escapeHtml(signal)+'</b><span class="muted text-[10px]">'+escapeHtml(when)+'</span></div><div class="text-xs mt-2">'+escapeHtml(row.asset||'—')+' · '+escapeHtml(row.timeframe||'—')+'</div><p class="muted text-xs mt-2">'+escapeHtml(summary)+'</p></article>';
+  }).join('');
+ }catch(e){console.error('loadAnalysisHistory',e);if(empty)empty.textContent='Riwayat belum dapat dimuat: '+(e.message||'Kesalahan server');}
+}
 async function refreshAuth(){
  if(!supabaseClient)return;
  const {data:{session}}=await supabaseClient.auth.getSession();
@@ -441,6 +464,7 @@ async function refreshAuth(){
  if(profile?.role)role=profile.role;
  setAuthUI(session.user,role);
  await refreshAnalysisQuota();
+ await loadAnalysisHistory();
 }
 async function signIn(){
  if(!supabaseClient)return authMessage('Koneksi Supabase belum tersedia.',true);
@@ -818,6 +842,7 @@ async function requestAnalysis(){
    putSummary('summaryIndicators',[r.rsi,r.macd].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
    putSummary('summaryVolatility',[r.volume,r.volatility].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
    await refreshAnalysisQuota();
+   await loadAnalysisHistory();
    toast('Analisis chart selesai.');
   }catch(e){
    console.error(e);
