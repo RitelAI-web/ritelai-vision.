@@ -627,7 +627,7 @@ function renderLiveQuotes(quotes){const box=document.getElementById('marketQuote
 async function connectLiveTicks(){if(marketHub||!window.signalR)return;try{marketHub=new signalR.HubConnectionBuilder().withUrl('https://biquote.io/hubs/tick').withAutomaticReconnect().build();marketHub.on('ReceiveTick',tick=>{const k=String(tick.symbol||'').toUpperCase();if(!RITELAI_SYMBOLS.includes(k))return;window.ritelaiLiveQuotes=window.ritelaiLiveQuotes||{};window.ritelaiLiveQuotes[k]={...window.ritelaiLiveQuotes[k],...tick,source:'BiQuote MT5 streaming'};renderLiveQuotes(window.ritelaiLiveQuotes);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Feed harga streaming aktif';s.className='pill text-emerald-300';}});await marketHub.start();await marketHub.invoke('Subscribe',RITELAI_SYMBOLS); }catch(e){console.warn('Live tick stream unavailable:',e);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Streaming belum tersedia';s.className='pill text-amber-200';}}}
 let selectedCalendarMonth='all';
 let selectedCalendarDay='all';
-function calendarMonthKeys(){return Array.from({length:24},(_,i)=>{const d=new Date(Date.UTC(2026,i,1));return d.toISOString().slice(0,7);});}
+function calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
 function calendarMonthLabel(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'UTC'});}
 function calendarDaysInMonth(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m,0)).getUTCDate();}
 function setCalendarDay(day){selectedCalendarDay=day;renderEconomicCalendar(latestCalendarEvents);}
