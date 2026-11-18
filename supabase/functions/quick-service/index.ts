@@ -91,7 +91,7 @@ async function getCalendar() {
   const now = Date.now();
   // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
   // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
-  const start = now - 30 * 24 * 60 * 60 * 1000;
+  const start = new Date('2026-01-01T00:00:00.000Z').getTime();
   const end = now + 180 * 24 * 60 * 60 * 1000;
   const url = new URL("https://biquote.io/api/calendar");
   url.searchParams.set("from", new Date(start).toISOString());
