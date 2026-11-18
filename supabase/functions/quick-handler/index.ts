@@ -57,7 +57,43 @@ function ema(v:number[],p:number):number|null{if(v.length<p)return null;const k=
 function rsi(v:number[],p=14):number|null{if(v.length<=p)return null;let g=0,l=0;for(let i=1;i<=p;i++){const d=v[i]-v[i-1];g+=Math.max(0,d);l+=Math.max(0,-d)}g/=p;l/=p;for(let i=p+1;i<v.length;i++){const d=v[i]-v[i-1];g=(g*(p-1)+Math.max(0,d))/p;l=(l*(p-1)+Math.max(0,-d))/p}return l===0?100:+(100-100/(1+g/l)).toFixed(2)}
 function atr(b:Candle[],p=14):number|null{if(b.length<=p)return null;const t:number[]=[];for(let i=1;i<b.length;i++)t.push(Math.max(b[i].high-b[i].low,Math.abs(b[i].high-b[i-1].close),Math.abs(b[i].low-b[i-1].close)));let a=t.slice(0,p).reduce((x,y)=>x+y,0)/p;for(let i=p;i<t.length;i++)a=(a*(p-1)+t[i])/p;return +a.toFixed(8)}
 function technical(b:Candle[]){const c=b.map(x=>x.close),last=b[b.length-1],e20=ema(c,20),e50=ema(c,50),f=c.map((_,i)=>ema(c.slice(0,i+1),12)),s=c.map((_,i)=>ema(c.slice(0,i+1),26)),ml=f.map((x,i)=>x===null||s[i]===null?null:x-s[i]).filter((x):x is number=>x!==null),macd=ml.length?ml[ml.length-1]:null,sig=ml.length>=9?ema(ml,9):null,mean=c.length>=20?c.slice(-20).reduce((a,x)=>a+x,0)/20:null,sd=mean===null?null:Math.sqrt(c.slice(-20).reduce((a,x)=>a+(x-mean)**2,0)/20);return{lastClose:last.close,ema:{ema9:ema(c,9),ema20:e20,ema50:e50,ema200:ema(c,200)},rsi14:rsi(c),macd:{line:macd===null?null:+macd.toFixed(8),signal:sig,histogram:macd===null||sig===null?null:+(macd-sig).toFixed(8)},atr14:atr(b),bollinger20:mean===null?null:{middle:+mean.toFixed(8),upper:+(mean+2*sd!).toFixed(8),lower:+(mean-2*sd!).toFixed(8)},trend:e20!==null&&e50!==null?(last.close>e20&&e20>e50?"UPTREND":last.close<e20&&e20<e50?"DOWNTREND":"SIDEWAYS"):"UNCLEAR",barTime:last.openTime,barCount:b.length}}
-async function getMarketCandleContext(symbol:string,timeframe:string){symbol=symbol.split(/[—–-]/)[0].trim().toUpperCase();const map:Record<string,string>={M1:"1m",M5:"5m",M15:"15m",M30:"30m",H1:"1h",H4:"4h",D1:"1d"},interval=map[timeframe]||"15m";const u=new URL("https://biquote.io/api/"+encodeURIComponent(symbol)+"/ohlc");u.searchParams.set("interval",interval);u.searchParams.set("limit","500");const r=await fetch(u,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(9000)});if(!r.ok)throw Error("OHLC provider HTTP "+r.status);const j=await r.json();if(!Array.isArray(j?.bars))throw Error("Format OHLC tidak valid");const b=(j.bars as Candle[]).filter(x=>!x.isOpen&&[x.open,x.high,x.low,x.close].every(n=>Number.isFinite(Number(n))&&Number(n)>0)).sort((a,b)=>Date.parse(a.openTime)-Date.parse(b.openTime));if(b.length<210)throw Error("Candle tertutup kurang dari 210");const latest=b[b.length-1],age=Date.now()-Date.parse(latest.openTime),dur:Record<string,number>={"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};if(!Number.isFinite(age)||age<0||age>dur[interval]*3)throw Error("Candle terakhir stale");return{symbol,interval,source:"BiQuote OHLC",generatedAt:new Date().toISOString(),lastClosedBarAt:latest.openTime,closedBars:b.length,indicators:technical(b)}}
+
+async function fetchClosedBars(symbol:string,interval:string):Promise<Candle[]>{
+ const u=new URL("https://biquote.io/api/"+encodeURIComponent(symbol)+"/ohlc");
+ u.searchParams.set("interval",interval);u.searchParams.set("limit","1000");
+ const r=await fetch(u,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(10000)});
+ if(!r.ok)throw Error("OHLC provider HTTP "+r.status);
+ const j=await r.json();
+ if(!Array.isArray(j?.bars))throw Error("Format OHLC tidak valid");
+ return (j.bars as Candle[]).filter(x=>!x.isOpen&&Number.isFinite(Date.parse(x.openTime))&&[x.open,x.high,x.low,x.close].every(n=>Number.isFinite(Number(n))&&Number(n)>0)).sort((a,b)=>Date.parse(a.openTime)-Date.parse(b.openTime));
+}
+async function getMarketCandleContext(symbol:string,timeframe:string){
+ symbol=symbol.split(/[—–-]/)[0].trim().toUpperCase();
+ const map:Record<string,string>={M1:"1m",M5:"5m",M15:"15m",M30:"30m",H1:"1h",H4:"4h",D1:"1d"};
+ const interval=map[timeframe]||"15m";
+ const higher:Record<string,string>={"1m":"15m","5m":"15m","15m":"1h","30m":"1h","1h":"4h","4h":"1d"};
+ const [bars,higherBars]=await Promise.all([fetchClosedBars(symbol,interval),higher[interval]?fetchClosedBars(symbol,higher[interval]):Promise.resolve([] as Candle[])]);
+ if(bars.length<50)throw Error("Candle tertutup tidak cukup untuk indikator (minimal 50)");
+ const latest=bars[bars.length-1],age=Date.now()-Date.parse(latest.openTime);
+ const dur:Record<string,number>={"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
+ if(!Number.isFinite(age)||age<0||age>dur[interval]*3)throw Error("Candle terakhir stale");
+ const higherLatest=higherBars[higherBars.length-1];
+ const higherAge=higherLatest?Date.now()-Date.parse(higherLatest.openTime):Infinity;
+ const higherFresh=!!higherLatest&&Number.isFinite(higherAge)&&higherAge>=0&&higherAge<=dur[higher[interval]]*3&&higherBars.length>=50;
+ const mtf=higherFresh?{timeframe:higher[interval],barTime:higherLatest.openTime,trend:technical(higherBars).trend,indicators:technical(higherBars)}:{timeframe:higher[interval]||null,status:"UNAVAILABLE",reason:"Candle timeframe konfirmasi tidak cukup atau stale"};
+ return {symbol,interval,source:"BiQuote OHLC",generatedAt:new Date().toISOString(),lastClosedBarAt:latest.openTime,closedBars:bars.length,indicators:technical(bars),multiTimeframe:mtf,bars};
+}
+async function persistMarketBars(admin:any,context:any){
+ if(!context?.bars?.length)return {stored:0,error:"No candle data"};
+ const rows=context.bars.map((b:Candle)=>({symbol:context.symbol,timeframe:context.interval,open_time:b.openTime,open:b.open,high:b.high,low:b.low,close:b.close,volume:Number.isFinite(Number(b.volume))?b.volume:null,tick_volume:Number.isFinite(Number(b.tickVolume))?b.tickVolume:null,source:"BiQuote",fetched_at:new Date().toISOString()}));
+ let stored=0;
+ for(let i=0;i<rows.length;i+=200){
+  const {error}=await admin.from("market_ohlc_bars").upsert(rows.slice(i,i+200),{onConflict:"symbol,timeframe,open_time",ignoreDuplicates:false});
+  if(error)throw error;stored+=Math.min(200,rows.length-i);
+ }
+ return {stored};
+}
+
 
 Deno.serve(async(req)=>{
  if(req.method==="OPTIONS")return new Response("ok",{headers:cors});
@@ -98,8 +134,8 @@ Deno.serve(async(req)=>{
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
   if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
   let marketContext:any=null,marketContextError:string|null=null;
-  try{marketContext=await getMarketCandleContext(instrument,timeframe)}catch(e){marketContextError=e instanceof Error?e.message:String(e)}
-  const marketContextInstruction=marketContext?`\n\nDATA OHLC SERVER (candle tertutup; indikator dihitung secara matematis): ${JSON.stringify(marketContext)}\nGunakan nilai ini sebagai sumber numerik indikator. Screenshot tetap sumber visual support/resistance dan price action.`:`\n\nDATA OHLC TIDAK TERSEDIA: ${marketContextError}. Jangan mengarang indikator; fallback hanya analisis screenshot dan tandai keterbatasan.`;
+  try{marketContext=await getMarketCandleContext(instrument,timeframe);try{marketContext.persistence=await persistMarketBars(admin,marketContext)}catch(storeError){marketContext.persistence={stored:0,error:storeError instanceof Error?storeError.message:String(storeError)}}}catch(e){marketContextError=e instanceof Error?e.message:String(e)}
+  const marketContextInstruction=marketContext?`\n\nDATA OHLC SERVER (candle tertutup; indikator dihitung secara matematis): ${JSON.stringify({...marketContext,bars:undefined})}\nGunakan nilai ini sebagai sumber numerik indikator. Bandingkan arah timeframe entry dengan timeframe konfirmasi yang tersedia; jika tidak selaras, turunkan kesiapan entry ke WAIT. Screenshot tetap sumber visual support/resistance dan price action.`:`\n\nDATA OHLC TIDAK TERSEDIA: ${marketContextError}. Jangan mengarang indikator; fallback hanya analisis screenshot dan tandai keterbatasan.`;
   const prompt=`Anda adalah analis teknikal profesional untuk RitelAI Vision. Analisis bukti screenshot dan data OHLC server jika tersedia. Instrumen ${instrument}; timeframe ${timeframe}; risiko maksimum ${risk}% per transaksi. Jawab JSON valid saja dalam Bahasa Indonesia.${marketContextInstruction}
 
 PROSEDUR WAJIB:
@@ -132,7 +168,7 @@ Semua angka harga harus bersumber dari screenshot. Untuk level yang tidak terbac
   if(!txt)throw new Error("OpenAI returned an empty analysis response.");
   let result:any;try{result=JSON.parse(txt);}catch(_){throw new Error("OpenAI response was not valid JSON.");}
   if(!result||typeof result!=="object")throw new Error("OpenAI returned an invalid analysis object.");
-  result.market_data=marketContext?{status:"AVAILABLE",source:marketContext.source,symbol:marketContext.symbol,interval:marketContext.interval,closed_bars:marketContext.closedBars,last_closed_bar_at:marketContext.lastClosedBarAt,indicators:marketContext.indicators}:{status:"UNAVAILABLE",reason:marketContextError||"OHLC tidak tersedia"};
+  result.market_data=marketContext?{status:"AVAILABLE",source:marketContext.source,symbol:marketContext.symbol,interval:marketContext.interval,closed_bars:marketContext.closedBars,last_closed_bar_at:marketContext.lastClosedBarAt,indicators:marketContext.indicators,multi_timeframe:marketContext.multiTimeframe,persisted_bars:marketContext.persistence?.stored??0}:{status:"UNAVAILABLE",reason:marketContextError||"OHLC tidak tersedia"};
   if(marketContext){const i=marketContext.indicators,m=i.macd,e=i.ema,computed=[{name:"EMA 9/20/50/200",status:"AVAILABLE",signal:i.trend==="UPTREND"?"BUY":i.trend==="DOWNTREND"?"SELL":"WAIT",reading:e,reason:"Dihitung dari candle OHLC tertutup; bias "+i.trend},{name:"RSI 14",status:"AVAILABLE",signal:i.rsi14===null?"WAIT":i.rsi14>=55?"BUY":i.rsi14<=45?"SELL":"WAIT",reading:i.rsi14,reason:"RSI Wilder dihitung server"},{name:"MACD 12/26/9",status:"AVAILABLE",signal:m.histogram>0?"BUY":m.histogram<0?"SELL":"WAIT",reading:m,reason:"MACD dihitung server dari close candle"},{name:"ATR 14",status:"AVAILABLE",signal:"WAIT",reading:i.atr14,reason:"Volatilitas, bukan indikator arah"},{name:"Bollinger Bands 20",status:"AVAILABLE",signal:"WAIT",reading:i.bollinger20,reason:"SMA20 dan deviasi standar 2σ"}];const old=Array.isArray(result.indicator_signals)?result.indicator_signals:[];const n=new Set(computed.map(x=>x.name));result.indicator_signals=[...computed,...old.filter((x:any)=>!n.has(String(x.name)))];result.indicator_consensus={...(result.indicator_consensus||{}),available_count:computed.length,overall:i.trend,reason:"Indikator numerik dihitung dari OHLC server."};}
   if(!["BUY","SELL","WAIT"].includes(String(result.signal).toUpperCase()))result.signal="WAIT";
   if(!["UPTREND","DOWNTREND","SIDEWAYS","UNCLEAR"].includes(String(result.trend||"").toUpperCase()))result.trend="UNCLEAR";
