@@ -530,6 +530,7 @@ Deno.serve(async (request: Request) => {
   let body: AnyRecord;
   try { body = await request.json(); }
   catch { return reply({ status: "error", error: "Body request harus berupa JSON." }, 400); }
+  let trustedServerRequest = false;
   if (body?.action === "check_news_access" || body?.action === "market_calendar" || body?.action === "market_news") {
     const auth = request.headers.get("Authorization") || "";
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
@@ -539,6 +540,7 @@ Deno.serve(async (request: Request) => {
     // Server-to-server access is restricted to the project service-role credential.
     // Browser/customer calls still require a valid user session and active Pro/Elite plan.
     const isTrustedServer = auth === `Bearer ${serviceKey}`;
+    trustedServerRequest = isTrustedServer;
     if (!isTrustedServer) {
       if (!auth.startsWith("Bearer ")) return reply({ status: "error", error: "Login diperlukan untuk fitur News." }, 401);
       const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
@@ -558,6 +560,8 @@ Deno.serve(async (request: Request) => {
     }
   }
 
+  const pushOnly = body?.action === "market_calendar" && body?.pushOnly === true && trustedServerRequest;
+
   if (body?.action === "market_quotes") {
     const requested = String(body?.symbol || "XAUUSD").toUpperCase();
     if (!SYMBOLS.includes(requested as SymbolKey)) return reply({ status: "error", error: "Instrumen belum didukung feed live." }, 400);
@@ -575,7 +579,7 @@ Deno.serve(async (request: Request) => {
   if (body?.action !== "market_calendar") {
     return reply({ status: "error", error: "Aksi tidak dikenal. Gunakan action: market_quotes, market_calendar, atau market_news." }, 400);
   }
-  if (CALENDAR_RESPONSE_CACHE.payload && Date.now() - CALENDAR_RESPONSE_CACHE.at < 30000) {
+  if (!pushOnly && CALENDAR_RESPONSE_CACHE.payload && Date.now() - CALENDAR_RESPONSE_CACHE.at < 30000) {
     return reply({ ...CALENDAR_RESPONSE_CACHE.payload, cached: true, cacheAgeMs: Date.now() - CALENDAR_RESPONSE_CACHE.at });
   }
 
@@ -596,7 +600,7 @@ Deno.serve(async (request: Request) => {
     let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents()).filter((event) => { const n=String(event.name||event.title||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); });
   
     let aiError: string | null = null;
-    if (events.length) {
+    if (events.length && !pushOnly) {
       try {
         const result = await analyzeEvents(events);
         events = result.events;
@@ -608,7 +612,7 @@ Deno.serve(async (request: Request) => {
           ai: { available: false, bias: "NEUTRAL", reason: "Analisis AI gagal; periksa konfigurasi server. Jangan gunakan sebagai sinyal transaksi.", impacts: [] },
         }));
       }
-    } else if (!Deno.env.get("OPENAI_API_KEY")) {
+    } else if (!pushOnly && !Deno.env.get("OPENAI_API_KEY")) {
       aiError = "OPENAI_API_KEY belum dikonfigurasi di Supabase Secrets.";
     }
   
@@ -635,8 +639,10 @@ Deno.serve(async (request: Request) => {
       },
       disclaimer: "Harga berasal dari penyedia pihak ketiga dan tidak dijamin sama dengan harga broker. Data dapat tertunda atau tidak tersedia. Bias AI bersifat kualitatif, bukan probabilitas profit atau win rate.",
     };
-    CALENDAR_RESPONSE_CACHE.at = Date.now();
-    CALENDAR_RESPONSE_CACHE.payload = calendarPayload;
+    if (!pushOnly) {
+      CALENDAR_RESPONSE_CACHE.at = Date.now();
+      CALENDAR_RESPONSE_CACHE.payload = calendarPayload;
+    }
     return reply(calendarPayload);
   } catch (error) {
     // Never leak an unhandled provider/runtime exception as a generic non-2xx to the customer UI.
