@@ -897,7 +897,7 @@ document.addEventListener('visibilitychange',()=>{
  if(!document.hidden&&newsTab&&newsTab.classList.contains('active'))loadMarketIntelligence({silent:true});
 });
 
-const NEWS_PUSH_VAPID_PUBLIC_KEY = "BOF1Ts3XiHR9mRCC9PcrkLUL2PLxyo8jvzbSiYevitggcf779sQgAaX4Q6dsPKuNSYMy_oGZU4uNneaO_5QqAxM";
+const NEWS_PUSH_VAPID_PUBLIC_KEY = "BFFqStWjPiRarL3JUvF8BnmM3GWBA5Go8_REDbNi11PTe5n6-0ciBtnJY10KQubNJ69Ve3TdI28ADv398LvSvo8";
 function urlBase64ToUint8Array(base64String){const padding="=".repeat((4-base64String.length%4)%4);const raw=atob((base64String+padding).replace(/-/g,"+").replace(/_/g,"/"));return Uint8Array.from([...raw].map(ch=>ch.charCodeAt(0)));}
 async function enableRitelAIPush(){
  const status=document.getElementById("pushStatus"),button=document.getElementById("enablePushBtn"),say=s=>{if(status)status.textContent=s};
@@ -909,7 +909,7 @@ async function enableRitelAIPush(){
   if(Notification.permission==="denied"){say("Izin notifikasi diblokir. Ubah izin situs menjadi Allow.");return}
   if(button)button.disabled=true;
   if(await Notification.requestPermission()!=="granted"){say("Izin notifikasi belum diberikan.");return}
-  const registration=await navigator.serviceWorker.register("/sw.js",{scope:"/"});
+  const registration=await navigator.serviceWorker.register(new URL("sw.js",document.baseURI),{scope:new URL("./",document.baseURI).pathname});
   const subscription=await registration.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:urlBase64ToUint8Array(NEWS_PUSH_VAPID_PUBLIC_KEY)});
   const {data,error}=await supabaseClient.functions.invoke("news-push",{body:{action:"subscribe",subscription:subscription.toJSON()}});
   if(error||data?.error)throw new Error(data?.error||error.message);
