@@ -91,7 +91,7 @@ async function getCalendar() {
   const now = Date.now();
   // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
   // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
-  const start = now;
+  const start = now - 30 * 24 * 60 * 60 * 1000;
   const end = now + 180 * 24 * 60 * 60 * 1000;
   const url = new URL("https://biquote.io/api/calendar");
   url.searchParams.set("from", new Date(start).toISOString());
@@ -101,16 +101,12 @@ async function getCalendar() {
   url.searchParams.set("limit", "500");
   const rows = await fetchJson(url.toString(), 5000);
   if (!Array.isArray(rows)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
-  // Ambil rilis historis terpisah agar kalender aktif tidak dipenuhi agenda lampau.
-  let historicalRows: AnyRecord[] = [];
-  try {
-    const historyUrl = new URL("https://biquote.io/api/calendar");
-    historyUrl.searchParams.set("from", new Date(now - 120 * 24 * 60 * 60 * 1000).toISOString());
-    historyUrl.searchParams.set("to", new Date(now - 24 * 60 * 60 * 1000).toISOString());
-    historyUrl.searchParams.set("limit", "500");
-    const historyData = await fetchJson(historyUrl.toString(), 5000);
-    if (Array.isArray(historyData)) historicalRows = historyData;
-  } catch { /* Riwayat tidak tersedia: jangan mengarang angka historis. */ }
+  // Gunakan satu feed rentang 30 hari ke belakang hingga 180 hari ke depan.
+  // Dengan begitu rilis kemarin/hari ini tidak hilang akibat endpoint arsip terpisah.
+  const historicalRows: AnyRecord[] = rows.filter((event: AnyRecord) => {
+    const stamp=eventTimestamp(event?.time??event?.timestamp??event?.datetime??event?.date);
+    return Number.isFinite(stamp) && stamp < now;
+  });
   const categoryOf = (name: unknown) => {
     const n=String(name||"").toLowerCase();
     if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings/.test(n)) return "NFP";
@@ -135,7 +131,7 @@ async function getCalendar() {
     historyByCategory.set(category,bucket);
   }
   for (const bucket of historyByCategory.values()) bucket.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
-  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.slice(-12).map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,48);
+  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,120);
 
   // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
   // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
