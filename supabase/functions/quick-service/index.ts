@@ -93,14 +93,35 @@ async function getCalendar() {
   // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
   const start = new Date('2026-01-01T00:00:00.000Z').getTime();
   const end = now + 180 * 24 * 60 * 60 * 1000;
-  const url = new URL("https://biquote.io/api/calendar");
-  url.searchParams.set("from", new Date(start).toISOString());
-  url.searchParams.set("to", new Date(end).toISOString());
-  // Do not restrict countries: high-impact releases from every provider-supported country are eligible.
-  // Ambil semua tingkat dampak, bukan HIGH saja.
-  url.searchParams.set("limit", "500");
-  const rows = await fetchJson(url.toString(), 5000);
-  if (!Array.isArray(rows)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
+  // Ambil arsip per bulan agar batas 500 item tidak memotong rilis awal tahun.
+  // Rentang mendatang diminta terpisah agar kalender tetap terisi.
+  const ranges: Array<{from:number;to:number}> = [];
+  let cursor = start;
+  while (cursor < now) {
+    const d = new Date(cursor);
+    const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 1);
+    ranges.push({from:cursor,to:Math.min(next-1,now)});
+    cursor = next;
+  }
+  ranges.push({from:now,to:end});
+  const fetched = await Promise.all(ranges.map(async range => {
+    const url = new URL("https://biquote.io/api/calendar");
+    url.searchParams.set("from", new Date(range.from).toISOString());
+    url.searchParams.set("to", new Date(range.to).toISOString());
+    url.searchParams.set("limit", "500");
+    const result = await fetchJson(url.toString(), 8000);
+    if (!Array.isArray(result)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
+    return result as AnyRecord[];
+  }));
+  const unique = new Map<string, AnyRecord>();
+  for (const batch of fetched) for (const event of batch) {
+    const stamp = eventTimestamp(event?.time??event?.timestamp??event?.datetime??event?.date);
+    const name = String(event?.name??event?.title??event?.event??"").trim().toLowerCase();
+    if (!Number.isFinite(stamp) || !name) continue;
+    unique.set(String(event?.id??event?.eventId??name+"|"+stamp), event);
+  }
+  const rows = [...unique.values()];
+  if (!rows.length) throw new Error("Penyedia kalender tidak mengembalikan data");
   // Gunakan satu feed rentang 30 hari ke belakang hingga 180 hari ke depan.
   // Dengan begitu rilis kemarin/hari ini tidak hilang akibat endpoint arsip terpisah.
   const historicalRows: AnyRecord[] = rows.filter((event: AnyRecord) => {
@@ -109,10 +130,10 @@ async function getCalendar() {
   });
   const categoryOf = (name: unknown) => {
     const n=String(name||"").toLowerCase();
-    if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings/.test(n)) return "NFP";
-    if (/consumer price|cpi/.test(n)) return "CPI";
-    if (/producer price|ppi/.test(n)) return "PPI";
-    if (/fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n)) return "FOMC";
+    if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings|jobless claims|initial claims|continuing claims/.test(n)) return "NFP";
+    if (/consumer price|consumer inflation|cpi|core inflation/.test(n)) return "CPI";
+    if (/producer price|producer inflation|ppi/.test(n)) return "PPI";
+    if (/fomc|federal reserve|fed funds|interest rate decision|policy rate|federal funds rate|monetary policy statement|fed chair/.test(n)) return "FOMC";
     if (/crude oil|oil inventories|petroleum|opec|brent|wti/.test(n)) return "OIL";
     return "";
   };
