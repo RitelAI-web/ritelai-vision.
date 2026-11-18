@@ -89,15 +89,15 @@ function eventTimestamp(value: unknown): number {
 
 async function getCalendar() {
   const now = Date.now();
-  // Sisa November 2026 (mulai saat ini) sampai 31 Desember 2026 23:59:59.999 WIB.
-  // Waktu akhir dikonversi ke UTC karena API kalender menerima ISO UTC.
-  const start = now;
-  const end = Date.UTC(2026, 11, 31, 23, 59, 59, 999) - 7 * 60 * 60 * 1000;
+  // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
+  // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
+  const start = now - 4 * 60 * 60 * 1000;
+  const end = now + 180 * 24 * 60 * 60 * 1000;
   const url = new URL("https://biquote.io/api/calendar");
   url.searchParams.set("from", new Date(start).toISOString());
   url.searchParams.set("to", new Date(end).toISOString());
   url.searchParams.set("countries", "US,EU,GB,JP,CA,AU,CH,NZ,CN");
-  url.searchParams.set("importance", "high");
+  // Ambil semua tingkat dampak, bukan HIGH saja.
   url.searchParams.set("limit", "500");
   const rows = await fetchJson(url.toString(), 5000);
   if (!Array.isArray(rows)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
@@ -111,28 +111,25 @@ async function getCalendar() {
       return { event, timestamp };
     })
     .filter(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => {
-      if (!event || !Number.isFinite(timestamp) || timestamp < start || timestamp > end || timestamp <= now) return false;
-      const rawImpact = event.importance ?? event.impact ?? event.impactLevel ?? event.impact_level;
-      const impact = String(rawImpact ?? "").trim().toLowerCase();
-      const highImpact = ["high", "high impact", "3", "3.0", "tinggi", "red"].includes(impact) || Number(rawImpact) === 3;
-      if (!highImpact) return false;
+      if (!event || !Number.isFinite(timestamp) || timestamp < start || timestamp > end) return false;
       const currency = String(event.currency ?? event.countryCode ?? event.country ?? "").trim().toUpperCase();
       if (currency && !allowedCurrencies.has(currency)) return false;
-      const eventName = String(event.name ?? event.title ?? event.event ?? "");
-      // Suppress the unverified Euro-area CPI y/y card shown as 18 Nov 17:00 WIB.
-      // The official ECB item for 18 Nov is seasonally adjusted HICP at 12:00 CET (18:00 WIB);
-      // Eurostat's October HICP release is listed separately on 17 Nov.
-      const jakartaDate = new Date(timestamp).toLocaleDateString("en-CA", { timeZone: "Asia/Jakarta" });
-      const lowerEventName = eventName.toLowerCase();
-      if (["EUR", "EU"].includes(currency) && jakartaDate === "2026-11-18" && (lowerEventName.includes("cpi y/y") || lowerEventName.includes("inflation y/y"))) return false;
-      return relevantEvent.test(eventName);
+      const eventName = String(event.name ?? event.title ?? event.event ?? "").trim();
+      // Include all named economic releases for supported FX currencies.
+      return eventName.length > 0;
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
       ...event,
       id: String(event.id ?? event.eventId ?? `${event.name ?? event.title ?? event.event}-${timestamp}`),
       time: new Date(timestamp).toISOString(),
       name: event.name ?? event.title ?? event.event ?? "Rilis ekonomi",
-      importance: "high",
+      importance: (() => {
+        const raw = String(event.importance ?? event.impact ?? event.impactLevel ?? event.impact_level ?? "").trim().toLowerCase();
+        if (["high", "high impact", "3", "3.0", "tinggi", "red"].includes(raw) || Number(raw) === 3) return "high";
+        if (["medium", "med", "medium impact", "2", "2.0", "moderate", "orange", "kuning"].includes(raw) || Number(raw) === 2) return "medium";
+        if (["low", "low impact", "1", "1.0", "rendah", "yellow"].includes(raw) || Number(raw) === 1) return "low";
+        return "unknown";
+      })(),
       countryCode: event.countryCode ?? event.country ?? "",
       currency: event.currency ?? "",
       actual: event.actual ?? event.actualValue ?? event.actual_value ?? null,
@@ -367,7 +364,10 @@ async function analyzeEvents(events: AnyRecord[]) {
     } else ready.push(event);
   }
 
-  // Analyze up to three upcoming events per refresh; deferred rows are explicitly labeled as queued, not market WAIT.
+  // Prioritaskan agenda HIGH impact terdekat, lalu medium/low.
+  // Sisanya diproses bertahap pada auto-refresh berikutnya.
+  const impactRank = (event: AnyRecord) => event.importance === "high" ? 0 : event.importance === "medium" ? 1 : event.importance === "low" ? 2 : 3;
+  ready.sort((a, b) => impactRank(a) - impactRank(b) || Math.abs(eventTimestamp(a.time) - now) - Math.abs(eventTimestamp(b.time) - now));
   const batchSize = 3;
   const errors: string[] = [];
   const deferred = ready.slice(batchSize);
