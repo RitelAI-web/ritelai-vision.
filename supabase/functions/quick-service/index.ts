@@ -491,25 +491,30 @@ Deno.serve(async (request: Request) => {
   catch { return reply({ status: "error", error: "Body request harus berupa JSON." }, 400); }
   if (body?.action === "check_news_access" || body?.action === "market_calendar" || body?.action === "market_news") {
     const auth = request.headers.get("Authorization") || "";
-    if (!auth.startsWith("Bearer ")) return reply({ status: "error", error: "Login diperlukan untuk fitur News." }, 401);
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     if (!supabaseUrl || !serviceKey || !anonKey) return reply({ status: "error", error: "Konfigurasi akses paket belum tersedia." }, 503);
-    const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
-    const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
-    const { data: userData, error: userError } = await userClient.auth.getUser();
-    if (userError || !userData.user) return reply({ status: "error", error: "Sesi login tidak valid." }, 401);
-    const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
-    const [{ data: profile }, { data: subscription }] = await Promise.all([
-      admin.from("profiles").select("role").eq("id", userData.user.id).maybeSingle(),
-      admin.from("subscriptions").select("status,ends_at,plans(code)").eq("user_id", userData.user.id).eq("status", "active").gt("ends_at", new Date().toISOString()).order("ends_at", { ascending: false }).limit(1).maybeSingle(),
-    ]);
-    const role = String(profile?.role || "").toLowerCase().trim().replace(/[\s-]+/g, "_");
-    const planCode = String((subscription?.plans as any)?.code || "").toLowerCase();
-    const allowed = ["owner", "admin", "super_admin"].includes(role) || ["pro", "elite"].includes(planCode);
-    if (body?.action === "check_news_access") return reply({ status: "ok", allowed, planCode: ["owner","admin","super_admin"].includes(role) ? "admin" : planCode });
-    if (!allowed) return reply({ status: "error", error: "News & Kalender hanya tersedia untuk paket Pro dan Elite aktif. Silakan upgrade paket." }, 403);
+    // Server-to-server access is restricted to the project service-role credential.
+    // Browser/customer calls still require a valid user session and active Pro/Elite plan.
+    const isTrustedServer = auth === `Bearer ${serviceKey}`;
+    if (!isTrustedServer) {
+      if (!auth.startsWith("Bearer ")) return reply({ status: "error", error: "Login diperlukan untuk fitur News." }, 401);
+      const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2");
+      const userClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } });
+      const { data: userData, error: userError } = await userClient.auth.getUser();
+      if (userError || !userData.user) return reply({ status: "error", error: "Sesi login tidak valid." }, 401);
+      const admin = createClient(supabaseUrl, serviceKey, { auth: { persistSession: false } });
+      const [{ data: profile }, { data: subscription }] = await Promise.all([
+        admin.from("profiles").select("role").eq("id", userData.user.id).maybeSingle(),
+        admin.from("subscriptions").select("status,ends_at,plans(code)").eq("user_id", userData.user.id).eq("status", "active").gt("ends_at", new Date().toISOString()).order("ends_at", { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      const role = String(profile?.role || "").toLowerCase().trim().replace(/[\\s-]+/g, "_");
+      const planCode = String((subscription?.plans as any)?.code || "").toLowerCase();
+      const allowed = ["owner", "admin", "super_admin"].includes(role) || ["pro", "elite"].includes(planCode);
+      if (body?.action === "check_news_access") return reply({ status: "ok", allowed, planCode: ["owner","admin","super_admin"].includes(role) ? "admin" : planCode });
+      if (!allowed) return reply({ status: "error", error: "News & Kalender hanya tersedia untuk paket Pro dan Elite aktif. Silakan upgrade paket." }, 403);
+    }
   }
 
   if (body?.action === "market_quotes") {
