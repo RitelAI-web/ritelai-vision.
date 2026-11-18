@@ -170,9 +170,20 @@ function getOfficialScheduledEvents(): AnyRecord[] {
 }
 
 function compareCalendarValues(event: AnyRecord): AnyRecord {
-  const actual = event.actual;
-  const forecast = event.forecast;
-  const previous = event.previous;
+  const pickValue = (...values: unknown[]): unknown => values.find((value) => value != null && String(value).trim() !== "") ?? null;
+  const unwrapValue = (value: unknown): unknown => {
+    if (value && typeof value === "object") {
+      const item = value as AnyRecord;
+      return pickValue(item.value, item.raw, item.formatted, item.text, item.amount);
+    }
+    return value;
+  };
+  const actual = unwrapValue(pickValue(event.actual, event.actualValue, event.actual_value, event.actual_value_formatted));
+  const forecast = unwrapValue(pickValue(event.forecast, event.consensus, event.estimate, event.forecastValue, event.forecast_value, event.consensus_value));
+  const previous = unwrapValue(pickValue(event.previous, event.previousValue, event.previous_value));
+  const revisedPrevious = unwrapValue(pickValue(event.revisedPrevious, event.revised_previous, event.revisedFrom, event.revised_from));
+  const dataUpdatedAt = pickValue(event.dataUpdatedAt, event.updatedAt, event.updated_at, event.lastUpdate, event.last_update, event.timestampUpdated);
+  const eventSource = pickValue(event.eventSource, event.source, event.provider, event.sourceName) ?? "BiQuote";
   const numeric = (value: unknown): number | null => {
     if (value == null || value === "") return null;
     const cleaned = String(value).replace(/,/g, "").replace(/%/g, "").replace(/[^0-9.+-]/g, "");
@@ -186,12 +197,13 @@ function compareCalendarValues(event: AnyRecord): AnyRecord {
   const surpriseLabel = surprise == null ? "PENDING" : surprise > 0 ? "ABOVE_FORECAST" : surprise < 0 ? "BELOW_FORECAST" : "IN_LINE";
   return {
     ...event,
+    actual, forecast, previous, revisedPrevious, dataUpdatedAt, eventSource,
     releaseStatus: hasActual ? "RELEASED" : "UPCOMING",
     actualVsForecast: surpriseLabel,
     surpriseValue: surprise,
     forecastVsPrevious: f == null || p == null ? "UNAVAILABLE" : f > p ? "FORECAST_ABOVE_PREVIOUS" : f < p ? "FORECAST_BELOW_PREVIOUS" : "FORECAST_IN_LINE",
     hasActual, hasForecast, hasPrevious: previous != null && String(previous).trim() !== "",
-    valueDisplay: { actual: actual ?? "—", forecast: forecast ?? "Belum tersedia", previous: previous ?? "—", revisedPrevious: event.revisedPrevious ?? "—", unit: event.unit || "" },
+    valueDisplay: { actual: actual ?? "Belum tersedia", forecast: forecast ?? "Belum tersedia", previous: previous ?? "Belum tersedia", revisedPrevious: revisedPrevious ?? "Belum tersedia", unit: event.unit || "" },
   };
 }
 
@@ -199,8 +211,27 @@ function mergeCalendarEvents(providerEvents: AnyRecord[], officialEvents: AnyRec
   const merged = new Map<string, AnyRecord>();
   for (const event of [...providerEvents, ...officialEvents]) {
     const key = `${String(event.name ?? event.title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}|${Date.parse(event.time)}`;
-    // Jadwal resmi menjadi sumber utama untuk rilis yang tanggalnya sudah dikonfirmasi.
-    if (!merged.has(key) || event.scheduleStatus === "official_scheduled") merged.set(key, compareCalendarValues(event));
+    const prior = merged.get(key);
+    if (!prior) {
+      merged.set(key, compareCalendarValues(event));
+      continue;
+    }
+    // Jadwal resmi boleh mengonfirmasi waktu/sumber, tetapi tidak boleh menghapus
+    // Actual, Forecast, Previous atau revisi konsensus dari feed kalender.
+    const preferred = event.scheduleStatus === "official_scheduled" ? event : prior;
+    const other = preferred === event ? prior : event;
+    const combined: AnyRecord = {
+      ...other,
+      ...preferred,
+      actual: preferred.actual ?? preferred.actualValue ?? preferred.actual_value ?? other.actual ?? other.actualValue ?? other.actual_value ?? null,
+      forecast: preferred.forecast ?? preferred.consensus ?? preferred.estimate ?? preferred.forecastValue ?? preferred.forecast_value ?? other.forecast ?? other.consensus ?? other.estimate ?? other.forecastValue ?? other.forecast_value ?? null,
+      previous: preferred.previous ?? preferred.previousValue ?? preferred.previous_value ?? other.previous ?? other.previousValue ?? other.previous_value ?? null,
+      revisedPrevious: preferred.revisedPrevious ?? preferred.revised_previous ?? other.revisedPrevious ?? other.revised_previous ?? null,
+      dataUpdatedAt: preferred.dataUpdatedAt ?? preferred.updatedAt ?? preferred.updated_at ?? other.dataUpdatedAt ?? other.updatedAt ?? other.updated_at ?? null,
+      eventSource: other.eventSource ?? other.source ?? other.provider ?? preferred.eventSource ?? preferred.source ?? "BiQuote",
+      valueSource: other.valueSource ?? other.source ?? other.provider ?? null,
+    };
+    merged.set(key, compareCalendarValues(combined));
   }
   return [...merged.values()].sort((a, b) => Date.parse(a.time) - Date.parse(b.time));
 }
