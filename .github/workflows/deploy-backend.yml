@@ -40,6 +40,7 @@ jobs:
         run: |
           supabase functions deploy quick-service --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           supabase functions deploy quick-handler --project-ref "$SUPABASE_PROJECT_REF"
+          supabase functions deploy market-engine --project-ref "$SUPABASE_PROJECT_REF"
           supabase functions deploy mt5-bridge --project-ref "$SUPABASE_PROJECT_REF" --no-verify-jwt
           supabase functions deploy admin-approve-payment --project-ref "$SUPABASE_PROJECT_REF"
         env:
