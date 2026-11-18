@@ -114,8 +114,8 @@ async function getCalendar() {
   const categoryOf = (name: unknown) => {
     const n=String(name||"").toLowerCase();
     if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings/.test(n)) return "NFP";
-    if (/consumer price|\\bcpi\\b/.test(n)) return "CPI";
-    if (/producer price|\\bppi\\b/.test(n)) return "PPI";
+    if (/consumer price|cpi/.test(n)) return "CPI";
+    if (/producer price|ppi/.test(n)) return "PPI";
     if (/fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n)) return "FOMC";
     if (/crude oil|oil inventories|petroleum|opec|brent|wti/.test(n)) return "OIL";
     return "";
@@ -139,7 +139,7 @@ async function getCalendar() {
 
   // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
   // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
-  return rows
+  const events = rows
     .map((event: AnyRecord) => {
       const rawTime = event?.time ?? event?.timestamp ?? event?.datetime ?? event?.date;
       const timestamp = eventTimestamp(rawTime);
