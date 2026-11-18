@@ -475,15 +475,29 @@ async function signIn(){
  if(error)return authMessage(error.message,true);
  await refreshAuth();authMessage('Berhasil masuk.');toast('Login berhasil.');if(['owner','admin','super_admin'].includes(currentRole))loadAdminData();
 }
+let signupInProgress=false;
 async function signUp(){
  if(!supabaseClient)return authMessage('Koneksi Supabase belum tersedia.',true);
+ if(signupInProgress)return;
  const email=document.getElementById('authEmail').value.trim(),password=document.getElementById('authPassword').value;
  if(!email||password.length<8)return authMessage('Isi email valid dan password minimal 8 karakter.',true);
+ const btn=document.querySelector('button[onclick="signUp()"]');
+ signupInProgress=true;if(btn){btn.disabled=true;btn.textContent='Memproses...';btn.classList.add('opacity-60');}
  authMessage('Membuat akun...');
- const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
- if(error)return authMessage(error.message,true);
- authMessage(data.session?'Akun dibuat dan berhasil masuk.':'Akun dibuat. Silakan cek email untuk verifikasi.');
- await refreshAuth();
+ try{
+  const {data,error}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin}});
+  if(error){
+   const code=String(error.code||'');
+   const msg=String(error.message||'');
+   if(error.status===429||code==='over_email_send_rate_limit'||/email rate limit exceeded/i.test(msg)){
+    authMessage('Pendaftaran tertahan oleh batas email Supabase. Email konfirmasi proyek sedang mencapai kuota. Admin perlu mengaktifkan SMTP khusus di Supabase agar customer bisa menerima email verifikasi. Jangan tekan Daftar berulang kali.',true);
+   }else authMessage(msg||'Pendaftaran gagal. Silakan coba kembali.',true);
+   return;
+  }
+  authMessage(data.session?'Akun dibuat dan berhasil masuk.':'Akun dibuat. Silakan cek email untuk verifikasi.');
+  await refreshAuth();
+ }catch(e){authMessage(e.message||'Pendaftaran gagal karena koneksi.',true);}
+ finally{signupInProgress=false;if(btn){btn.disabled=false;btn.textContent='Daftar';btn.classList.remove('opacity-60');}}
 }
 async function resetPassword(){
  if(!supabaseClient)return authMessage('Koneksi Supabase belum tersedia.',true);
