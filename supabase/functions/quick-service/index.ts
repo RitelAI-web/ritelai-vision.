@@ -176,7 +176,7 @@ async function getCalendar() {
       importanceLevel: event.importance ?? "unknown",
       historicalReleases: (historyByCategory.get(categoryOf(event.name ?? event.title ?? event.event)) || []).slice(-6),
     }))
-    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
+    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
   return Object.assign(events, { pastReleases });
 }
@@ -291,8 +291,8 @@ function parseJsonText(raw: string): AnyRecord {
 function macroSeriesForEvent(event: AnyRecord): string[] {
   const name = String(event.name || '').toLowerCase();
   if (/nfp|non.?farm|employment situation|payroll|unemployment|average hourly earnings/.test(name)) return ['PAYEMS', 'UNRATE', 'CES0500000003'];
-  if (/consumer price|\\bcpi\\b/.test(name)) return ['CPIAUCSL', 'CPILFESL'];
-  if (/producer price|\\bppi\\b/.test(name)) return ['PPIACO', 'PPIFIS'];
+  if (/consumer price|cpi/.test(name)) return ['CPIAUCSL', 'CPILFESL'];
+  if (/producer price|ppi/.test(name)) return ['PPIACO', 'PPIFIS'];
   if (/pce|personal consumption/.test(name)) return ['PCEPI', 'PCEPILFE'];
   if (/fomc|federal reserve|fed funds|interest rate decision|policy rate|interest rate/.test(name)) return ['FEDFUNDS', 'DGS2', 'DGS10', 'DFEDTARU', 'DFEDTARL'];
   if (/crude oil|oil inventories|petroleum|opec|brent|wti|energy stock/.test(name)) return ['DCOILWTICO', 'DCOILBRENTEU'];
@@ -586,7 +586,7 @@ Deno.serve(async (request: Request) => {
   try {
     // Provider failures are returned as a partial 200 response so the UI can show
     // the exact failed source instead of the generic Supabase non-2xx message.
-    const quoteResults = await Promise.allSettled(SYMBOLS.map((symbol) => getTick(symbol)));
+    const quoteResults = pushOnly ? [] : await Promise.allSettled(SYMBOLS.map((symbol) => getTick(symbol)));
     const quotes = quoteResults.filter((result): result is PromiseFulfilledResult<any> => result.status === "fulfilled").map((result) => result.value);
     const quoteErrors = quoteResults.filter((result): result is PromiseRejectedResult => result.status === "rejected")
       .map((result) => messageOf(result.reason));
@@ -597,7 +597,7 @@ Deno.serve(async (request: Request) => {
     catch (error) { calendarError = messageOf(error); }
     // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
     // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
-    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents()).filter((event) => { const n=String(event.name||event.title||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); });
+    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents()).filter((event) => { const n=String(event.name||event.title||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); });
   
     let aiError: string | null = null;
     if (events.length && !pushOnly) {
