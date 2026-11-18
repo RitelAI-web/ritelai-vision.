@@ -134,6 +134,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
     <div class="flex items-center justify-between mb-4"><h2 class="font-bold text-sm">Input analisis</h2><span class="pill">Chart Vision</span></div>
     <label class="text-[11px] muted block mb-1.5">Instrumen</label><select id="asset" class="field mb-3"><option>XAUUSD — Gold</option><option>BTCUSD — Bitcoin</option><option>EURUSD — Euro / US Dollar</option><option>GBPUSD — Pound / US Dollar</option><option>USDJPY — US Dollar / Yen</option><option>US30 — Dow Jones</option></select>
     <label class="text-[11px] muted block mb-1.5">Timeframe chart</label><select id="timeframe" class="field mb-3"><option>M5</option><option selected>M15</option><option>M30</option><option>H1</option><option>H4</option><option>D1</option></select>
+    <label class="text-[11px] muted block mb-1.5">Masa berlaku setup</label><select id="setupDuration" class="field mb-3"><option value="auto" selected>Otomatis sesuai timeframe (disarankan)</option><option value="15">15 menit</option><option value="30">30 menit</option><option value="60">1 jam</option><option value="120">2 jam</option><option value="240">4 jam</option><option value="480">8 jam</option><option value="720">12 jam</option><option value="1440">24 jam</option></select><p class="text-[10px] muted -mt-2 mb-3">Masa berlaku dihitung sejak analisis selesai. Setup juga dapat batal lebih cepat jika Stop Loss tersentuh.</p>
     <label class="text-[11px] muted block mb-1.5">Unggah screenshot chart</label>
     <input id="chartFile" type="file" accept="image/*" class="field mb-3">
     <div id="preview" class="hidden mb-3 rounded-xl overflow-hidden border border-slate-700"><img id="previewImage" class="max-h-56 w-full object-contain bg-slate-950" alt="Pratinjau chart"></div>
@@ -616,7 +617,7 @@ const RITELAI_SYMBOLS=['XAUUSD','BTCUSD','EURUSD','GBPUSD','USDJPY','US30'];
 const RITELAI_LABELS={XAUUSD:'Gold (XAU/USD)',BTCUSD:'Bitcoin (BTC/USD)',EURUSD:'EUR/USD',GBPUSD:'GBP/USD',USDJPY:'USD/JPY',US30:'Dow Jones / US30'};
 function marketMoney(v,key){if(v==null||!Number.isFinite(Number(v)))return '—';const digits=key==='BTCUSD'?2:key==='USDJPY'||key==='US30'?3:key==='XAUUSD'?2:5;return Number(v).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits});}
 function renderLiveQuotes(quotes){const box=document.getElementById('marketQuotes');if(!box)return;box.innerHTML=RITELAI_SYMBOLS.map(k=>{const q=quotes[k]||{};const p=Number(q.last??q.mid??(q.bid&&q.ask?(Number(q.bid)+Number(q.ask))/2:NaN));const prev=Number(q.previousClose??q.open??NaN);const ch=Number.isFinite(p)&&Number.isFinite(prev)?p-prev:null;const pct=ch!=null&&prev?ch/prev*100:null;const tone=pct==null?'text-slate-300':pct>=0?'text-emerald-300':'text-rose-300';const updated=q.time?new Date(q.time).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'waktu feed tidak tersedia';return `<article class="bg-slate-950/60 border border-slate-800 rounded-xl p-4"><div class="flex justify-between gap-2"><b class="text-xs">${RITELAI_LABELS[k]}</b><span class="text-[9px] text-emerald-300">${q.time?'LIVE TICK':'Menunggu tick'}</span></div><div class="text-xl font-extrabold mt-2">${Number.isFinite(p)?marketMoney(p,k):'—'}</div><div class="text-xs ${tone} mt-1">${pct==null?'Perubahan belum tersedia':`${ch>=0?'+':''}${marketMoney(ch,k)} (${pct>=0?'+':''}${pct.toFixed(2)}%)`}</div><div class="muted text-[9px] mt-2">${updated} WIB · ${q.source||'BiQuote MT5 feed'}${q.bid!=null&&q.ask!=null?` · Bid ${marketMoney(q.bid,k)} / Ask ${marketMoney(q.ask,k)}`:''}</div></article>`}).join('');}
-async function connectLiveTicks(){if(marketHub||!window.signalR)return;try{marketHub=new signalR.HubConnectionBuilder().withUrl('https://biquote.io/hubs/tick').withAutomaticReconnect().build();marketHub.on('ReceiveTick',tick=>{const k=String(tick.symbol||'').toUpperCase();if(!RITELAI_SYMBOLS.includes(k))return;window.ritelaiLiveQuotes=window.ritelaiLiveQuotes||{};window.ritelaiLiveQuotes[k]={...window.ritelaiLiveQuotes[k],...tick,source:'BiQuote MT5 streaming'};renderLiveQuotes(window.ritelaiLiveQuotes);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Feed harga streaming aktif';s.className='pill text-emerald-300';}});await marketHub.start();await marketHub.invoke('Subscribe',RITELAI_SYMBOLS); }catch(e){console.warn('Live tick stream unavailable:',e);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Streaming belum tersedia';s.className='pill text-amber-200';}}}
+async function connectLiveTicks(){if(marketHub||!window.signalR)return;try{marketHub=new signalR.HubConnectionBuilder().withUrl('https://biquote.io/hubs/tick').withAutomaticReconnect().build();marketHub.on('ReceiveTick',tick=>{const k=String(tick.symbol||'').toUpperCase();if(!RITELAI_SYMBOLS.includes(k))return;window.ritelaiLiveQuotes=window.ritelaiLiveQuotes||{};window.ritelaiLiveQuotes[k]={...window.ritelaiLiveQuotes[k],...tick,source:'BiQuote MT5 streaming'};renderLiveQuotes(window.ritelaiLiveQuotes);evaluateActiveSetup();const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Feed harga streaming aktif';s.className='pill text-emerald-300';}});await marketHub.start();await marketHub.invoke('Subscribe',RITELAI_SYMBOLS); }catch(e){console.warn('Live tick stream unavailable:',e);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Streaming belum tersedia';s.className='pill text-amber-200';}}}
 let selectedCalendarMonth='all';
 function calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
 function calendarMonthLabel(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'UTC'});}
@@ -866,6 +867,66 @@ function startMarketAutoRefresh(){
  connectLiveTicks();
 }
 
+let activeChartSetup=null,setupValidityTimer=null;
+function setupDurationMinutes(){
+ const chosen=document.getElementById('setupDuration')?.value||'auto';
+ if(chosen!=='auto')return Number(chosen);
+ const tf=document.getElementById('timeframe')?.value||'M15';
+ return ({M5:30,M15:60,M30:120,H1:240,H4:720,D1:1440})[tf]||60;
+}
+function setupAssetKey(){
+ const raw=String(document.getElementById('asset')?.value||'').toUpperCase();
+ return ['XAUUSD','BTCUSD','EURUSD','GBPUSD','USDJPY','US30'].find(k=>raw.includes(k))||null;
+}
+function setupNumber(value){
+ if(value===null||value===undefined||value==='')return null;
+ const n=Number(String(value).replace(/,/g,'').replace(/[^0-9.+-]/g,''));
+ return Number.isFinite(n)?n:null;
+}
+function setupQuotePrice(q){
+ if(!q)return null;
+ const n=Number(q.last??q.mid??(q.bid!=null&&q.ask!=null?(Number(q.bid)+Number(q.ask))/2:NaN));
+ if(!Number.isFinite(n))return null;
+ const t=q.time?Date.parse(q.time):NaN;
+ if(!Number.isFinite(t)||Date.now()-t>180000||t>Date.now()+60000)return null;
+ return n;
+}
+function evaluateActiveSetup(){
+ if(!activeChartSetup||activeChartSetup.status!=='FRESH')return;
+ const q=window.ritelaiLiveQuotes?.[activeChartSetup.asset];
+ const price=setupQuotePrice(q);
+ if(price===null)return;
+ const sl=activeChartSetup.stopLoss;
+ if(sl===null)return;
+ const broken=(activeChartSetup.signal==='BUY'&&price<=sl)||(activeChartSetup.signal==='SELL'&&price>=sl);
+ if(broken){
+  activeChartSetup.status='INVALIDATED';
+  activeChartSetup.reason='Harga live menyentuh/melewati Stop Loss rencana.';
+  renderSetupValidity();
+ }
+}
+function renderSetupValidity(){
+ const host=document.getElementById('setupValidityCard');
+ if(!host||!activeChartSetup)return;
+ const s=activeChartSetup;
+ const remaining=Math.max(0,s.expiresAt-Date.now());
+ if(s.status==='FRESH'&&remaining<=0){s.status='EXPIRED';s.reason='Batas waktu setup telah habis. Jalankan analisis ulang sebelum mempertimbangkan entry.';}
+ const badge=s.status==='FRESH'?'<span class="pill text-emerald-300">FRESH</span>':s.status==='EXPIRED'?'<span class="pill text-amber-200">EXPIRED</span>':'<span class="pill text-rose-300">INVALIDATED</span>';
+ const timer=s.status==='FRESH'?Math.floor(remaining/60000)+'m '+Math.floor((remaining%60000)/1000)+'s':'—';
+ const message=s.status==='FRESH'?'Zona masih dalam masa berlaku. Tetap tunggu konfirmasi entry dan pastikan harga feed terbaru.':s.reason;
+ host.innerHTML='<div class="flex items-center justify-between gap-2"><b class="text-xs">SMART SETUP VALIDITY</b>'+badge+'</div><div class="grid grid-cols-2 gap-3 mt-3"><div><div class="muted text-[10px]">SISA MASA BERLAKU</div><b class="text-lg tabular-nums">'+timer+'</b></div><div><div class="muted text-[10px]">BATAS WAKTU</div><b class="text-xs">'+new Date(s.expiresAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB</b></div></div><p class="text-xs mt-3 '+(s.status==='FRESH'?'text-emerald-200':s.status==='EXPIRED'?'text-amber-200':'text-rose-200')+'">'+message+'</p><p class="muted text-[10px] mt-2">Dianalisis '+new Date(s.createdAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB · '+s.asset+' · '+s.timeframe+' · '+s.duration+' menit</p>'+(s.status!=='FRESH'?'<button class="btn primary mt-3 w-full" onclick="requestAnalysis()">Analisis ulang chart</button>':'');
+}
+function startSetupValidity(result){
+ if(setupValidityTimer)clearInterval(setupValidityTimer);
+ const signal=String(result.signal||'WAIT').toUpperCase();
+ const asset=setupAssetKey(),tf=document.getElementById('timeframe')?.value||'M15',duration=setupDurationMinutes();
+ const scenario=signal==='BUY'?result.scenario_buy:signal==='SELL'?result.scenario_sell:null;
+ const stopLoss=setupNumber(scenario?.stop_loss??result.stop_loss);
+ const now=Date.now();
+ activeChartSetup={signal,asset,stopLoss,timeframe:tf,duration,createdAt:now,expiresAt:now+duration*60000,status:(['BUY','SELL'].includes(signal)?'FRESH':'WAIT'),reason:''};
+ renderSetupValidity();
+ if(activeChartSetup.status==='FRESH')setupValidityTimer=setInterval(()=>{evaluateActiveSetup();renderSetupValidity();},1000);
+}
 async function requestAnalysis(){
  const file=document.getElementById('chartFile').files[0];
  if(!file){toast('Silakan unggah screenshot chart terlebih dahulu.');return}
@@ -962,6 +1023,8 @@ async function requestAnalysis(){
      <p class="text-xs mt-2 text-amber-200"><b>Peringatan:</b> ${safe((r.warnings||[]).join(' · '))}</p>
      <p class="muted text-[10px] mt-3">${safe(r.disclaimer||'Analisis berdasarkan screenshot, bukan data harga live atau jaminan hasil. Periksa kondisi pasar sebelum mengambil keputusan.')}</p>
     </div>`;
+   resultBox.insertAdjacentHTML('beforeend','<section id="setupValidityCard" class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"></section>');
+   startSetupValidity(r);
    // Sinkronkan ringkasan bawah dengan hasil AI yang sama; jangan biarkan placeholder statis "—".
    const putSummary=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=(value===null||value===undefined||value===''?'Belum terbaca dari chart':String(value));};
    putSummary('summaryEntry',r.entry);
