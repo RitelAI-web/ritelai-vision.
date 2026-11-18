@@ -320,7 +320,8 @@ async function showTab(name,btn){
  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
  const target=document.getElementById('tab-'+name);if(!target)return;target.classList.add('active');
  document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
- if((name==='news'||name==='history')&&!marketHasLoaded)loadMarketIntelligence({silent:true});
+ if((name==='news'||name==='history')&&!marketHasLoaded)await loadMarketIntelligence({silent:true});
+ if(name==='history')renderMacroReleaseArchive(window.ritelaiPastReleases||[]);
  if(name==='mt5')refreshMT5Access();
 }
 function updateMT5ProfileOptions(){
@@ -695,7 +696,7 @@ function renderMacroReleaseArchive(items){
  const rows=Array.isArray(items)?items:[];window.ritelaiPastReleases=rows;
  const keys=[...Array.from({length:12},(_,i)=>'2027-'+String(i+1).padStart(2,'0')).reverse(),...Array.from({length:12},(_,i)=>'2026-'+String(i+1).padStart(2,'0')).reverse()];
  const label=k=>new Date(k+'-01T00:00:00').toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'Asia/Jakarta'});
- const monthKey=x=>{const d=new Date(x.date);return Number.isNaN(d.getTime())?'unknown':d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);};
+ const monthKey=x=>{const d=new Date(x.date??x.time??x.event_time??x.timestamp);return Number.isNaN(d.getTime())?'unknown':d.toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit'}).slice(0,7);};
  const selected=selectedArchiveMonth;
  const filtered=(selected==='all'?rows:rows.filter(x=>monthKey(x)===selected)).sort((a,b)=>new Date(b.date)-new Date(a.date));
  const tabs='<div class="rounded-xl border border-cyan-800/60 bg-slate-950/60 p-3 mb-3"><div class="text-[10px] font-bold tracking-wider text-cyan-200">PERIODE ARSIP EKONOMI</div><div class="font-extrabold text-sm mt-1">Januari 2026 — Desember 2027</div><div class="muted text-[10px] mt-1">Pilih bulan untuk melihat arsip rilis yang tersedia</div><div class="flex gap-2 overflow-x-auto pb-2 mt-3">'+
@@ -703,7 +704,7 @@ function renderMacroReleaseArchive(items){
   keys.map(k=>'<button type="button" class="calendar-month-btn '+(selected===k?'active':'')+'" onclick="setArchiveMonth(\''+k+'\')">'+newsHistoryEscape(label(k))+'</button>').join('')+'</div></div>';
  if(!rows.length){host.innerHTML=tabs+'<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-4"><b class="text-sm">Arsip belum tersedia</b><p class="muted text-xs mt-2">Feed kalender belum mengirim riwayat rilis. Tidak ada angka yang akan dibuat-buat.</p></div>';return;}
  const cards=filtered.map(x=>{
-  const d=new Date(x.date),decision=macroDecisionForRelease(x),date=Number.isNaN(d.getTime())?'Tanggal belum tersedia':d.toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'long',year:'numeric'});
+  const d=new Date(x.date??x.time??x.event_time??x.timestamp),decision=macroDecisionForRelease(x),date=Number.isNaN(d.getTime())?'Tanggal belum tersedia':d.toLocaleDateString('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'long',year:'numeric'})+' · '+d.toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit',hour12:false})+' WIB';
   const impact=String(x.impact||x.importance||'High Impact');
   const val=v=>(v===null||v===undefined||v===''?'Belum tersedia':newsHistoryEscape(v));
   const good=decision.usd.includes('GOOD FOR USD'),bad=decision.usd.includes('BAD FOR USD');
