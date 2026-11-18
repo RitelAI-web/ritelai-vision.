@@ -639,7 +639,7 @@ let selectedArchiveMonth='all';
 function setArchiveMonth(month){selectedArchiveMonth=month;renderMacroReleaseArchive(window.ritelaiPastReleases||[]);}
 function macroDecisionForRelease(x){
  const category=String(x.category||'').toUpperCase(),name=String(x.name||'').toLowerCase();
- const num=v=>{if(v===null||v===undefined||v==='')return null;const m=String(v).replace(/,/g,'').match(/-?\\d+(?:\\.\\d+)?/);return m?Number(m[0]):null;};
+ const num=v=>{if(v===null||v===undefined||v==='')return null;const m=String(v).replace(/,/g,'').match(/-?\d+(?:\.\d+)?/);return m?Number(m[0]):null;};
  const actual=num(x.actual),forecast=num(x.forecast);
  const neutral=()=>({usd:'NETRAL · SESUAI FORECAST',gold:'GOLD NETRAL / TUNGGU REAKSI',reason:'Actual sama dengan Forecast. Rilis ini tidak memberi kejutan terhadap konsensus; tunggu reaksi harga, DXY, dan yield.'});
  if(actual===null||forecast===null)return {usd:'BELUM TERKONFIRMASI',gold:'BELUM TERKONFIRMASI',reason:'Actual atau Forecast belum tersedia. Keputusan arah tidak dibuat agar tidak menyesatkan.'};
