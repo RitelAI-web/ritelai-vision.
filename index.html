@@ -307,7 +307,7 @@ async function showTab(name,btn){
   if(!session){toast('Silakan login untuk membuka News History.');openModal('accountModal');return}
   const {data:access,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'check_news_access'}});
   if(error||!access?.allowed){toast('Fitur ini tersedia untuk paket Pro atau Elite aktif.');openModal('plansModal');return}
-  if(name==='history')await loadNewsHistory();
+  if(name==='history'){renderMacroReleaseArchive(window.ritelaiPastReleases||[]);await loadNewsHistory();}
  }
  if(name==='news'){
   const panel=document.getElementById('tab-news');
@@ -320,7 +320,7 @@ async function showTab(name,btn){
  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
  const target=document.getElementById('tab-'+name);if(!target)return;target.classList.add('active');
  document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
- if(name==='news'&&!marketHasLoaded)loadMarketIntelligence({silent:true});
+ if((name==='news'||name==='history')&&!marketHasLoaded)loadMarketIntelligence({silent:true});
  if(name==='mt5')refreshMT5Access();
 }
 function updateMT5ProfileOptions(){
