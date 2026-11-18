@@ -1031,6 +1031,26 @@ async function requestAnalysis(){
     </div>`;
    resultBox.insertAdjacentHTML('beforeend','<section id="setupValidityCard" class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"></section>');
    startSetupValidity(r);
+   resultBox.insertAdjacentHTML('beforeend','<section class="mt-4 rounded-xl border border-violet-800/60 bg-slate-950/60 p-4 text-left"><div class="font-bold text-xs mb-2">BACKTEST HISTORIS · 12 BULAN</div><p class="muted text-[10px] mb-3">Uji strategi EMA 20/50 pada candle harian tersimpan. Hasil awal bersifat gross dan belum memasukkan spread, komisi, swap, atau slippage.</p><div class="flex flex-wrap gap-2"><button type="button" id="runHistoricalBacktest" class="btn primary text-xs">Ambil data historis &amp; jalankan backtest</button><button type="button" id="loadBacktestHistory" class="btn secondary text-xs">Riwayat backtest</button></div><div id="backtestResult" class="text-xs mt-3 muted">Belum ada backtest untuk sesi ini.</div></section>');
+   const backtestBtn=document.getElementById('runHistoricalBacktest');
+   if(backtestBtn)backtestBtn.addEventListener('click',async()=>{
+    const out=document.getElementById('backtestResult');backtestBtn.disabled=true;out.textContent='Mengambil candle harian historis...';
+    try{
+     const symbol=document.getElementById('asset').value.split(/[—–-]/)[0].trim().toUpperCase();
+     const {data:bf,error:be}=await supabaseClient.functions.invoke('market-engine',{body:{action:'backfill_daily',symbol}});
+     if(be)throw be;if(bf?.error)throw new Error(bf.error);
+     out.textContent='Data tersimpan '+safe(bf.stored)+' candle. Menghitung strategi...';
+     const {data:bt,error:te}=await supabaseClient.functions.invoke('market-engine',{body:{action:'run_backtest',symbol}});
+     if(te)throw te;if(bt?.error)throw new Error(bt.error);
+     out.innerHTML='<div class="grid grid-cols-2 sm:grid-cols-3 gap-2"><div class="bg-slate-900 rounded p-2">Win rate<br><b>'+safe(bt.win_rate_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Profit factor<br><b>'+safe(bt.profit_factor)+'</b></div><div class="bg-slate-900 rounded p-2">Net return gross<br><b>'+safe(bt.net_return_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Max drawdown<br><b>'+safe(bt.max_drawdown_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Jumlah trade<br><b>'+safe(bt.trade_count)+'</b></div><div class="bg-slate-900 rounded p-2">Candle<br><b>'+safe(bt.candle_count)+'</b></div></div><p class="muted text-[10px] mt-2">Periode: '+safe(bt.sample_start)+' – '+safe(bt.sample_end)+'</p><p class="text-amber-200 text-[10px] mt-2">'+safe(bt.warning)+'</p>';
+    }catch(e){out.textContent='Backtest gagal: '+(e?.message||String(e));}
+    finally{backtestBtn.disabled=false;}
+   });
+   const historyBtn=document.getElementById('loadBacktestHistory');
+   if(historyBtn)historyBtn.addEventListener('click',async()=>{
+    const out=document.getElementById('backtestResult');historyBtn.disabled=true;
+    try{const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'history'}});if(error)throw error;if(data?.error)throw new Error(data.error);out.textContent=data.items?.length?data.items.map(x=>x.symbol+' · '+x.created_at+' · Win rate '+(x.metrics?.win_rate_pct??'—')+'% · '+(x.metrics?.trade_count??0)+' trades').join(' | '):'Belum ada riwayat backtest.';}catch(e){out.textContent='Gagal memuat riwayat: '+(e?.message||String(e));}finally{historyBtn.disabled=false;}
+   });
    // Sinkronkan ringkasan bawah dengan hasil AI yang sama; jangan biarkan placeholder statis "—".
    const putSummary=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=(value===null||value===undefined||value===''?'Belum terbaca dari chart':String(value));};
    putSummary('summaryEntry',r.entry);
