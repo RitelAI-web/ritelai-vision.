@@ -42,7 +42,7 @@ Deno.serve(async(req)=>{
   if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar (HTTP "+calendar.status+")");
   const payload=await calendar.json();
   if(payload.calendarError)throw new Error("Feed kalender gagal: "+String(payload.calendarError).slice(0,180));
-  const now=Date.now(),priorityPattern=/non.?farm|payroll|employment situation|unemployment|consumer price|\\bcpi\\b|producer price|\\bppi\\b|fomc|federal reserve|fed funds|interest rate decision|policy rate/i;
+  const now=Date.now(),priorityPattern=/non.?farm|payroll|employment situation|unemployment|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/i;
   const events=(Array.isArray(payload.events)?payload.events:[]).filter((e:any)=>{
    const t=Date.parse(e.time),impact=String(e.importance||"").toLowerCase();
    return Number.isFinite(t)&&t>now&&t<=now+15*60*1000&&impact==="high"&&priorityPattern.test(String(e.name||""));
