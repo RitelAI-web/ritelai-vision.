@@ -198,7 +198,9 @@ async function getCalendar() {
       importanceLevel: event.importance ?? "unknown",
       historicalReleases: (historyByCategory.get(categoryOf(event.name ?? event.title ?? event.event)) || []).slice(-6),
     }))
-    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|gdp|gross domestic product|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
+    // Jangan batasi nama event: semua agenda yang provider tandai HIGH impact
+    // dipertahankan, termasuk retail sales, PMI, jobless claims, central banks,
+    // housing, inventories, dan rilis penting negara lain.
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
   return Object.assign(events, { pastReleases });
 }
@@ -682,7 +684,7 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
     catch (error) { calendarError = messageOf(error); }
     // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
     // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
-    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents()).filter((event) => { const n=String(event.name||event.title||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); });
+    let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents());
   
     let aiError: string | null = null;
     if (events.length && !pushOnly) {
