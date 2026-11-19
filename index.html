@@ -280,7 +280,7 @@ hr{border-color:var(--rv-line)}
   </div>
   <div class="glass rounded-2xl p-4 md:p-5">
    <h3 class="font-bold">Pairing terminal Demo / Real</h3>
-   <p class="muted text-xs mt-1">Pilih broker, jenis akun, dan status Demo/Real. OWNER/ADMIN/SUPER_ADMIN mendapat akses tanpa langganan; customer memerlukan paket Elite aktif.</p>
+   <p class="muted text-xs mt-1">Pilih broker, jenis akun, dan status Demo/Real. OWNER/SUPER_ADMIN mendapat akses tanpa langganan; Admin Akses Fitur mendapat akses setelah pembayaran satu kali; customer memerlukan paket Elite aktif.</p>
    <div class="grid md:grid-cols-2 gap-3 mt-4">
     <div><label class="text-xs muted block mb-1">Broker</label><select id="mt5Broker" class="field"><option value="EXNESS">Exness</option><option value="VERSUS_TRADE">Versus Trade</option></select></div>
     <div><label class="text-xs muted block mb-1">Jenis akun</label><select id="mt5Profile" class="field"><option value="STANDARD_CENT" data-demo="true">Cent Demo</option><option value="STANDARD_CENT" data-demo="false">Cent Real</option><option value="ZERO" data-demo="false">Zero Real</option><option value="PRO" data-demo="false">Pro Real</option><option value="STANDARD" data-demo="false">Standard Real</option></select></div>
@@ -648,16 +648,16 @@ async function createMT5Pairing(){
  }
  finally{btn.disabled=!currentUser;btn.textContent='Buat kode pairing'}
 }
-function showAdmin(){if(!['owner','admin','super_admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
+function showAdmin(){if(!['owner','super_admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
 function closeModal(id){let m=document.getElementById(id);m.classList.add('hidden');m.classList.remove('flex')}
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500)}
 function authMessage(msg,isError=false){const el=document.getElementById('authMessage');el.textContent=msg;el.style.color=isError?'#fca5a5':'#91a3b9'}
 function setAuthUI(user, role='customer'){
  currentUser=user||null; currentRole=role||'customer';
- document.getElementById('adminTopBtn').classList.toggle('hidden',!user||!['owner','admin','super_admin'].includes(currentRole));
+ document.getElementById('adminTopBtn').classList.toggle('hidden',!user||!['owner','super_admin'].includes(currentRole));
  const out=document.getElementById('authSignedOut'), inside=document.getElementById('authSignedIn');
- if(user){out.classList.add('hidden');inside.classList.remove('hidden');document.getElementById('signedInEmail').textContent=user.email||'Akun aktif';document.getElementById('signedInRole').textContent=role==='owner'?'Super Admin':role==='admin'?'Admin':'Customer';}
+ if(user){out.classList.add('hidden');inside.classList.remove('hidden');document.getElementById('signedInEmail').textContent=user.email||'Akun aktif';document.getElementById('signedInRole').textContent=['owner','super_admin'].includes(String(role).toLowerCase())?'Super Admin':role==='feature_admin'?'Admin Akses Fitur':'Customer';}
  else {inside.classList.add('hidden');out.classList.remove('hidden');}
 }
 async function refreshUploadStats(){
@@ -734,7 +734,7 @@ async function signIn(){
  authMessage('Sedang masuk...');
  const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
  if(error)return authMessage(error.message,true);
- await refreshAuth();authMessage('Berhasil masuk.');toast('Login berhasil.');if(['owner','admin','super_admin'].includes(currentRole))loadAdminData();
+ await refreshAuth();authMessage('Berhasil masuk.');toast('Login berhasil.');if(['owner','super_admin'].includes(currentRole))loadAdminData();
 }
 let signupInProgress=false;
 async function signUp(){
@@ -769,7 +769,7 @@ async function resetPassword(){
 }
 async function signOut(){const {error}=await supabaseClient.auth.signOut();if(error)return toast(error.message);setAuthUI(null);authMessage('Anda sudah keluar.');toast('Berhasil keluar.')}
 
-async function adminCheck(){if(!supabaseClient||!currentUser||!['owner','admin','super_admin'].includes(currentRole))throw new Error('Akses khusus admin/owner diperlukan.');}
+async function adminCheck(){if(!supabaseClient||!currentUser||!['owner','super_admin'].includes(currentRole))throw new Error('Akses khusus admin/owner diperlukan.');}
 function adminError(el,msg){document.getElementById(el).innerHTML='<p class="text-rose-300 text-xs">'+escapeHtml(msg)+'</p>';}
 function escapeHtml(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 window.adminUserRows=[];
