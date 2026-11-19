@@ -565,6 +565,7 @@ async function showTab(name,btn){
  if((name==='news'||name==='history'||name==='analyze')&&!marketHasLoaded)await loadMarketIntelligence({silent:true});
  if(name==='analyze'){loadMarketTradingViewChart();startMarketWatch();}
  if(name==='history')renderMacroReleaseArchive(window.ritelaiPastReleases||[]);
+ if(name==='journal')loadTradeJournal();
  if(name==='mt5')refreshMT5Access();
 }
 function updateMT5ProfileOptions(){
@@ -1534,6 +1535,39 @@ window.addEventListener('DOMContentLoaded',async()=>{
   startMarketWatch();loadMarketTradingViewChart();
  }catch(e){console.error(e);toast('Koneksi Supabase gagal diinisialisasi.')}
 });
+
+async function loadTradeJournal(){
+ const host=document.getElementById('journalRows'),status=document.getElementById('journalStatus');if(!host||!supabaseClient)return;
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();if(!session)throw new Error('Login diperlukan.');
+  const {data,error}=await supabaseClient.from('trade_journal').select('*').order('opened_at',{ascending:false}).limit(100);if(error)throw error;
+  const rows=data||[],today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}),todays=rows.filter(x=>new Date(x.opened_at).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})===today),pnl=todays.filter(x=>x.status==='CLOSED').reduce((a,x)=>a+Number(x.pnl_amount||0),0),open=rows.filter(x=>x.status==='OPEN');
+  document.getElementById('journalOpenCount').textContent=open.length;document.getElementById('journalTodayCount').textContent=todays.length;document.getElementById('journalTodayPnl').textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(pnl);
+  const warning=document.getElementById('journalRiskWarning');warning.classList.toggle('hidden',!(open.length>=3||todays.length>=5||pnl<0));
+  warning.textContent=open.length>=3?'Sudah ada 3+ posisi terbuka. Pertimbangkan tidak menambah eksposur.':todays.length>=5?'Sudah mencatat 5+ transaksi hari ini. Evaluasi sebelum entry lagi.':pnl<0?'P/L hari ini negatif. Hindari mengejar kerugian dan pertimbangkan jeda.':'';
+  status.textContent='Tersinkron · '+rows.length+' catatan';
+  host.innerHTML=rows.length?rows.map(x=>'<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex justify-between gap-2"><b class="text-xs">'+newsHistoryEscape(x.symbol)+' · '+newsHistoryEscape(x.direction)+'</b><span class="pill">'+newsHistoryEscape(x.status)+'</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-[10px]"><span>Entry: '+newsHistoryEscape(x.entry_price)+'</span><span>SL: '+newsHistoryEscape(x.stop_loss??'—')+'</span><span>TP: '+newsHistoryEscape(x.take_profit??'—')+'</span><span>Lot: '+newsHistoryEscape(x.volume_lots??'—')+'</span><span>Risiko: '+newsHistoryEscape(x.risk_amount??'—')+' USD</span><span>P/L: '+(x.pnl_amount==null?'—':newsHistoryEscape(x.pnl_amount)+' USD')+'</span><span>'+new Date(x.opened_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB</span></div><div class="muted text-[10px] mt-2">'+newsHistoryEscape(x.notes||'Tanpa catatan')+'</div>'+(x.status==='OPEN'?'<div class="flex gap-2 mt-3"><button class="btn primary text-xs" onclick="closeTradeJournal(\''+x.id+'\')">Tutup posisi</button><button class="btn border border-slate-700 text-xs" onclick="cancelTradeJournal(\''+x.id+'\')">Batalkan</button></div>':'')+'</div>').join(''):'<p class="muted text-xs py-5">Belum ada transaksi tercatat.</p>';
+ }catch(e){status.textContent='Tidak dapat dimuat';host.textContent=e.message||'Gagal memuat jurnal';}
+}
+async function saveTradeJournal(){
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();if(!session)throw new Error('Login terlebih dahulu.');
+  const n=id=>{const v=document.getElementById(id).value.trim();return v===''?null:Number(v);},entry=n('journalEntry');if(!(entry>0))throw new Error('Harga entry wajib diisi dan positif.');
+  const payload={user_id:session.user.id,symbol:document.getElementById('journalSymbol').value,direction:document.getElementById('journalDirection').value,entry_price:entry,stop_loss:n('journalSL'),take_profit:n('journalTP'),volume_lots:n('journalLots'),risk_amount:n('journalRisk'),notes:document.getElementById('journalNotes').value.trim()||null};
+  if((payload.stop_loss!==null&&payload.stop_loss<=0)||(payload.take_profit!==null&&payload.take_profit<=0)||(payload.volume_lots!==null&&payload.volume_lots<=0)||(payload.risk_amount!==null&&payload.risk_amount<0))throw new Error('Periksa nilai SL, TP, lot, dan risiko.');
+  const {error}=await supabaseClient.from('trade_journal').insert(payload);if(error)throw error;
+  ['journalEntry','journalSL','journalTP','journalLots','journalRisk','journalNotes'].forEach(id=>document.getElementById(id).value='');toast('Transaksi tersimpan.');await loadTradeJournal();
+ }catch(e){toast('Gagal menyimpan: '+(e.message||'kesalahan'));}
+}
+async function closeTradeJournal(id){
+ const exit=prompt('Masukkan harga keluar aktual:');if(exit===null)return;const exitPrice=Number(exit);if(!(exitPrice>0))return toast('Harga keluar tidak valid.');
+ const pnl=prompt('Masukkan P/L aktual dalam USD (minus untuk rugi):');if(pnl===null)return;const value=Number(pnl);if(!Number.isFinite(value))return toast('P/L tidak valid.');
+ try{const {error}=await supabaseClient.from('trade_journal').update({status:'CLOSED',exit_price:exitPrice,pnl_amount:value,closed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('status','OPEN');if(error)throw error;toast('Transaksi ditutup dan P/L dicatat.');await loadTradeJournal();}catch(e){toast('Gagal menutup transaksi: '+e.message);}
+}
+async function cancelTradeJournal(id){
+ if(!confirm('Batalkan catatan posisi terbuka ini?'))return;
+ try{const {error}=await supabaseClient.from('trade_journal').update({status:'CANCELLED',closed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('status','OPEN');if(error)throw error;await loadTradeJournal();}catch(e){toast('Gagal membatalkan: '+e.message);}
+}
 </script>
 </body>
 </html>
