@@ -34,6 +34,41 @@ Deno.serve(async(req)=>{
   const admin=createClient(url,service,{auth:{persistSession:false}});
   const body=await req.json(),symbol=String(body.symbol||"XAUUSD").split(/[—–-]/)[0].trim().toUpperCase();
   if(!["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30","ETHUSD","SOLUSD"].includes(symbol))return reply({error:"Unsupported symbol"},400);
+  if(body.action==="watch_context"){
+   const tfMap:Record<string,string>={M5:"5m",M15:"15m",M30:"30m",H1:"1h",H4:"4h",D1:"1d"};
+   const interval=tfMap[String(body.timeframe||"M15").toUpperCase()]||"15m";
+   const u=new URL("https://biquote.io/api/"+encodeURIComponent(symbol)+"/ohlc");
+   u.searchParams.set("interval",interval);u.searchParams.set("limit","240");
+   const res=await fetch(u,{headers:{Accept:"application/json"},signal:AbortSignal.timeout(15000)});
+   if(!res.ok)throw Error("OHLC provider HTTP "+res.status);
+   const payload=await res.json(),raw=Array.isArray(payload?.bars)?payload.bars:Array.isArray(payload)?payload:[];
+   const bars=(raw as Bar[]).filter(b=>!b.isOpen&&Number.isFinite(Date.parse(b.openTime))&&[b.open,b.high,b.low,b.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).sort((a,b)=>Date.parse(a.openTime)-Date.parse(b.openTime));
+   if(bars.length<60)return reply({error:"Candle tertutup belum cukup untuk membaca struktur pasar.",candle_count:bars.length},422);
+   const last=bars[bars.length-1],age=Date.now()-Date.parse(last.openTime),duration:Record<string,number>={"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
+   if(!Number.isFinite(age)||age<0||age>duration[interval]*3)return reply({error:"Data candle terakhir sudah stale. Menunggu data pasar terbaru."},422);
+   const recent=bars.slice(-160),ranges=recent.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-recent[i].close),Math.abs(b.low-recent[i].close)));
+   const atr=ranges.length>=14?ranges.slice(-14).reduce((a,b)=>a+b,0)/14:null;
+   const avgRange=ranges.slice(-50).reduce((a,b)=>a+b,0)/Math.max(1,ranges.slice(-50).length);
+   const volatilityRatio=atr&&avgRange?atr/avgRange:1;
+   const volatility=volatilityRatio>1.45?"TINGGI":volatilityRatio<0.72?"RENDAH":"NORMAL";
+   const cls=recent.map(b=>b.close),e20=ema(cls,20),e50=ema(cls,50);
+   const trend=e20===null||e50===null?"UNCLEAR":last.close>e20&&e20>e50?"UPTREND":last.close<e20&&e20<e50?"DOWNTREND":"SIDEWAYS";
+   const pivotsLow:{price:number;time:string}[]=[],pivotsHigh:{price:number;time:string}[]=[];
+   for(let i=Math.max(2,recent.length-120);i<recent.length-2;i++){
+    const b=recent[i],prev=recent.slice(i-2,i),next=recent.slice(i+1,i+3);
+    if(prev.every(x=>b.low<=x.low)&&next.every(x=>b.low<=x.low))pivotsLow.push({price:b.low,time:b.openTime});
+    if(prev.every(x=>b.high>=x.high)&&next.every(x=>b.high>=x.high))pivotsHigh.push({price:b.high,time:b.openTime});
+   }
+   const width=Math.max((atr||last.close*0.001)*0.22,last.close*0.00005);
+   const supports=pivotsLow.filter(x=>x.price<=last.close).sort((a,b)=>b.price-a.price);
+   const resistances=pivotsHigh.filter(x=>x.price>=last.close).sort((a,b)=>a.price-b.price);
+   const zone=(p:{price:number;time:string}|undefined,kind:string)=>p?{low:+(p.price-width).toFixed(8),high:+(p.price+width).toFixed(8),pivot:+p.price.toFixed(8),detected_at:p.time,type:kind,evidence:"Swing 2 candle kiri/kanan; zona estimasi ATR"}:null;
+   const demand=zone(supports[0],"DEMAND"),supply=zone(resistances[0],"SUPPLY");
+   const support=zone(supports[0],"SUPPORT"),resistance=zone(resistances[0],"RESISTANCE");
+   const price=last.close,near=(z:any)=>!!z&&price>=z.low-width*1.5&&price<=z.high+width*1.5;
+   const status=trend==="UNCLEAR"||!atr?"WAIT_DATA":"READY";
+   return reply({status:"ok",symbol,timeframe:interval,source:"BiQuote OHLC",generated_at:new Date().toISOString(),last_closed_bar_at:last.openTime,candle_count:bars.length,last_price:price,trend,volatility,volatility_ratio:+volatilityRatio.toFixed(2),atr:+(atr||0).toFixed(8),ema20:e20,ema50:e50,demand,supply,support,resistance,near_demand:near(demand),near_supply:near(supply),near_support:near(support),near_resistance:near(resistance),readiness:status,disclaimer:"Zona dihitung dari swing candle tertutup dan lebar ATR; estimasi teknikal, bukan level pasti atau sinyal entry."});
+  }
   if(body.action==="backfill_daily"){
    const to=new Date(),from=new Date(to.getTime()-365*86400000),u=new URL("https://biquote.io/api/"+encodeURIComponent(symbol)+"/ohlc");
    u.searchParams.set("interval","1d");u.searchParams.set("from",from.toISOString());u.searchParams.set("to",to.toISOString());u.searchParams.set("limit","1000");
