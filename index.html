@@ -1182,6 +1182,47 @@ async function loadNewsHistory(){
  }catch(e){if(status)status.textContent='Akses belum tersedia';host.innerHTML='<p class="text-amber-200 text-xs">'+newsHistoryEscape(e.message||'Gagal memuat News History')+'</p>';}
 }
 async function loadMarketIntelligence(options={}){if(marketRequestInFlight)return;const btn=document.getElementById('refreshMarketBtn'),status=document.getElementById('marketConnectionStatus'),warn=document.getElementById('marketWarnings');marketRequestInFlight=true;if(btn){btn.disabled=true;btn.textContent='Memuat...'}try{const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar',assets:RITELAI_SYMBOLS}});if(error)throw error;if(!data||data.status!=='ok')throw new Error(data?.error||'Respons quick-service tidak valid.');window.ritelaiLiveQuotes=Object.fromEntries((data.quotes||[]).map(q=>[q.key,q]));renderLiveQuotes(window.ritelaiLiveQuotes);const calendarEvents=mergeOfficialFallbackEvents(data.events||[]);renderEconomicCalendar(calendarEvents);renderMacroReleaseArchive(data.pastReleases||[]);scheduleNewsHistory(calendarEvents);const upcomingCount=calendarEvents.filter(e=>{const d=e.time?new Date(e.time):null;return d&&!Number.isNaN(d.getTime())&&d.getTime()>Date.now()&&d.getTime()<=Date.UTC(2027,11,31,23,59,59,999);}).length;const updated=document.getElementById('marketUpdated');if(updated)updated.textContent='Jadwal diperbarui: '+new Date(data.generatedAt||Date.now()).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB';const cs=document.getElementById('calendarStatus');if(cs){cs.textContent=`${upcomingCount} agenda ekonomi semua dampak · 180 hari ke depan · BiQuote + jadwal resmi`;cs.className='pill text-emerald-300'}if(status){status.textContent='Kalender tersambung · harga menunggu tick';status.className='pill text-emerald-300'}if(warn){const warnings=[];if(data.calendarError)warnings.push('Kalender: '+data.calendarError);if(data.quoteErrors?.length)warnings.push('Sebagian harga belum tersedia: '+data.quoteErrors.join('; '));if(data.aiError)warnings.push('Analisis AI: '+data.aiError);warn.textContent=warnings.join(' · ');warn.classList.toggle('hidden',!warnings.length);}marketHasLoaded=true;connectLiveTicks();if(!options.silent)toast('Kalender ekonomi diperbarui.');}catch(e){console.error(e);if(status){status.textContent='Ada masalah koneksi';status.className='pill text-amber-200'}if(warn){warn.textContent=e.message||'Gagal memuat data.';warn.classList.remove('hidden')}if(!marketHasLoaded){document.getElementById('economicCalendar').innerHTML='<p class="text-amber-200 text-xs">Data kalender belum tersedia. Coba perbarui kembali.</p>';}}finally{marketRequestInFlight=false;if(btn){btn.disabled=false;btn.innerHTML='<i class="fa-solid fa-rotate mr-1"></i>Perbarui data'}}}
+let marketWatchTimer=null,marketWatchPrevious=null,marketWatchAlerts=[];
+function watchZoneText(z){return z&&Number.isFinite(Number(z.low))&&Number.isFinite(Number(z.high))?Number(z.low).toFixed(2)+" – "+Number(z.high).toFixed(2):"Belum terdeteksi";}
+function renderMarketWatch(d){
+ const put=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+ const asset=document.getElementById("asset")?.value||d.symbol,sym=String(asset).split(/[—–-]/)[0].trim().toUpperCase();
+ put("watchTrend",({UPTREND:"BULLISH",DOWNTREND:"BEARISH",SIDEWAYS:"SIDEWAYS",UNCLEAR:"BELUM JELAS"})[d.trend]||d.trend||"—");
+ put("watchVolatility",d.volatility||"—");put("watchPrice",Number.isFinite(Number(d.last_price))?marketMoney(Number(d.last_price),sym):"—");
+ put("watchDemand",watchZoneText(d.demand));put("watchSupply",watchZoneText(d.supply));put("watchAtr",d.atr?marketMoney(d.atr,sym):"—");
+ put("marketWatchStatus",d.readiness==="READY"?"DATA TERKONFIRMASI":"MENUNGGU DATA");
+ put("watchGuidance",d.trend==="UPTREND"?"Bias pasar naik. Prioritaskan menunggu pullback ke demand/support dan candle konfirmasi; jangan mengejar harga.":d.trend==="DOWNTREND"?"Bias pasar turun. Perhatikan rejection di supply/resistance atau breakdown yang sudah close.":d.trend==="SIDEWAYS"?"Pasar bergerak sideways. Hindari entry di tengah range; tunggu reaksi pada batas demand atau supply.":"Data belum cukup untuk menentukan arah. Tunggu candle tertutup yang valid.");
+ put("watchLastUpdate","Update "+new Date(d.generated_at||Date.now()).toLocaleTimeString("id-ID",{timeZone:"Asia/Jakarta",hour12:false})+" WIB");
+ const previous=marketWatchPrevious,events=[];
+ if(previous){
+  if(previous.trend!==d.trend&&d.trend!=="UNCLEAR")events.push("Perubahan tren terdeteksi: "+previous.trend+" → "+d.trend+". Periksa konfirmasi candle sebelum entry.");
+  for(const item of [["near_demand","Harga mendekati demand zone"],["near_supply","Harga mendekati supply zone"],["near_support","Harga mendekati support"],["near_resistance","Harga mendekati resistance"]])if(d[item[0]]&&!previous[item[0]])events.push(item[1]+". Pantau reaksi harga, jangan entry otomatis.");
+  if(d.volatility==="TINGGI"&&previous.volatility!=="TINGGI")events.push("Volatilitas meningkat. Pertimbangkan mengecilkan lot dan menyesuaikan SL dengan ATR.");
+ }
+ marketWatchPrevious=d;
+ events.forEach(message=>{marketWatchAlerts.unshift({message,time:new Date().toLocaleTimeString("id-ID",{timeZone:"Asia/Jakarta",hour12:false})});toast("Market reminder: "+message);});
+ marketWatchAlerts=marketWatchAlerts.slice(0,5);
+ const host=document.getElementById("marketWatchAlerts");
+ if(host)host.innerHTML=marketWatchAlerts.length?marketWatchAlerts.map(a=>'<div class="rounded-lg border border-cyan-900/60 bg-cyan-950/20 p-2"><div class="text-[10px] text-cyan-100">'+a.message.replace(/</g,"&lt;")+'</div><div class="muted text-[9px] mt-1">'+a.time+' WIB</div></div>').join(""):'<p class="muted text-[10px]">Belum ada peringatan baru. Sistem akan memberi tahu saat kondisi pasar berubah atau harga mendekati zona.</p>';
+}
+async function refreshMarketWatch(){
+ if(!supabaseClient||document.hidden)return;
+ const asset=document.getElementById("asset")?.value||"XAUUSD",symbol=String(asset).split(/[—–-]/)[0].trim().toUpperCase(),timeframe=document.getElementById("timeframe")?.value||"M15";
+ try{
+  const {data:{session}}=await supabaseClient.auth.getSession();if(!session){const el=document.getElementById("marketWatchStatus");if(el)el.textContent="LOGIN DIPERLUKAN";return;}
+  const {data,error}=await supabaseClient.functions.invoke("market-engine",{body:{action:"watch_context",symbol,timeframe}});
+  if(error)throw error;if(!data||data.status!=="ok")throw new Error(data?.error||"Data market watch belum tersedia.");
+  renderMarketWatch(data);
+ }catch(e){const el=document.getElementById("marketWatchStatus");if(el)el.textContent="DATA TIDAK TERSEDIA";const g=document.getElementById("watchGuidance");if(g)g.textContent=(e.message||"Gagal membaca data OHLC.")+" Tidak ada sinyal entry sampai data valid kembali.";}
+}
+function startMarketWatch(){
+ if(marketWatchTimer)return;
+ refreshMarketWatch();
+ marketWatchTimer=setInterval(()=>{if(document.querySelector("#tab-analyze.active"))refreshMarketWatch();},60000);
+ document.getElementById("asset")?.addEventListener("change",()=>{marketWatchPrevious=null;refreshMarketWatch();});
+ document.getElementById("timeframe")?.addEventListener("change",()=>{marketWatchPrevious=null;refreshMarketWatch();});
+}
+
 function marketRefreshDelay(){
  const now=Date.now();
  const next=(latestCalendarEvents||[]).map(e=>Date.parse(e.time)).filter(t=>Number.isFinite(t)&&t>now-10*60*1000).sort((a,b)=>a-b)[0];
