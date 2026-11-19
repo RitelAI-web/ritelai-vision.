@@ -42,22 +42,29 @@ Deno.serve(async(req)=>{
   if(!calendar.ok)throw new Error("Gagal mengambil kalender pasar (HTTP "+calendar.status+")");
   const payload=await calendar.json();
   if(payload.calendarError)throw new Error("Feed kalender gagal: "+String(payload.calendarError).slice(0,180));
-  const now=Date.now(),priorityPattern=/non.?farm|payroll|employment situation|unemployment|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/i;
+  const now=Date.now();
+  // Cron runs every five minutes. Each stage has a five-minute dispatch window
+  // and a unique delivery key, so one event can send 60m, 15m and 5m reminders once each.
+  const stages=[{name:"1 jam",min:55,max:60},{name:"15 menit",min:10,max:15},{name:"5 menit",min:0,max:5}];
   const events=(Array.isArray(payload.events)?payload.events:[]).filter((e:any)=>{
    const t=Date.parse(e.time),impact=String(e.importance||"").toLowerCase();
-   return Number.isFinite(t)&&t>now&&t<=now+15*60*1000&&impact==="high"&&priorityPattern.test(String(e.name||""));
+   return Number.isFinite(t)&&t>now&&impact==="high"&&String(e.name||"").trim().length>0;
   });
   let sent=0,skipped=0,failed=0;
-  if(!events.length)return reply({status:"ok",events:0,sent,skipped,failed,calendarSource:payload.calendarSource||"unknown",message:"Tidak ada rilis prioritas HIGH dalam 15 menit ke depan."});
   const {data:subs,error:subsError}=await admin.from("push_subscriptions").select("id,subscription");
   if(subsError)throw subsError;
   for(const e of events){
-   const key=String(e.id||e.name)+":"+String(e.time);
+   const minutes=(Date.parse(e.time)-now)/60000;
+   const stage=stages.find(s=>minutes<=s.max&&minutes>s.min);
+   if(!stage)continue;
+   const eventKey=String(e.id||e.name)+":"+String(e.time);
+   const key=eventKey+":"+stage.name;
    const {data:existing,error:existingError}=await admin.from("push_event_deliveries").select("id").eq("event_key",key).maybeSingle();
    if(existingError)throw existingError;
    if(existing){skipped++;continue}
-   const title="🔴 RITELAI · "+String(e.name);
-   const bodyText=[String(e.currency||e.countryCode||"Market"),"Rilis "+new Date(e.time).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+" WIB","Berita berdampak tinggi. Buka News AI untuk melihat Actual, Forecast, dan Previous."].join(" · ");
+   const fmt=(v:any)=>v===null||v===undefined||String(v).trim()===""?"Belum tersedia":String(v);
+   const title="🔔 RITELAI · "+String(e.name)+" · "+stage.name+" lagi";
+   const bodyText=[String(e.currency||e.countryCode||"Market"),"Rilis "+new Date(e.time).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+" WIB","Forecast: "+fmt(e.forecast),"Previous: "+fmt(e.previous),"Actual: "+fmt(e.actual)].join(" · ");
    let delivered=false;
    for(const sub of subs||[]){
     try{
@@ -74,6 +81,6 @@ Deno.serve(async(req)=>{
     sent++;
    }
   }
-  return reply({status:"ok",events:events.length,sent,skipped,failed,subscriptions:(subs||[]).length,calendarSource:payload.calendarSource||"unknown"});
+  return reply({status:"ok",events:events.length,sent,skipped,failed,subscriptions:(subs||[]).length,calendarSource:payload.calendarSource||"unknown",stages:stages.map(s=>s.name)});
  }catch(e){return reply({error:e instanceof Error?e.message:String(e)},500)}
 });
