@@ -165,11 +165,11 @@ Deno.serve(async(req)=>{
   if(!key)return reply({error:"Layanan AI belum dikonfigurasi di Supabase Secrets."},503);
   const image=String(body?.image||""),instrument=String(body?.instrument||"XAUUSD").slice(0,24),timeframe=String(body?.timeframe||"M15").slice(0,12),risk=Number(body?.risk);
   if(!/^data:image\/(png|jpeg|webp);base64,/.test(image)||image.length>9000000)return reply({error:"Gambar tidak valid atau terlalu besar."},400);
-  if(!Number.isFinite(risk)||risk<=0||risk>2)return reply({error:"Risiko harus di atas 0% dan maksimal 2%."},400);
+  if(!Number.isFinite(risk)||risk<=0||risk>0.5)return reply({error:"Risiko harus di atas 0% dan maksimal 0,5% per transaksi."},400);
   let marketContext:any=null,marketContextError:string|null=null;
   try{marketContext=await getMarketCandleContext(instrument,timeframe);try{marketContext.persistence=await persistMarketBars(admin,marketContext)}catch(storeError){marketContext.persistence={stored:0,error:storeError instanceof Error?storeError.message:String(storeError)}}}catch(e){marketContextError=e instanceof Error?e.message:String(e)}
   const marketContextInstruction=marketContext?`\n\nDATA OHLC SERVER (candle tertutup; indikator dihitung secara matematis): ${JSON.stringify({...marketContext,bars:undefined})}\nGunakan nilai ini sebagai sumber numerik indikator. Bandingkan arah timeframe entry dengan timeframe konfirmasi yang tersedia; jika tidak selaras, turunkan kesiapan entry ke WAIT. Screenshot tetap sumber visual support/resistance dan price action.`:`\n\nDATA OHLC TIDAK TERSEDIA: ${marketContextError}. Jangan mengarang indikator; fallback hanya analisis screenshot dan tandai keterbatasan.`;
-  const prompt=`Anda adalah analis teknikal profesional untuk RitelAI Vision. Analisis bukti screenshot dan data OHLC server jika tersedia. Instrumen ${instrument}; timeframe ${timeframe}; risiko maksimum ${risk}% per transaksi. Jawab JSON valid saja dalam Bahasa Indonesia.${marketContextInstruction}
+  const prompt=`Anda adalah analis teknikal profesional untuk RitelAI Vision. Analisis bukti screenshot dan data OHLC server jika tersedia. Instrumen ${instrument}; timeframe ${timeframe}; risiko maksimum ${risk}% per transaksi (batas sistem 0,5%). Jika minimum lot broker membuat risiko melebihi batas, rekomendasikan WAIT dan jangan menaikkan lot. Jawab JSON valid saja dalam Bahasa Indonesia.${marketContextInstruction}
 
 PROSEDUR WAJIB:
 1. Baca struktur swing: tandai minimal dua swing high dan dua swing low yang terlihat bila memungkinkan. Klasifikasikan HH/HL, LH/LL, atau range. Jangan simpulkan trend hanya dari satu candle. Jika swing tidak cukup jelas, trend=UNCLEAR dan confidence rendah.
