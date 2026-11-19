@@ -53,6 +53,108 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
 .calendar-month-btn{border:1px solid rgba(100,116,139,.45);background:rgba(15,23,42,.8);color:#cbd5e1;border-radius:999px;padding:9px 13px;font-size:11px;font-weight:700;transition:all .15s}
 .calendar-month-btn.active{border-color:rgba(34,211,238,.65);background:rgba(8,145,178,.22);color:#67e8f9;box-shadow:0 0 0 1px rgba(34,211,238,.12) inset}
 .calendar-month-btn:focus-visible{outline:2px solid #22d3ee;outline-offset:2px}
+
+/* RitelAI Vision premium interface refresh — visual-only layer; preserves existing IDs, flows and integrations. */
+:root{
+ color-scheme:dark;
+ --rv-bg:#060b14;--rv-panel:#0c1523;--rv-panel-2:#101d2e;
+ --rv-line:rgba(148,163,184,.14);--rv-line-strong:rgba(103,232,249,.24);
+ --rv-text:#edf4fb;--rv-muted:#91a4ba;--rv-cyan:#67e8f9;--rv-blue:#60a5fa;
+}
+html{scroll-behavior:smooth;background:var(--rv-bg)}
+body{
+ background:
+  radial-gradient(ellipse at 12% -10%,rgba(8,145,178,.16),transparent 34rem),
+  radial-gradient(ellipse at 92% 8%,rgba(37,99,235,.11),transparent 30rem),
+  linear-gradient(180deg,#080f1b 0%,#060b14 58%,#080f1a 100%)!important;
+ color:var(--rv-text);letter-spacing:.005em;
+}
+body:before{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opacity:.16;background-image:linear-gradient(rgba(148,163,184,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(148,163,184,.045) 1px,transparent 1px);background-size:42px 42px;mask-image:linear-gradient(to bottom,black,transparent 78%)}
+header.sticky{background:rgba(6,11,20,.88)!important;border-color:var(--rv-line)!important;box-shadow:0 10px 35px rgba(0,0,0,.22);backdrop-filter:blur(22px)}
+header .max-w-7xl{min-height:70px}
+.brandtitle{font-size:16px;letter-spacing:-.045em}
+header .w-10.h-10{border-radius:14px;box-shadow:0 7px 24px rgba(6,182,212,.24)}
+main.max-w-7xl{max-width:1480px;padding-left:clamp(14px,2.2vw,32px);padding-right:clamp(14px,2.2vw,32px)}
+main>section{scroll-margin-top:90px}
+main>section:first-of-type{margin-top:4px}
+h1,h2,h3,h4{letter-spacing:-.035em}
+h1{line-height:1.12}
+.muted{color:var(--rv-muted)!important}
+.glass{
+ background:linear-gradient(155deg,rgba(17,30,47,.94),rgba(10,19,32,.96))!important;
+ border:1px solid var(--rv-line)!important;
+ box-shadow:0 16px 42px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.025)!important;
+ backdrop-filter:blur(14px);
+}
+.glass:hover{border-color:rgba(103,232,249,.19)!important}
+.nav-menu{
+ display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px;
+ padding:9px!important;border-radius:18px!important;
+ background:rgba(9,17,29,.9)!important;
+ position:sticky;top:78px;z-index:30;
+}
+.navbtn{
+ min-height:46px;border:1px solid transparent;border-radius:12px;
+ color:#9aacc0;justify-content:center;font-size:11px;
+ transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease;
+}
+.navbtn:hover{background:rgba(148,163,184,.07);color:#e2f4fb}
+.navbtn.active{
+ color:#a5f3fc;background:linear-gradient(135deg,rgba(8,145,178,.2),rgba(37,99,235,.13));
+ border-color:rgba(103,232,249,.22);
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 5px 18px rgba(8,145,178,.08);
+}
+.navbtn.active i{filter:drop-shadow(0 0 7px rgba(103,232,249,.35))}
+.btn{
+ min-height:42px;border-radius:11px!important;padding:10px 15px!important;
+ font-size:11px!important;font-weight:800!important;letter-spacing:.01em;
+ transition:transform .18s ease,filter .18s ease,box-shadow .18s ease;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.08)}
+.btn:active{transform:translateY(0)}
+.btn.primary{background:linear-gradient(120deg,#0891b2,#2563eb)!important;box-shadow:0 7px 20px rgba(8,145,178,.18)}
+.field{
+ min-height:44px!important;background:#080f1b!important;border:1px solid #26374c!important;
+ border-radius:11px!important;color:#e8f2fb!important;padding:11px 13px!important;
+ transition:border-color .18s ease,box-shadow .18s ease;
+}
+.field:focus{border-color:#38bdf8!important;box-shadow:0 0 0 3px rgba(56,189,248,.1)!important}
+.pill{border:1px solid rgba(103,232,249,.14);background:rgba(8,145,178,.12);color:#a5f3fc;font-weight:800;letter-spacing:.025em}
+.panel{animation:rvFade .24s ease both}
+@keyframes rvFade{from{opacity:.45;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.panel>.glass,.panel>.grid>.glass{border-radius:18px!important}
+#tab-analyze>.grid{align-items:start}
+#tab-analyze>.grid>.glass{border-radius:20px!important}
+#analysisResult{border-radius:16px!important;min-height:210px;display:flex;flex-direction:column;justify-content:center}
+.signal{background:linear-gradient(145deg,rgba(8,145,178,.11),rgba(30,64,175,.08))!important;border-color:rgba(103,232,249,.2)!important}
+#launchPromoBanner{border-radius:18px!important;box-shadow:0 14px 36px rgba(0,0,0,.18)!important}
+main>section.relative.overflow-hidden.rounded-2xl{border-radius:22px!important;box-shadow:0 18px 48px rgba(0,0,0,.2)}
+main>.grid.grid-cols-2.lg\:grid-cols-4>div{border-radius:16px!important;min-height:108px;transition:transform .18s ease,border-color .18s ease}
+main>.grid.grid-cols-2.lg\:grid-cols-4>div:hover{transform:translateY(-2px)}
+#marketQuotes>div,#economicCalendar>div,#historyItems>div,#newsHistoryItems>div{border-radius:13px}
+.calendar-month-btn{border-radius:10px;background:rgba(9,17,29,.86);border-color:var(--rv-line);padding:9px 12px}
+.calendar-month-btn:hover{border-color:rgba(103,232,249,.35);color:#d9faff}
+.calendar-month-btn.active{background:rgba(8,145,178,.17);border-color:rgba(103,232,249,.45);color:#a5f3fc}
+#marketTradingViewFullscreen{border-radius:14px!important;border-color:var(--rv-line)!important}
+input[type=file].field{padding:8px!important}
+button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:2px solid #67e8f9!important;outline-offset:3px}
+hr{border-color:var(--rv-line)}
+.toast{box-shadow:0 14px 40px rgba(0,0,0,.4);backdrop-filter:blur(16px)}
+@media(max-width:900px){
+ .nav-menu{grid-template-columns:repeat(3,minmax(0,1fr));top:70px}
+}
+@media(max-width:640px){
+ header .max-w-7xl{min-height:62px}
+ .nav-menu{grid-template-columns:repeat(2,minmax(0,1fr));top:62px;padding:7px!important}
+ .navbtn{min-height:43px;justify-content:flex-start;padding:10px 12px;font-size:10px}
+ main.max-w-7xl{padding-top:14px;padding-bottom:28px}
+ .glass{border-radius:16px!important}
+ #tab-analyze>.grid{gap:12px}
+ #analysisResult{min-height:180px;padding:18px!important}
+ .btn{min-height:44px}
+}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
