@@ -544,7 +544,17 @@ async function getMarketNews() {
   return {...payload,cached:false};
 }
 
-Deno.serve(async (request: Request) => {
+Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
+  if (request.method === "OPTIONS") {
+    return new Response("ok", { status: 200, headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+      "Access-Control-Max-Age": "86400",
+    }});
+  }
+  const __ritelaiResponse = await (async () => {
+
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS_HEADERS });
   if (request.method !== "POST") return reply({ status: "error", error: "Gunakan metode POST." }, 405);
 
@@ -687,4 +697,16 @@ Deno.serve(async (request: Request) => {
       disclaimer: "Data kalender/harga sementara tidak tersedia. Jangan gunakan sebagai sinyal transaksi.",
     });
   }
+  })();
+  const __ritelaiHeaders = new Headers(__ritelaiResponse.headers);
+  __ritelaiHeaders.set("Access-Control-Allow-Origin", "*");
+  __ritelaiHeaders.set("Access-Control-Allow-Headers", "authorization, x-client-info, apikey, content-type");
+  __ritelaiHeaders.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+  __ritelaiHeaders.set("Vary", "Origin");
+  return new Response(__ritelaiResponse.body, {
+    status: __ritelaiResponse.status,
+    statusText: __ritelaiResponse.statusText,
+    headers: __ritelaiHeaders,
+  });
+
 });
