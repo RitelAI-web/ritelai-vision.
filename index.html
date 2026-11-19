@@ -192,6 +192,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
       <button type="button" class="calendar-month-btn" data-month="2026-12" onclick="setCalendarMonth('2026-12')">Desember 2026</button>
      </div>
     </div>
+    <div id="nextNewsReminder" class="mt-4 rounded-xl border border-amber-700/50 bg-amber-950/20 p-4" aria-live="polite"><p class="text-xs muted">Menyiapkan pengingat rilis ekonomi...</p></div>
     <div id="economicCalendar" class="space-y-3 mt-4"><p class="muted text-xs">Mengambil jadwal ekonomi...</p></div>
    </div>
    <p id="marketDisclaimer" class="muted text-[10px] leading-5 mt-4">Harga indikatif dari penyedia pihak ketiga, bukan kuotasi broker. Persentase BUY/SELL/WAIT adalah skor skenario model, bukan probabilitas profit atau win rate. Keyakinan model ditampilkan terpisah. Pembaruan dipercepat menjelang dan sesudah rilis.</p>
@@ -689,6 +690,20 @@ let selectedCalendarMonth='all';
 function calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
 function calendarMonthLabel(key){const [y,m]=key.split('-').map(Number);return new Date(Date.UTC(y,m-1,1)).toLocaleDateString('id-ID',{month:'long',year:'numeric',timeZone:'UTC'});}
 let latestCalendarEvents=[];
+function renderNextNewsReminder(){
+ const host=document.getElementById('nextNewsReminder');if(!host)return;
+ const now=Date.now();
+ const next=(Array.isArray(latestCalendarEvents)?latestCalendarEvents:[])
+  .filter(e=>{const t=Date.parse(e.time);return Number.isFinite(t)&&t>now&&String(e.importance||'').toLowerCase()==='high';})
+  .sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))[0];
+ if(!next){host.innerHTML='<p class="text-xs muted">Belum ada agenda berdampak tinggi mendatang dari feed kalender.</p>';return;}
+ const ms=Date.parse(next.time)-now,total=Math.max(0,Math.floor(ms/1000));
+ const hh=String(Math.floor(total/3600)).padStart(2,'0'),mm=String(Math.floor(total%3600/60)).padStart(2,'0'),ss=String(total%60).padStart(2,'0');
+ const when=new Date(next.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+ const val=v=>v===null||v===undefined||String(v).trim()===''?'Belum tersedia':escapeHtml(String(v));
+ host.innerHTML='<div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-[10px] tracking-wider font-extrabold text-amber-200"><i class="fa-solid fa-bell mr-1"></i> PENGINGAT NEWS BERIKUTNYA · HIGH IMPACT</div><b class="block text-sm text-white mt-1">'+escapeHtml(String(next.name||'Rilis ekonomi'))+'</b><p class="muted text-[10px] mt-1">'+when+' WIB · '+escapeHtml(String(next.currency||next.countryCode||'Market'))+'</p></div><div class="rounded-lg border border-amber-600/40 bg-slate-950/70 px-4 py-2 text-center"><div class="text-[9px] muted">HITUNG MUNDUR</div><b class="font-mono text-xl text-amber-200 tabular-nums">'+hh+':'+mm+':'+ss+'</b></div></div><div class="grid grid-cols-3 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Previous</span><b class="block text-xs mt-1">'+val(next.previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Forecast</span><b class="block text-xs mt-1">'+val(next.forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Actual</span><b class="block text-xs mt-1">'+val(next.actual)+'</b></div></div><p class="text-[10px] text-amber-100/70 mt-2">Pengingat push dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis. Pastikan notifikasi perangkat sudah diaktifkan.</p>';
+}
+if(!window.ritelaiNewsCountdownTimer)window.ritelaiNewsCountdownTimer=setInterval(renderNextNewsReminder,1000);
 function setCalendarMonth(month){
  selectedCalendarMonth=month;
  document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(btn=>{
@@ -790,6 +805,7 @@ function renderEconomicCalendar(events){
  const box=document.getElementById('economicCalendar');
  if(!box)return;
  latestCalendarEvents=Array.isArray(events)?events:[];
+ renderNextNewsReminder();
  // Semua rilis ekonomi mendatang dari feed hingga 31 Desember 2027.
  const now=Date.now();
  const rangeEnd=Date.UTC(2027,11,31,23,59,59,999);
