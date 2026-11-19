@@ -419,6 +419,7 @@ hr{border-color:var(--rv-line)}
     <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">P/L HARI INI</div><b id="journalTodayPnl" class="text-xl">—</b></div>
     <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">BATAS RUGI HARIAN</div><b class="text-xs">Pantau P/L tercatat</b></div>
    </div>
+   <div class="mt-3 flex flex-wrap items-center gap-2"><label for="journalDailyLossCap" class="text-[11px] muted">Batas rugi harian (USD)</label><input id="journalDailyLossCap" type="number" min="0" step="1" value="20" class="field max-w-32" onchange="saveJournalLossCap()"><span class="muted text-[10px]">Peringatan berdasarkan P/L yang kamu catat.</span></div>
    <div id="journalRiskWarning" class="hidden rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 mt-3 text-xs text-amber-200"></div>
   </div>
   <div class="glass rounded-2xl p-4 md:p-5 mb-4"><h3 class="font-bold text-sm mb-3">Catat transaksi</h3>
@@ -1542,10 +1543,10 @@ async function loadTradeJournal(){
  try{
   const {data:{session}}=await supabaseClient.auth.getSession();if(!session)throw new Error('Login diperlukan.');
   const {data,error}=await supabaseClient.from('trade_journal').select('*').order('opened_at',{ascending:false}).limit(100);if(error)throw error;
-  const rows=data||[],today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}),todays=rows.filter(x=>new Date(x.opened_at).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})===today),pnl=todays.filter(x=>x.status==='CLOSED').reduce((a,x)=>a+Number(x.pnl_amount||0),0),open=rows.filter(x=>x.status==='OPEN');
+  const rows=data||[],today=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}),todays=rows.filter(x=>new Date(x.opened_at).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'})===today),pnl=todays.filter(x=>x.status==='CLOSED').reduce((a,x)=>a+Number(x.pnl_amount||0),0),open=rows.filter(x=>x.status==='OPEN'),cap=Number(document.getElementById('journalDailyLossCap')?.value||20);
   document.getElementById('journalOpenCount').textContent=open.length;document.getElementById('journalTodayCount').textContent=todays.length;document.getElementById('journalTodayPnl').textContent=new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format(pnl);
-  const warning=document.getElementById('journalRiskWarning');warning.classList.toggle('hidden',!(open.length>=3||todays.length>=5||pnl<0));
-  warning.textContent=open.length>=3?'Sudah ada 3+ posisi terbuka. Pertimbangkan tidak menambah eksposur.':todays.length>=5?'Sudah mencatat 5+ transaksi hari ini. Evaluasi sebelum entry lagi.':pnl<0?'P/L hari ini negatif. Hindari mengejar kerugian dan pertimbangkan jeda.':'';
+  const warning=document.getElementById('journalRiskWarning');warning.classList.toggle('hidden',!(open.length>=3||todays.length>=5||pnl<0||(cap>0&&pnl<=-cap)));
+  warning.textContent=open.length>=3?'Sudah ada 3+ posisi terbuka. Pertimbangkan tidak menambah eksposur.':todays.length>=5?'Sudah mencatat 5+ transaksi hari ini. Evaluasi sebelum entry lagi.':(cap>0&&pnl<=-cap)?'Batas rugi harian tercapai/terlewati. Hentikan entry baru sesuai aturan disiplinmu.':pnl<0?'P/L hari ini negatif. Hindari mengejar kerugian dan pertimbangkan jeda.':'';
   status.textContent='Tersinkron · '+rows.length+' catatan';
   host.innerHTML=rows.length?rows.map(x=>'<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex justify-between gap-2"><b class="text-xs">'+newsHistoryEscape(x.symbol)+' · '+newsHistoryEscape(x.direction)+'</b><span class="pill">'+newsHistoryEscape(x.status)+'</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2 text-[10px]"><span>Entry: '+newsHistoryEscape(x.entry_price)+'</span><span>SL: '+newsHistoryEscape(x.stop_loss??'—')+'</span><span>TP: '+newsHistoryEscape(x.take_profit??'—')+'</span><span>Lot: '+newsHistoryEscape(x.volume_lots??'—')+'</span><span>Risiko: '+newsHistoryEscape(x.risk_amount??'—')+' USD</span><span>P/L: '+(x.pnl_amount==null?'—':newsHistoryEscape(x.pnl_amount)+' USD')+'</span><span>'+new Date(x.opened_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB</span></div><div class="muted text-[10px] mt-2">'+newsHistoryEscape(x.notes||'Tanpa catatan')+'</div>'+(x.status==='OPEN'?'<div class="flex gap-2 mt-3"><button class="btn primary text-xs" onclick="closeTradeJournal(\''+x.id+'\')">Tutup posisi</button><button class="btn border border-slate-700 text-xs" onclick="cancelTradeJournal(\''+x.id+'\')">Batalkan</button></div>':'')+'</div>').join(''):'<p class="muted text-xs py-5">Belum ada transaksi tercatat.</p>';
  }catch(e){status.textContent='Tidak dapat dimuat';host.textContent=e.message||'Gagal memuat jurnal';}
@@ -1569,6 +1570,6 @@ async function cancelTradeJournal(id){
  if(!confirm('Batalkan catatan posisi terbuka ini?'))return;
  try{const {error}=await supabaseClient.from('trade_journal').update({status:'CANCELLED',closed_at:new Date().toISOString(),updated_at:new Date().toISOString()}).eq('id',id).eq('status','OPEN');if(error)throw error;await loadTradeJournal();}catch(e){toast('Gagal membatalkan: '+e.message);}
 }
-</script>
+function saveJournalLossCap(){const v=Number(document.getElementById('journalDailyLossCap')?.value);if(!Number.isFinite(v)||v<0){toast('Batas rugi harus nol atau positif.');return;}try{localStorage.setItem('ritelai_journal_daily_loss_cap',String(v));}catch(_){}loadTradeJournal();}</script>
 </body>
 </html>
