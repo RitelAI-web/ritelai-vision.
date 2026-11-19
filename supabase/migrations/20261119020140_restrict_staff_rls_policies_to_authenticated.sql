@@ -1,0 +1,18 @@
+DROP POLICY IF EXISTS "profile read self or staff" ON public.profiles;
+CREATE POLICY "profile read self or staff" ON public.profiles FOR SELECT TO authenticated USING (id = (SELECT auth.uid()) OR private.is_staff());
+DROP POLICY IF EXISTS "subscriptions own or staff" ON public.subscriptions;
+CREATE POLICY "subscriptions own or staff" ON public.subscriptions FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()) OR private.is_staff());
+DROP POLICY IF EXISTS "payment proofs own read" ON public.payment_proofs;
+CREATE POLICY "payment proofs own read" ON public.payment_proofs FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()) OR private.is_staff());
+DROP POLICY IF EXISTS "payment proofs own insert" ON public.payment_proofs;
+CREATE POLICY "payment proofs own insert" ON public.payment_proofs FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()) AND status = 'pending');
+DROP POLICY IF EXISTS "payment proofs staff update" ON public.payment_proofs;
+CREATE POLICY "payment proofs staff update" ON public.payment_proofs FOR UPDATE TO authenticated USING (private.is_staff()) WITH CHECK (private.is_staff());
+DROP POLICY IF EXISTS "analysis own or staff read" ON public.analysis_history;
+CREATE POLICY "analysis own or staff read" ON public.analysis_history FOR SELECT TO authenticated USING (user_id = (SELECT auth.uid()) OR private.is_staff());
+DROP POLICY IF EXISTS "analysis own insert" ON public.analysis_history;
+CREATE POLICY "analysis own insert" ON public.analysis_history FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+DROP POLICY IF EXISTS "audit staff insert" ON public.audit_logs;
+CREATE POLICY "audit staff insert" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (private.is_staff());
+DROP POLICY IF EXISTS "audit staff read" ON public.audit_logs;
+CREATE POLICY "audit staff read" ON public.audit_logs FOR SELECT TO authenticated USING (private.is_staff());
