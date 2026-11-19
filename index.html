@@ -264,6 +264,7 @@ hr{border-color:var(--rv-line)}
   <button class="navbtn active" data-tab="analyze" onclick="showTab('analyze',this)"><i class="fa-solid fa-chart-line"></i><span>Analisis</span></button>
   <button class="navbtn" data-tab="news" onclick="showTab('news',this)"><i class="fa-regular fa-newspaper"></i><span>News & Kalender</span></button>
   <button class="navbtn" data-tab="history" onclick="showTab('history',this)"><i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span></button>
+  <button class="navbtn" data-tab="journal" onclick="showTab('journal',this);loadTradeJournal()"><i class="fa-solid fa-book"></i><span>Jurnal</span></button>
   <button class="navbtn" data-tab="guide" onclick="showTab('guide',this)"><i class="fa-solid fa-book-open"></i><span>Panduan</span></button>
   <button class="navbtn" data-tab="mt5" onclick="showTab('mt5',this);refreshMT5Access()"><i class="fa-solid fa-plug"></i><span>MT5 Demo</span></button>
  </div>
@@ -407,6 +408,32 @@ hr{border-color:var(--rv-line)}
    <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
   </div>
   <div class="glass rounded-2xl p-5"><h2 class="font-bold text-sm">Riwayat analisis chart</h2><p id="emptyHistory" class="muted text-xs text-center py-8">Belum ada analisis yang tersimpan.</p><div id="historyItems" class="space-y-2"></div></div>
+ </section>
+ <section id="tab-journal" class="panel">
+  <div class="glass rounded-2xl p-4 md:p-5 mb-4">
+   <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-lg">Trading Journal</h2><p class="muted text-xs mt-1">Catat transaksi secara manual untuk evaluasi disiplin. Tidak mengeksekusi order.</p></div><button class="btn primary" onclick="loadTradeJournal()">Muat ulang</button></div>
+   <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+    <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">POSISI TERBUKA</div><b id="journalOpenCount" class="text-xl">—</b></div>
+    <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">TRANSAKSI HARI INI</div><b id="journalTodayCount" class="text-xl">—</b></div>
+    <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">P/L HARI INI</div><b id="journalTodayPnl" class="text-xl">—</b></div>
+    <div class="rounded-xl bg-slate-950/70 p-3"><div class="muted text-[10px]">BATAS RUGI HARIAN</div><b class="text-xs">Pantau P/L tercatat</b></div>
+   </div>
+   <div id="journalRiskWarning" class="hidden rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 mt-3 text-xs text-amber-200"></div>
+  </div>
+  <div class="glass rounded-2xl p-4 md:p-5 mb-4"><h3 class="font-bold text-sm mb-3">Catat transaksi</h3>
+   <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div><label class="text-[10px] muted">Instrumen</label><select id="journalSymbol" class="field"><option>XAUUSD</option><option>BTCUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>US30</option></select></div>
+    <div><label class="text-[10px] muted">Arah</label><select id="journalDirection" class="field"><option>BUY</option><option>SELL</option></select></div>
+    <div><label class="text-[10px] muted">Entry</label><input id="journalEntry" class="field" type="number" min="0" step="any" placeholder="Harga entry"></div>
+    <div><label class="text-[10px] muted">Stop Loss</label><input id="journalSL" class="field" type="number" min="0" step="any" placeholder="Opsional"></div>
+    <div><label class="text-[10px] muted">Take Profit</label><input id="journalTP" class="field" type="number" min="0" step="any" placeholder="Opsional"></div>
+    <div><label class="text-[10px] muted">Volume (lot)</label><input id="journalLots" class="field" type="number" min="0" step="any" placeholder="Opsional"></div>
+    <div><label class="text-[10px] muted">Risiko rencana (USD)</label><input id="journalRisk" class="field" type="number" min="0" step="any" placeholder="Opsional"></div>
+    <div><label class="text-[10px] muted">Catatan</label><input id="journalNotes" class="field" maxlength="500" placeholder="Alasan entry"></div>
+   </div><button class="btn primary mt-3" onclick="saveTradeJournal()">Simpan transaksi</button>
+   <p class="muted text-[10px] mt-2">P/L aktual dicatat saat posisi ditutup. Data diinput manual, bukan sinkronisasi broker.</p>
+  </div>
+  <div class="glass rounded-2xl p-4 md:p-5"><div class="flex justify-between items-center gap-2 mb-3"><h3 class="font-bold text-sm">Riwayat transaksi</h3><span id="journalStatus" class="pill">Login diperlukan</span></div><div id="journalRows" class="space-y-2"><p class="muted text-xs">Masuk untuk melihat jurnal pribadi.</p></div></div>
  </section>
  <section id="tab-guide" class="panel">
   <div class="glass rounded-2xl p-5 md:p-6 mb-4">
