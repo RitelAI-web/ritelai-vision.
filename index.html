@@ -263,7 +263,6 @@ hr{border-color:var(--rv-line)}
  <div class="nav-menu glass rounded-2xl p-2 mb-5">
   <button class="navbtn active" data-tab="analyze" onclick="showTab('analyze',this)"><i class="fa-solid fa-chart-line"></i><span>Analisis</span></button>
   <button class="navbtn" data-tab="news" onclick="showTab('news',this)"><i class="fa-regular fa-newspaper"></i><span>News & Kalender</span></button>
-  <button class="navbtn" data-tab="market" onclick="showTab('market',this)"><i class="fa-solid fa-chart-line" aria-hidden="true"></i><span>Market Live</span></button>
   <button class="navbtn" data-tab="history" onclick="showTab('history',this)"><i class="fa-solid fa-clock-rotate-left"></i><span>Riwayat</span></button>
   <button class="navbtn" data-tab="guide" onclick="showTab('guide',this)"><i class="fa-solid fa-book-open"></i><span>Panduan</span></button>
   <button class="navbtn" data-tab="mt5" onclick="showTab('mt5',this);refreshMT5Access()"><i class="fa-solid fa-plug"></i><span>MT5 Demo</span></button>
@@ -323,13 +322,25 @@ hr{border-color:var(--rv-line)}
     </div>
    </div>
   </div>
- </section>
- <section id="tab-market" class="panel">
+<div id="tab-market" class="market-embedded-panel mt-4">
   <div class="glass rounded-2xl p-5">
    <div class="flex flex-wrap justify-between items-center gap-3"><div><h2 class="font-bold text-lg">Market Live · MT5 Style</h2><p class="muted text-xs mt-1">Pantau chart dan harga berjalan dalam menu terpisah dari News & Kalender.</p></div><button id="refreshMarketBtn" class="btn primary" onclick="loadMarketIntelligence()"><i class="fa-solid fa-rotate mr-1"></i>Perbarui harga</button></div>
    <div id="marketUpdated" class="muted text-[10px] mt-3">Belum memuat data.</div>
    <div class="flex flex-wrap items-center gap-2 mt-2 text-[10px]"><span id="marketConnectionStatus" class="pill">Menghubungkan...</span><span class="muted">Harga diperbarui saat tick diterima; kalender diperiksa berkala.</span></div>
    <div id="marketWarnings" class="hidden rounded-lg border border-amber-800/60 bg-amber-950/20 text-amber-200 p-3 mt-3 text-[11px] leading-5"></div>
+   <div id="marketWatchAssistant" class="rounded-xl border border-cyan-800/60 bg-slate-950/70 p-3 mt-3">
+    <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-bold text-sm"><i class="fa-solid fa-bell text-cyan-300 mr-1"></i>AI Market Watch & Reminder</h3><p class="muted text-[10px] mt-1">Pemantauan tren, demand/supply, support/resistance, dan volatilitas untuk instrumen yang dipilih di Analisis.</p></div><span id="marketWatchStatus" class="pill">Menunggu data</span></div>
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3 text-xs">
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">Arah tren</div><b id="watchTrend" class="block mt-1">—</b></div>
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">Volatilitas</div><b id="watchVolatility" class="block mt-1">—</b></div>
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">Harga terakhir</div><b id="watchPrice" class="block mt-1">—</b></div>
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">Demand / Support</div><b id="watchDemand" class="block mt-1">—</b></div>
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">Supply / Resistance</div><b id="watchSupply" class="block mt-1">—</b></div>
+     <div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">ATR</div><b id="watchAtr" class="block mt-1">—</b></div>
+    </div>
+    <p id="watchGuidance" class="text-[11px] leading-5 muted mt-3">Pilih instrumen dan timeframe di formulir Analisis. Sistem membaca candle tertutup; jika data stale, tidak akan mengeluarkan rekomendasi.</p>
+    <div class="mt-3 border-t border-slate-800 pt-3"><div class="flex justify-between items-center gap-2"><b class="text-xs">Peringatan di website</b><span id="watchLastUpdate" class="muted text-[9px]">Belum diperbarui</span></div><div id="marketWatchAlerts" class="mt-2 space-y-2"><p class="muted text-[10px]">Belum ada peringatan. Pemantauan berjalan saat halaman Analisis dibuka.</p></div></div>
+   </div>
    <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
     <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div><h3 class="font-bold text-sm">Live Market Terminal · MT5 Style</h3><p class="muted text-[10px] mt-1">Chart TradingView · harga Bid/Ask dari streaming tick BiQuote MT5</p></div><div class="flex flex-wrap items-center gap-2"><span id="marketChartSource" class="pill">Chart: TradingView</span><span class="pill"><i class="fa-regular fa-clock mr-1"></i><b id="marketClock" class="font-mono tabular-nums">--:--:--</b> WIB</span></div></div>
     <div class="rounded-lg border border-slate-800 bg-slate-900/70 p-3 mb-3"><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-xs">Indikator utama</b><span class="text-[10px] muted">Ringkas · mudah dibaca</span></div><div class="flex flex-wrap gap-2 mt-2"><span class="pill">EMA 50</span><span class="pill">EMA 200</span><span class="pill">Parabolic SAR</span><span class="pill">RSI 14</span><span class="pill">MACD</span></div><p class="text-[10px] muted mt-2">EMA 50/200 untuk tren, Parabolic SAR untuk arah dan trailing, RSI 14 serta MACD untuk konfirmasi momentum.</p></div>
@@ -357,6 +368,7 @@ hr{border-color:var(--rv-line)}
    </div>
 
   </div>
+ </div>
  </section>
  <section id="tab-news" class="panel">
   <div class="glass rounded-2xl p-5">
@@ -509,6 +521,7 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 async function showTab(name,btn){
+ if(name==='market')name='analyze';
  if(name==='news'||name==='history'){
   if(!supabaseClient){toast('Koneksi akun belum siap.');openModal('accountModal');return}
   const {data:{session}}=await supabaseClient.auth.getSession();
@@ -520,8 +533,8 @@ async function showTab(name,btn){
  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
  const target=document.getElementById('tab-'+name);if(!target)return;target.classList.add('active');
  document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
- if((name==='news'||name==='history'||name==='market')&&!marketHasLoaded)await loadMarketIntelligence({silent:true});
- if(name==='market')loadMarketTradingViewChart();
+ if((name==='news'||name==='history'||name==='analyze')&&!marketHasLoaded)await loadMarketIntelligence({silent:true});
+ if(name==='analyze'){loadMarketTradingViewChart();startMarketWatch();}
  if(name==='history')renderMacroReleaseArchive(window.ritelaiPastReleases||[]);
  if(name==='mt5')refreshMT5Access();
 }
