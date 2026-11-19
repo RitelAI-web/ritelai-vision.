@@ -157,7 +157,7 @@ Deno.serve(async(req)=>{
   const planCode=String(planData.code||"free").toLowerCase();
   const isAdmin=["owner","admin","super_admin"].includes(String(profile?.role||"").toLowerCase());
   const planName=String(planData.name||(planCode==="free"?"Gratis":planCode));
-  const quota=planCode==="free"?5:planCode==="starter"?20:Number(planData.analysis_quota||0);
+  const quota=Number(planData.analysis_quota??(planCode==="free"?10:planCode==="starter"?20:0));
   if(body?.action==="quota_status")return reply({quota:{planCode:isAdmin?"owner":planCode,planName:isAdmin?"Akses Tanpa Batas":planName,total:isAdmin?null:quota,used:count,remaining:isAdmin?null:Math.max(0,quota-count),isUnlimited:isAdmin,periodLabel:"30 hari"}});
   if(!profile)return reply({error:"Profil akun belum tersedia. Hubungi Admin."},403);
   if(!isAdmin&&quota<=0)return reply({error:"Kuota paket belum dikonfigurasi. Hubungi Admin."},403);
