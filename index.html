@@ -155,6 +155,8 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
      <div class="flex items-center justify-between gap-2"><span class="text-[11px] muted">Sisa kuota analisis</span><b id="analysisQuotaValue" class="text-sm text-cyan-200">Memuat...</b></div>
      <div class="h-1.5 rounded-full bg-slate-800 mt-2 overflow-hidden"><div id="analysisQuotaBar" class="h-full bg-cyan-400 rounded-full" style="width:0%"></div></div>
      <p id="analysisQuotaPlan" class="text-[10px] muted mt-2">Login untuk melihat kuota paket.</p>
+     <div class="grid grid-cols-3 gap-2 mt-3 text-center"><div class="rounded-lg bg-slate-950/60 p-2"><b id="uploadCount30d" class="block text-sm text-cyan-200">—</b><span class="text-[9px] muted">Upload</span></div><div class="rounded-lg bg-slate-950/60 p-2"><b id="analysisSuccess30d" class="block text-sm text-emerald-300">—</b><span class="text-[9px] muted">Berhasil</span></div><div class="rounded-lg bg-slate-950/60 p-2"><b id="analysisFailed30d" class="block text-sm text-rose-300">—</b><span class="text-[9px] muted">Gagal</span></div></div>
+     <p class="text-[9px] muted mt-2">Aktivitas 30 hari terakhir</p>
     </div>
     <button class="btn primary w-full py-3" onclick="requestAnalysis()"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Siapkan analisis</button>
     <p class="text-[10px] muted leading-relaxed mt-3"><i class="fa-solid fa-circle-info text-cyan-300 mr-1"></i>Analisis dikirim ke Edge Function yang aman. Hasil gambar bukan data harga live dan bukan jaminan profit.</p>
@@ -259,6 +261,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
   <div id="adminNotice" class="rounded-xl border border-amber-800/60 bg-amber-950/20 text-amber-200 p-3 text-xs mb-4">Memeriksa hak akses...</div>
   <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"><div class="glass rounded-xl p-4"><div class="muted text-[10px]">PROFIL</div><b id="admUsers" class="text-xl">—</b></div><div class="glass rounded-xl p-4"><div class="muted text-[10px]">PAKET AKTIF</div><b id="admPlans" class="text-xl">—</b></div><div class="glass rounded-xl p-4"><div class="muted text-[10px]">BUKTI MENUNGGU</div><b id="admPending" class="text-xl">—</b></div><div class="glass rounded-xl p-4"><div class="muted text-[10px]">LANGGANAN AKTIF</div><b id="admSubs" class="text-xl">—</b></div></div>
 <div class="glass rounded-2xl p-4 mt-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><div><h3 class="font-bold text-sm">Monitoring perangkat MT5</h3><p class="muted text-[10px] mt-1">Status koneksi terminal Demo/Real berdasarkan heartbeat terakhir.</p></div><button class="btn border border-cyan-700 text-cyan-200" onclick="loadAdminMT5Devices()"><i class="fa-solid fa-rotate mr-1"></i>Refresh perangkat</button></div><div class="grid grid-cols-3 gap-2 mb-3"><div class="bg-slate-950/60 rounded-lg p-3"><div class="muted text-[10px]">ONLINE</div><b id="admMT5Online" class="text-xl text-emerald-300">—</b></div><div class="bg-slate-950/60 rounded-lg p-3"><div class="muted text-[10px]">OFFLINE</div><b id="admMT5Offline" class="text-xl text-amber-300">—</b></div><div class="bg-slate-950/60 rounded-lg p-3"><div class="muted text-[10px]">TOTAL</div><b id="admMT5Total" class="text-xl">—</b></div></div><div id="adminMT5Devices" class="space-y-2"><p class="muted text-xs">Memuat perangkat MT5...</p></div><p class="muted text-[10px] mt-3">Online = heartbeat diterima dalam 90 detik terakhir. Panel ini hanya memantau; tidak mengirim order.</p></div>
+  <div class="glass rounded-2xl p-4 mt-4"><div class="flex justify-between items-center gap-2 mb-3"><div><h3 class="font-bold text-sm">Monitoring upload & analisis customer</h3><p class="muted text-[10px] mt-1">Rekap 30 hari terakhir.</p></div><button class="btn border border-cyan-700 text-cyan-200" onclick="loadAdminUsage()">Refresh</button></div><div class="grid grid-cols-3 gap-2 mb-3 text-center"><div class="bg-slate-950/60 rounded-lg p-3"><b id="admUploadTotal" class="text-xl">—</b><div class="muted text-[9px]">Upload</div></div><div class="bg-slate-950/60 rounded-lg p-3"><b id="admAnalysisSuccess" class="text-xl text-emerald-300">—</b><div class="muted text-[9px]">Berhasil</div></div><div class="bg-slate-950/60 rounded-lg p-3"><b id="admAnalysisFailed" class="text-xl text-rose-300">—</b><div class="muted text-[9px]">Gagal</div></div></div><div id="adminUsageRows" class="space-y-2"><p class="muted text-xs">Memuat aktivitas customer...</p></div></div>
   <div class="grid lg:grid-cols-2 gap-4">
    <div class="glass rounded-2xl p-4"><div class="flex justify-between items-center mb-3"><h3 class="font-bold text-sm">Kelola paket</h3><span class="pill">Supabase</span></div><div id="adminPlans" class="space-y-2"><p class="muted text-xs">Memuat paket...</p></div><p class="muted text-[10px] mt-3">Harga dalam Rupiah. Perubahan disimpan ke tabel plans jika kebijakan database mengizinkan.</p></div>
    <div class="glass rounded-2xl p-4"><div class="flex justify-between items-center mb-3"><h3 class="font-bold text-sm">Verifikasi pembayaran</h3><span class="pill">Manual DANA</span></div><div id="adminPayments" class="space-y-2"><p class="muted text-xs">Memuat bukti pembayaran...</p></div><p class="muted text-[10px] mt-3">Pratinjau bukti tersedia di sini. Tombol setujui/tolak memerlukan Edge Function admin-approve-payment yang aman dan sudah di-deploy.</p></div>
@@ -424,6 +427,14 @@ function setAuthUI(user, role='customer'){
  if(user){out.classList.add('hidden');inside.classList.remove('hidden');document.getElementById('signedInEmail').textContent=user.email||'Akun aktif';document.getElementById('signedInRole').textContent=role==='owner'?'Super Admin':role==='admin'?'Admin':'Customer';}
  else {inside.classList.add('hidden');out.classList.remove('hidden');}
 }
+async function refreshUploadStats(){
+ const els=['uploadCount30d','analysisSuccess30d','analysisFailed30d'].map(id=>document.getElementById(id));if(els.some(x=>!x))return;
+ try{const {data:{session}}=await supabaseClient.auth.getSession();if(!session){els.forEach(x=>x.textContent='—');return}
+ const since=new Date(Date.now()-30*86400000).toISOString();
+ const {data,error}=await supabaseClient.from('chart_uploads').select('status').eq('user_id',session.user.id).gte('created_at',since);if(error)throw error;
+ const rows=data||[];els[0].textContent=String(rows.length);els[1].textContent=String(rows.filter(x=>x.status==='success').length);els[2].textContent=String(rows.filter(x=>x.status==='failed').length);
+ }catch(e){console.error('upload stats',e);els.forEach(x=>x.textContent='—')}
+}
 async function refreshAnalysisQuota(){
  const value=document.getElementById('analysisQuotaValue'),plan=document.getElementById('analysisQuotaPlan'),bar=document.getElementById('analysisQuotaBar');
  if(!value||!plan||!bar)return;
@@ -481,6 +492,7 @@ async function refreshAuth(){
  setAuthUI(session.user,role);
  await refreshAnalysisQuota();
  await loadAnalysisHistory();
+ await refreshUploadStats();
 }
 async function signIn(){
  if(!supabaseClient)return authMessage('Koneksi Supabase belum tersedia.',true);
@@ -549,6 +561,9 @@ async function loadAdminMT5Devices(){
   }).join('')||'<p class="muted text-xs">Belum ada terminal MT5 yang dipasangkan.</p>';
  }catch(e){host.innerHTML='<p class="text-rose-300 text-xs">Monitoring MT5 gagal dimuat: '+escapeHtml(e.message||'Kesalahan')+'</p>';}
 }
+async function loadAdminUsage(){
+ try{await adminCheck();const since=new Date(Date.now()-30*86400000).toISOString();const {data,error}=await supabaseClient.from('chart_uploads').select('id,user_id,asset,timeframe,file_name,status,error_message,created_at').gte('created_at',since).order('created_at',{ascending:false}).limit(200);if(error)throw error;const rows=data||[];const put=(id,v)=>{const x=document.getElementById(id);if(x)x.textContent=String(v)};put('admUploadTotal',rows.length);put('admAnalysisSuccess',rows.filter(x=>x.status==='success').length);put('admAnalysisFailed',rows.filter(x=>x.status==='failed').length);const host=document.getElementById('adminUsageRows');if(host)host.innerHTML=rows.length?rows.map(x=>'<div class="rounded-lg bg-slate-950/60 border border-slate-800 p-3"><div class="flex justify-between gap-2"><b class="text-xs">'+escapeHtml(x.asset)+' · '+escapeHtml(x.timeframe)+'</b><span class="text-[10px] '+(x.status==='success'?'text-emerald-300':x.status==='failed'?'text-rose-300':'text-amber-300')+'">'+escapeHtml(x.status.toUpperCase())+'</span></div><div class="muted text-[10px] mt-1">User: '+escapeHtml(x.user_id)+' · '+new Date(x.created_at).toLocaleString('id-ID')+'</div><div class="muted text-[10px]">'+escapeHtml(x.file_name||'Chart upload')+(x.error_message?' · '+escapeHtml(x.error_message):'')+'</div></div>').join(''):'<p class="muted text-xs">Belum ada aktivitas upload dalam 30 hari terakhir.</p>';}catch(e){const host=document.getElementById('adminUsageRows');if(host)host.textContent='Gagal memuat aktivitas: '+(e.message||'Kesalahan');console.error(e)}
+}
 async function loadAdminData(){
  try{await adminCheck();document.getElementById('adminNotice').textContent='Akses terverifikasi sebagai '+currentRole+'. Data diambil langsung dari Supabase.';
  const [u,p,pay,sub,ann]=await Promise.all([
@@ -568,6 +583,7 @@ async function loadAdminData(){
  document.getElementById('adminSubscriptions').innerHTML=sub.data.map(x=>`<div class="text-[10px] border-b border-slate-800 pb-2"><b>${escapeHtml(x.status)}</b> · ${escapeHtml(x.user_id)}<div class="muted">Berakhir: ${x.ends_at?new Date(x.ends_at).toLocaleDateString('id-ID'):'—'}</div></div>`).join('')||'<p class="muted text-xs">Belum ada langganan.</p>';
  document.getElementById('adminAnnouncements').innerHTML=ann.data.map(x=>`<div class="bg-slate-950/60 rounded-lg p-2"><b class="text-xs">${escapeHtml(x.title)}</b><div class="muted text-[10px]">${x.is_published?'Terbit':'Draft'}</div></div>`).join('');
  await loadAdminMT5Devices();
+ await loadAdminUsage();
  }catch(e){document.getElementById('adminNotice').textContent='Gagal memuat panel: '+(e.message||'Kesalahan tidak diketahui');toast('Panel admin belum dapat memuat semua data. Periksa RLS dan tabel Supabase.');console.error(e)}
 }
 async function editPlan(id,price,quota,active){try{await adminCheck();let np=prompt('Harga baru dalam Rupiah:',String(price));if(np===null)return;let nq=prompt('Kuota analisis baru:',String(quota));if(nq===null)return;if(!/^\d+$/.test(np)||!/^\d+$/.test(nq))return toast('Harga dan kuota harus berupa angka bulat.');const {error}=await supabaseClient.from('plans').update({price_idr:Number(np),analysis_quota:Number(nq)}).eq('id',id);if(error)throw error;toast('Paket berhasil diperbarui.');loadAdminData()}catch(e){toast('Gagal mengubah paket: '+e.message)}}
@@ -654,7 +670,14 @@ async function loadPlans(){
   if(data.length===1)choosePlan(data[0]);
  }catch(e){console.error('Plans not loaded:',e);container.innerHTML=`<p class="text-rose-300 text-xs">Gagal memuat paket: ${escapeHtml(e.message||'Kesalahan database')}</p>`;}
 }
-document.getElementById('chartFile').addEventListener('change',e=>{let f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('File harus berupa gambar chart.');return}let r=new FileReader();r.onload=()=>{document.getElementById('previewImage').src=r.result;document.getElementById('preview').classList.remove('hidden')};r.readAsDataURL(f)});
+window.currentChartUploadId=null;
+document.getElementById('chartFile').addEventListener('change',async e=>{
+ let f=e.target.files[0];if(!f)return;if(!f.type.startsWith('image/')){toast('File harus berupa gambar chart.');return}
+ window.currentChartUploadId=null;
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(session){const {data:row,error}=await supabaseClient.from('chart_uploads').insert({user_id:session.user.id,asset:document.getElementById('asset').value.split(/[—–-]/)[0].trim().toUpperCase(),timeframe:document.getElementById('timeframe').value,file_name:String(f.name||'chart').slice(0,180),status:'uploaded'}).select('id').single();if(error){console.error('upload tracking',error);toast('Chart terunggah, tetapi pencatatan aktivitas gagal.')}else window.currentChartUploadId=row.id;await refreshUploadStats();}
+ let r=new FileReader();r.onload=()=>{document.getElementById('previewImage').src=r.result;document.getElementById('preview').classList.remove('hidden')};r.readAsDataURL(f);
+});
 
 let marketRefreshTimer=null, marketHub=null, marketRequestInFlight=false, marketHasLoaded=false;
 const RITELAI_SYMBOLS=['XAUUSD','BTCUSD','EURUSD','GBPUSD','USDJPY','US30'];
@@ -1103,24 +1126,17 @@ async function requestAnalysis(){
    putSummary('summarySR',r.support_resistance);
    putSummary('summaryIndicators',[r.rsi,r.macd].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
    putSummary('summaryVolatility',[r.volume,r.volatility].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
-   const {error:historySaveError}=await supabaseClient.from('analysis_history').insert({
-    user_id:session.user.id,
-    asset:document.getElementById('asset').value,
-    timeframe:document.getElementById('timeframe').value,
-    result:r
-   });
-   if(historySaveError){
-    console.error('Simpan riwayat analisis',historySaveError);
-    toast('Analisis selesai, tetapi riwayat gagal disimpan: '+historySaveError.message);
-   }else{
-    toast('Analisis chart selesai dan tersimpan di riwayat.');
-   }
+   toast('Analisis chart selesai dan tersimpan di riwayat.');
+   if(window.currentChartUploadId){await supabaseClient.from('chart_uploads').update({status:'success',completed_at:new Date().toISOString(),error_message:null}).eq('id',window.currentChartUploadId);window.currentChartUploadId=null;}
    await refreshAnalysisQuota();
    await loadAnalysisHistory();
+   await refreshUploadStats();
   }catch(e){
    console.error(e);
+   if(window.currentChartUploadId){await supabaseClient.from('chart_uploads').update({status:'failed',completed_at:new Date().toISOString(),error_message:String(e.message||'Analisis gagal').slice(0,500)}).eq('id',window.currentChartUploadId);window.currentChartUploadId=null;}
    resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
    toast('Analisis gagal. Lihat pesan pada panel hasil.');
+   await refreshUploadStats();
   }
  };
  reader.readAsDataURL(file);
