@@ -1057,45 +1057,50 @@ function setupQuotePrice(q){
  if(!q)return null;
  const n=Number(q.last??q.mid??(q.bid!=null&&q.ask!=null?(Number(q.bid)+Number(q.ask))/2:NaN));
  if(!Number.isFinite(n))return null;
- const t=q.time?Date.parse(q.time):NaN;
+ const t=marketTickTime(q);
  if(!Number.isFinite(t)||Date.now()-t>180000||t>Date.now()+60000)return null;
  return n;
 }
+function setupPipSize(asset){
+ return ({XAUUSD:0.01,BTCUSD:1,EURUSD:0.0001,GBPUSD:0.0001,USDJPY:0.01,US30:1})[asset]||null;
+}
 function evaluateActiveSetup(){
- if(!activeChartSetup||activeChartSetup.status!=='FRESH')return;
- const q=window.ritelaiLiveQuotes?.[activeChartSetup.asset];
- const price=setupQuotePrice(q);
- if(price===null)return;
- const sl=activeChartSetup.stopLoss;
- if(sl===null)return;
- const broken=(activeChartSetup.signal==='BUY'&&price<=sl)||(activeChartSetup.signal==='SELL'&&price>=sl);
- if(broken){
-  activeChartSetup.status='INVALIDATED';
-  activeChartSetup.reason='Harga live menyentuh/melewati Stop Loss rencana.';
-  renderSetupValidity();
+ if(!activeChartSetup)return;
+ const s=activeChartSetup,q=window.ritelaiLiveQuotes?.[s.asset],price=setupQuotePrice(q);
+ s.livePrice=price;
+ if(s.status==='FRESH'&&price!==null&&s.stopLoss!==null){
+  const broken=(s.signal==='BUY'&&price<=s.stopLoss)||(s.signal==='SELL'&&price>=s.stopLoss);
+  if(broken){s.status='INVALIDATED';s.reason='Harga live menyentuh/melewati Stop Loss rencana. Jangan entry; lakukan analisis ulang.';}
  }
+ renderSetupValidity();
 }
 function renderSetupValidity(){
  const host=document.getElementById('setupValidityCard');
  if(!host||!activeChartSetup)return;
- const s=activeChartSetup;
- const remaining=Math.max(0,s.expiresAt-Date.now());
- if(s.status==='FRESH'&&remaining<=0){s.status='EXPIRED';s.reason='Batas waktu setup telah habis. Jalankan analisis ulang sebelum mempertimbangkan entry.';}
+ const s=activeChartSetup,remaining=Math.max(0,s.expiresAt-Date.now());
+ if(s.status==='FRESH'&&remaining<=0){s.status='EXPIRED';s.reason='Masa berlaku setup berakhir. Upload/analisis ulang sebelum mempertimbangkan entry.';}
  if(s.status!=='FRESH'&&setupValidityTimer){clearInterval(setupValidityTimer);setupValidityTimer=null;}
- const badge=s.status==='FRESH'?'<span class="pill text-emerald-300">FRESH</span>':s.status==='EXPIRED'?'<span class="pill text-amber-200">EXPIRED</span>':s.status==='WAIT'?'<span class="pill">WAIT · NO ACTIVE SETUP</span>':'<span class="pill text-rose-300">INVALIDATED</span>';
+ const q=window.ritelaiLiveQuotes?.[s.asset],price=setupQuotePrice(q),pipSize=setupPipSize(s.asset);
+ const pips=price!==null&&s.entryPrice!==null&&pipSize?((s.signal==='BUY'?price-s.entryPrice:s.entryPrice-price)/pipSize):null;
+ const pipsText=pips===null?'—':(pips>=0?'+':'')+pips.toFixed(1)+' pips';
+ const pipsTone=pips===null?'text-slate-300':pips>=0?'text-emerald-300':'text-rose-300';
+ const badge=s.status==='FRESH'?'<span class="pill text-emerald-300">VALID · ENTRY TERKONFIRMASI</span>':s.status==='EXPIRED'?'<span class="pill text-amber-200">EXPIRED</span>':s.status==='WAIT'?'<span class="pill text-amber-200">WAIT · NO ENTRY</span>':s.status==='RECONFIRM'?'<span class="pill text-amber-200">RECONFIRM</span>':'<span class="pill text-rose-300">INVALID</span>';
  const timer=s.status==='FRESH'?Math.floor(remaining/60000)+'m '+Math.floor((remaining%60000)/1000)+'s':'—';
- const message=s.status==='FRESH'?'Zona masih dalam masa berlaku. Tetap tunggu konfirmasi entry dan pastikan harga feed terbaru.':s.status==='WAIT'?'AI belum memberikan setup BUY/SELL yang aktif. Jangan gunakan zona entry sampai ada analisis baru yang terkonfirmasi.':s.reason;
- const tone=s.status==='FRESH'?'text-emerald-200':s.status==='EXPIRED'?'text-amber-200':s.status==='WAIT'?'text-slate-300':'text-rose-200';
- host.innerHTML='<div class="flex items-center justify-between gap-2"><b class="text-xs">SMART SETUP VALIDITY</b>'+badge+'</div><div class="grid grid-cols-2 gap-3 mt-3"><div><div class="muted text-[10px]">SISA MASA BERLAKU</div><b class="text-lg tabular-nums">'+timer+'</b></div><div><div class="muted text-[10px]">BATAS WAKTU</div><b class="text-xs">'+new Date(s.expiresAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB</b></div></div><p class="text-xs mt-3 '+tone+'">'+message+'</p><p class="muted text-[10px] mt-2">Dianalisis '+new Date(s.createdAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB · '+(s.asset||'Instrumen tidak diketahui')+' · '+s.timeframe+' · '+s.duration+' menit</p>'+(s.status==='EXPIRED'||s.status==='INVALIDATED'?'<button class="btn primary mt-3 w-full" onclick="requestAnalysis()">Analisis ulang chart</button>':'');
+ const message=s.status==='FRESH'?'Candle terakhir sudah close, data OHLC tersedia, dan syarat entry pada skenario terpenuhi. Tetap verifikasi harga broker sebelum mengambil keputusan.':s.status==='WAIT'?'Chart terbaca, tetapi candle/indikator/pemicu entry belum memenuhi syarat. Jangan entry; tunggu candle close dan konfirmasi ulang.':s.status==='RECONFIRM'?'Data candle tertutup tidak tersedia atau sudah stale. Jangan entry; tunggu feed OHLC terbaru lalu analisis ulang.':s.reason||'Setup tidak valid. Jangan entry.';
+ const tone=s.status==='FRESH'?'text-emerald-200':s.status==='INVALIDATED'?'text-rose-200':'text-amber-200';
+ const liveLabel=price===null?'Menunggu tick live':price.toLocaleString('en-US',{maximumFractionDigits:8});
+ host.innerHTML='<div class="flex items-center justify-between gap-2"><b class="text-xs">CHART VALIDITY & LIVE PIPS</b>'+badge+'</div><div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3"><div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">RUNNING DARI ENTRY RENCANA</div><b class="text-xl '+pipsTone+' tabular-nums">'+(s.status==='FRESH'?pipsText:'—')+'</b><div class="muted text-[9px] mt-1">Bukan profit akun aktual</div></div><div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">HARGA LIVE</div><b class="text-sm tabular-nums">'+liveLabel+'</b><div class="muted text-[9px] mt-1">'+(price!==null?'BiQuote MT5 · tick terbaru':'Feed belum tersedia/stale')+'</div></div><div class="rounded-lg bg-slate-900 p-3"><div class="muted text-[10px]">ENTRY RENCANA</div><b class="text-sm tabular-nums">'+(s.entryPrice===null?'Belum tersedia':s.entryPrice)+'</b><div class="muted text-[9px] mt-1">'+s.signal+'</div></div></div><div class="grid grid-cols-2 gap-3 mt-3"><div><div class="muted text-[10px]">SISA MASA BERLAKU</div><b class="text-sm tabular-nums">'+timer+'</b></div><div><div class="muted text-[10px]">BATAS WAKTU</div><b class="text-xs">'+new Date(s.expiresAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB</b></div></div><p class="text-xs mt-3 '+tone+'">'+message+'</p><p class="muted text-[10px] mt-2">Candle terakhir: '+(s.lastClosedBarAt?new Date(s.lastClosedBarAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB':'Tidak tersedia')+' · Dianalisis '+new Date(s.createdAt).toLocaleString("id-ID",{timeZone:"Asia/Jakarta"})+' WIB · '+(s.asset||'Instrumen tidak diketahui')+' · '+s.timeframe+'</p>'+(s.status!=='FRESH'?'<button class="btn primary mt-3 w-full" onclick="requestAnalysis()">Analisis ulang / konfirmasi chart</button>':'');
 }
 function startSetupValidity(result){
  if(setupValidityTimer)clearInterval(setupValidityTimer);
- const signal=String(result.signal||'WAIT').toUpperCase();
- const asset=setupAssetKey(),tf=document.getElementById('timeframe')?.value||'M15',duration=setupDurationMinutes();
+ const signal=String(result.signal||'WAIT').toUpperCase(),asset=setupAssetKey(),tf=document.getElementById('timeframe')?.value||'M15',duration=setupDurationMinutes();
  const scenario=signal==='BUY'?result.scenario_buy:signal==='SELL'?result.scenario_sell:null;
- const stopLoss=setupNumber(scenario?.stop_loss??result.stop_loss);
- const now=Date.now();
- activeChartSetup={signal,asset,stopLoss,timeframe:tf,duration,createdAt:now,expiresAt:now+duration*60000,status:(['BUY','SELL'].includes(signal)?'FRESH':'WAIT'),reason:''};
+ const entryPrice=setupNumber(scenario?.entry_price??result.entry),stopLoss=setupNumber(scenario?.stop_loss??result.stop_loss),tp=setupNumber(scenario?.take_profit_1??result.take_profit_1??result.take_profit),rr=setupNumber(scenario?.risk_reward??result.risk_reward);
+ const md=result.market_data||{},barTime=md.last_closed_bar_at?Date.parse(md.last_closed_bar_at):NaN,tfMs=({M1:60000,M5:300000,M15:900000,M30:1800000,H1:3600000,H4:14400000,D1:86400000})[tf]||900000;
+ const candleFresh=md.status==='AVAILABLE'&&Number(md.closed_bars)>=50&&Number.isFinite(barTime)&&barTime<=Date.now()+60000&&Date.now()-barTime<=tfMs*3;
+ const entryReady=/^(READY|ENTRY_READY)$/i.test(String(result.entry_readiness||'')),rrValid=entryPrice!==null&&stopLoss!==null&&tp!==null&&rr!==null&&rr>=1.5;
+ const now=Date.now(),baseStatus=!candleFresh?'RECONFIRM':signal==='WAIT'?'WAIT':!['BUY','SELL'].includes(signal)?'INVALID':!rrValid&&scenario?.setup_status==='NOT_VALID'?'INVALID':!entryReady||!rrValid?'WAIT':'FRESH';
+ activeChartSetup={signal,asset,entryPrice,stopLoss,timeframe:tf,duration,createdAt:now,expiresAt:now+duration*60000,status:baseStatus,reason:baseStatus==='RECONFIRM'?'Candle tertutup belum tersedia atau data OHLC sudah stale.':baseStatus==='INVALID'?'Level entry, SL, TP atau risk/reward tidak valid.':baseStatus==='WAIT'?'Menunggu candle close atau konfirmasi entry; jangan entry dahulu.':'',lastClosedBarAt:Number.isFinite(barTime)?barTime:null,livePrice:null};
  renderSetupValidity();
  if(activeChartSetup.status==='FRESH')setupValidityTimer=setInterval(()=>{evaluateActiveSetup();renderSetupValidity();},1000);
 }
