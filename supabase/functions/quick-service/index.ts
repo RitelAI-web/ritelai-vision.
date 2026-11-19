@@ -133,6 +133,7 @@ async function getCalendar() {
     if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings|jobless claims|initial claims|continuing claims/.test(n)) return "NFP";
     if (/consumer price|consumer inflation|cpi|core inflation/.test(n)) return "CPI";
     if (/producer price|producer inflation|ppi/.test(n)) return "PPI";
+    if (/gdp|gross domestic product/.test(n)) return "GDP";
     if (/fomc|federal reserve|fed funds|interest rate decision|policy rate|federal funds rate|monetary policy statement|fed chair/.test(n)) return "FOMC";
     if (/crude oil|oil inventories|petroleum|opec|brent|wti/.test(n)) return "OIL";
     return "";
@@ -197,7 +198,7 @@ async function getCalendar() {
       importanceLevel: event.importance ?? "unknown",
       historicalReleases: (historyByCategory.get(categoryOf(event.name ?? event.title ?? event.event)) || []).slice(-6),
     }))
-    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
+    .filter((event: AnyRecord) => { const n=String(event.name||"").toLowerCase(); return /non.?farm|payroll|unemployment|employment situation|consumer price|cpi|producer price|ppi|gdp|gross domestic product|fomc|federal reserve|fed funds|interest rate decision|policy rate/.test(n); })
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
   return Object.assign(events, { pastReleases });
 }
@@ -310,7 +311,9 @@ function compareCalendarValues(event: AnyRecord): AnyRecord {
 function mergeCalendarEvents(providerEvents: AnyRecord[], officialEvents: AnyRecord[]): AnyRecord[] {
   const merged = new Map<string, AnyRecord>();
   for (const event of [...providerEvents, ...officialEvents]) {
-    const key = `${String(event.name ?? event.title ?? "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim()}|${Date.parse(event.time)}`;
+    const normalizedName=String(event.name??event.title??"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    // Provider GDP consensus and the official BEA schedule are one event even when labels differ.
+    const key=/gdp|gross domestic product/.test(normalizedName)?`gdp|${Date.parse(event.time)}`:`${normalizedName}|${Date.parse(event.time)}`;
     const prior = merged.get(key);
     if (!prior) {
       merged.set(key, compareCalendarValues(event));
