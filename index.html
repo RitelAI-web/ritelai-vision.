@@ -150,7 +150,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
     <label class="text-[11px] muted block mb-1.5">Unggah screenshot chart</label>
     <input id="chartFile" type="file" accept="image/*" class="field mb-3">
     <div id="preview" class="hidden mb-3 rounded-xl overflow-hidden border border-slate-700"><img id="previewImage" class="max-h-56 w-full object-contain bg-slate-950" alt="Pratinjau chart"></div>
-    <div class="grid grid-cols-2 gap-2 mb-3"><div><label class="text-[11px] muted block mb-1.5">Modal akun (USD)</label><input id="balance" type="number" min="0" value="1000" class="field"></div><div><label class="text-[11px] muted block mb-1.5">Risiko per transaksi (%)</label><input id="risk" type="number" min=".1" max="2" step=".1" value="1" class="field"></div></div>
+    <div class="grid grid-cols-2 gap-2 mb-3"><div><label class="text-[11px] muted block mb-1.5">Modal akun (USD)</label><input id="balance" type="number" min="0" value="1000" class="field"></div><div><label class="text-[11px] muted block mb-1.5">Risiko per transaksi (%)</label><input id="risk" type="number" min=".1" max=".5" step=".1" value=".5" class="field"></div></div>
     <div id="analysisQuotaCard" class="rounded-xl border border-cyan-800/50 bg-cyan-950/20 p-3 mb-3">
      <div class="flex items-center justify-between gap-2"><span class="text-[11px] muted">Sisa kuota analisis</span><b id="analysisQuotaValue" class="text-sm text-cyan-200">Memuat...</b></div>
      <div class="h-1.5 rounded-full bg-slate-800 mt-2 overflow-hidden"><div id="analysisQuotaBar" class="h-full bg-cyan-400 rounded-full" style="width:0%"></div></div>
@@ -234,7 +234,7 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
     <svg viewBox="0 0 560 150" role="img" aria-label="Ilustrasi pengaturan modal dan risiko" class="w-full rounded-xl bg-slate-950/70 border border-slate-800">
      <rect x="18" y="18" width="245" height="112" rx="10" fill="#102238" stroke="#31506c"/><text x="34" y="44" fill="#9fb5cc" font-size="13">MODAL AKUN (USD)</text><rect x="34" y="55" width="210" height="30" rx="6" fill="#071321" stroke="#2c536d"/><text x="48" y="76" fill="white" font-size="16">1,000</text><text x="292" y="44" fill="#9fb5cc" font-size="13">RISIKO PER TRANSAKSI</text><rect x="292" y="55" width="220" height="30" rx="6" fill="#071321" stroke="#2c536d"/><text x="306" y="76" fill="#67e8f9" font-size="16">1.0%</text><rect x="292" y="101" width="220" height="8" rx="4" fill="#1e3a52"/><rect x="292" y="101" width="55" height="8" rx="4" fill="#22d3ee"/>
     </svg>
-    <p class="muted text-xs mt-3">Masukkan modal dan risiko sesuai batas pribadi. Form membatasi risiko sampai 2%. Angka ini bukan jaminan kerugian maksimum; spread, slippage, gap, dan ukuran posisi tetap berpengaruh.</p>
+    <p class="muted text-xs mt-3">Masukkan modal dan risiko sesuai batas pribadi. Form membatasi risiko sampai 0,5% per transaksi. Jika ukuran lot minimum broker membuat risiko ini tidak dapat dipenuhi, jangan memaksakan entry. Spread, slippage, gap, dan eksekusi tetap dapat menambah kerugian.</p>
    </article>
    <article class="glass rounded-2xl p-4 md:p-5">
     <div class="flex items-center gap-2 mb-3"><span class="pill">04 · Analisis</span><h3 class="font-bold text-sm">Kirim dan baca hasil</h3></div>
@@ -1001,7 +1001,7 @@ async function requestAnalysis(){
  if(!file){toast('Silakan unggah screenshot chart terlebih dahulu.');return}
  if(!supabaseClient){toast('Koneksi Supabase belum siap.');return}
  const risk=Number(document.getElementById('risk').value);
- if(!Number.isFinite(risk)||risk<=0||risk>2){toast('Risiko harus di atas 0% dan maksimal 2%.');return}
+ if(!Number.isFinite(risk)||risk<=0||risk>0.5){toast('Risiko harus di atas 0% dan maksimal 0,5%.');return}
  const {data:{session}}=await supabaseClient.auth.getSession();
  if(!session){toast('Silakan login terlebih dahulu.');openModal('accountModal');return}
  if(file.size>6*1024*1024){toast('Ukuran gambar maksimal 6 MB.');return}
