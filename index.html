@@ -181,7 +181,29 @@ main>section.relative.overflow-hidden [aria-hidden="true"]{pointer-events:none!i
    <div id="marketUpdated" class="muted text-[10px] mt-3">Belum memuat data.</div>
    <div class="flex flex-wrap items-center gap-2 mt-2 text-[10px]"><span id="marketConnectionStatus" class="pill">Menghubungkan...</span><span class="muted">Harga diperbarui saat tick diterima; kalender diperiksa berkala.</span></div>
    <div id="marketWarnings" class="hidden rounded-lg border border-amber-800/60 bg-amber-950/20 text-amber-200 p-3 mt-3 text-[11px] leading-5"></div>
-   <h3 class="font-bold text-xs mt-5 mb-2">Harga pasar live</h3><div id="marketQuotes" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-2"><div class="bg-slate-950/60 border border-slate-800 rounded-xl p-4 muted text-xs">Menghubungkan feed harga...</div></div>
+   <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/70 p-3">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-3"><div><h3 class="font-bold text-sm">Live Market Terminal · MT5 Style</h3><p class="muted text-[10px] mt-1">Chart TradingView · harga Bid/Ask dari streaming tick BiQuote MT5</p></div><span id="marketChartSource" class="pill">Chart: TradingView</span></div>
+    <div class="flex flex-wrap gap-2 mb-3" id="marketChartSymbols">
+     <button type="button" class="calendar-month-btn active" data-symbol="XAUUSD" onclick="setMarketChartSymbol('XAUUSD')">XAUUSD</button>
+     <button type="button" class="calendar-month-btn" data-symbol="BTCUSD" onclick="setMarketChartSymbol('BTCUSD')">BTCUSD</button>
+     <button type="button" class="calendar-month-btn" data-symbol="EURUSD" onclick="setMarketChartSymbol('EURUSD')">EURUSD</button>
+     <button type="button" class="calendar-month-btn" data-symbol="GBPUSD" onclick="setMarketChartSymbol('GBPUSD')">GBPUSD</button>
+     <button type="button" class="calendar-month-btn" data-symbol="USDJPY" onclick="setMarketChartSymbol('USDJPY')">USDJPY</button>
+     <button type="button" class="calendar-month-btn" data-symbol="US30" onclick="setMarketChartSymbol('US30')">US30</button>
+    </div>
+    <div class="flex flex-wrap gap-2 mb-3" id="marketChartIntervals">
+     <button type="button" class="calendar-month-btn" data-interval="1" onclick="setMarketChartInterval('1')">M1</button>
+     <button type="button" class="calendar-month-btn active" data-interval="5" onclick="setMarketChartInterval('5')">M5</button>
+     <button type="button" class="calendar-month-btn" data-interval="15" onclick="setMarketChartInterval('15')">M15</button>
+     <button type="button" class="calendar-month-btn" data-interval="30" onclick="setMarketChartInterval('30')">M30</button>
+     <button type="button" class="calendar-month-btn" data-interval="60" onclick="setMarketChartInterval('60')">H1</button>
+     <button type="button" class="calendar-month-btn" data-interval="240" onclick="setMarketChartInterval('240')">H4</button>
+     <button type="button" class="calendar-month-btn" data-interval="D" onclick="setMarketChartInterval('D')">D1</button>
+    </div>
+    <div id="marketTradingViewChart" class="w-full overflow-hidden rounded-lg border border-slate-800 bg-[#0b1220]" style="height:420px"><div class="h-full flex items-center justify-center muted text-xs">Memuat chart pasar...</div></div>
+    <div class="mt-4 flex flex-wrap items-center justify-between gap-2"><h4 class="font-bold text-xs">Market Watch · Live Bid / Ask</h4><span class="text-[10px] muted">Pilih instrumen untuk mengganti chart</span></div>
+    <div id="marketQuotes" class="grid grid-cols-2 lg:grid-cols-3 gap-2 mt-2"><div class="bg-slate-950/60 border border-slate-800 rounded-xl p-3 muted text-xs col-span-2">Menghubungkan feed harga...</div></div>
+   </div>
    <div class="border-t border-slate-800 mt-5 pt-4"><div class="flex flex-wrap justify-between items-center gap-2"><div><h3 class="font-bold text-sm">Smart News Trading Signal · Semua News</h3><p class="muted text-[10px] mt-1">Prioritas berita berdampak tinggi: NFP, FOMC, CPI, dan PPI. Agenda lampau dipindahkan ke News History untuk perbandingan rilis sebelumnya.</p></div><span id="calendarStatus" class="pill">Memuat jadwal...</span></div>
     <div class="flex flex-wrap gap-2 mt-3 text-[10px]"><span class="pill">Waktu Asia/Jakarta (WIB)</span><span class="pill">Semua tingkat dampak · HIGH diprioritaskan</span><span class="pill">Otomatis diperbarui</span></div>
     <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
@@ -690,8 +712,31 @@ let marketRefreshTimer=null, marketHub=null, marketRequestInFlight=false, market
 const RITELAI_SYMBOLS=['XAUUSD','BTCUSD','EURUSD','GBPUSD','USDJPY','US30'];
 const RITELAI_LABELS={XAUUSD:'Gold (XAU/USD)',BTCUSD:'Bitcoin (BTC/USD)',EURUSD:'EUR/USD',GBPUSD:'GBP/USD',USDJPY:'USD/JPY',US30:'Dow Jones / US30'};
 function marketMoney(v,key){if(v==null||!Number.isFinite(Number(v)))return '—';const digits=key==='BTCUSD'?2:key==='USDJPY'||key==='US30'?3:key==='XAUUSD'?2:5;return Number(v).toLocaleString('en-US',{minimumFractionDigits:digits,maximumFractionDigits:digits});}
-function renderLiveQuotes(quotes){const box=document.getElementById('marketQuotes');if(!box)return;box.innerHTML=RITELAI_SYMBOLS.map(k=>{const q=quotes[k]||{};const p=Number(q.last??q.mid??(q.bid&&q.ask?(Number(q.bid)+Number(q.ask))/2:NaN));const prev=Number(q.previousClose??q.open??NaN);const ch=Number.isFinite(p)&&Number.isFinite(prev)?p-prev:null;const pct=ch!=null&&prev?ch/prev*100:null;const tone=pct==null?'text-slate-300':pct>=0?'text-emerald-300':'text-rose-300';const updated=q.time?new Date(q.time).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'waktu feed tidak tersedia';return `<article class="bg-slate-950/60 border border-slate-800 rounded-xl p-4"><div class="flex justify-between gap-2"><b class="text-xs">${RITELAI_LABELS[k]}</b><span class="text-[9px] text-emerald-300">${q.time?'LIVE TICK':'Menunggu tick'}</span></div><div class="text-xl font-extrabold mt-2">${Number.isFinite(p)?marketMoney(p,k):'—'}</div><div class="text-xs ${tone} mt-1">${pct==null?'Perubahan belum tersedia':`${ch>=0?'+':''}${marketMoney(ch,k)} (${pct>=0?'+':''}${pct.toFixed(2)}%)`}</div><div class="muted text-[9px] mt-2">${updated} WIB · ${q.source||'BiQuote MT5 feed'}${q.bid!=null&&q.ask!=null?` · Bid ${marketMoney(q.bid,k)} / Ask ${marketMoney(q.ask,k)}`:''}</div></article>`}).join('');}
+let selectedMarketChartSymbol='XAUUSD',selectedMarketChartInterval='5',marketChartWidget=null,marketChartScriptLoading=false;
+const MARKET_TV_SYMBOLS={XAUUSD:'OANDA:XAUUSD',BTCUSD:'BINANCE:BTCUSDT',EURUSD:'OANDA:EURUSD',GBPUSD:'OANDA:GBPUSD',USDJPY:'OANDA:USDJPY',US30:'FOREXCOM:DJI'};
+function loadMarketTradingViewChart(){
+ const host=document.getElementById('marketTradingViewChart');if(!host)return;
+ const render=()=>{if(!window.TradingView||!window.TradingView.widget){host.innerHTML='<div class="h-full flex items-center justify-center muted text-xs">Chart belum tersedia. Periksa koneksi internet.</div>';return;}
+ host.innerHTML='<div id="marketTradingViewWidget" style="height:100%;width:100%"></div>';
+ marketChartWidget=new TradingView.widget({autosize:true,symbol:MARKET_TV_SYMBOLS[selectedMarketChartSymbol]||'OANDA:XAUUSD',interval:selectedMarketChartInterval,timezone:'Asia/Jakarta',theme:'dark',style:'1',locale:'id',toolbar_bg:'#0b1220',enable_publishing:false,hide_top_toolbar:false,hide_legend:false,save_image:false,container_id:'marketTradingViewWidget',allow_symbol_change:false,details:true,hotlist:false,calendar:false});
+ };
+ if(window.TradingView){render();return;}
+ if(marketChartScriptLoading)return;marketChartScriptLoading=true;
+ const script=document.createElement('script');script.src='https://s3.tradingview.com/tv.js';script.async=true;script.onload=render;script.onerror=()=>{marketChartScriptLoading=false;host.innerHTML='<div class="h-full flex items-center justify-center muted text-xs">Gagal memuat chart TradingView.</div>';};document.head.appendChild(script);
+}
+function setMarketChartSymbol(symbol){
+ if(!MARKET_TV_SYMBOLS[symbol])return;selectedMarketChartSymbol=symbol;
+ document.querySelectorAll('#marketChartSymbols [data-symbol]').forEach(b=>b.classList.toggle('active',b.dataset.symbol===symbol));
+ loadMarketTradingViewChart();
+}
+function setMarketChartInterval(interval){
+ selectedMarketChartInterval=interval;
+ document.querySelectorAll('#marketChartIntervals [data-interval]').forEach(b=>b.classList.toggle('active',b.dataset.interval===interval));
+ loadMarketTradingViewChart();
+}
+function renderLiveQuotes(quotes){const box=document.getElementById('marketQuotes');if(!box)return;box.innerHTML=RITELAI_SYMBOLS.map(k=>{const q=quotes[k]||{};const p=Number(q.last??q.mid??(q.bid&&q.ask?(Number(q.bid)+Number(q.ask))/2:NaN));const prev=Number(q.previousClose??q.open??NaN);const ch=Number.isFinite(p)&&Number.isFinite(prev)?p-prev:null;const pct=ch!=null&&prev?ch/prev*100:null;const tone=pct==null?'text-slate-300':pct>=0?'text-emerald-300':'text-rose-300';const updated=q.time?new Date(q.time).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}):'Menunggu tick';return `<button type="button" onclick="setMarketChartSymbol('${k}')" class="text-left bg-slate-950/60 border ${selectedMarketChartSymbol===k?'border-cyan-500/70':'border-slate-800'} rounded-xl p-3 hover:border-cyan-500/50"><div class="flex justify-between gap-1"><b class="text-[11px]">${RITELAI_LABELS[k]}</b><span class="text-[9px] text-emerald-300">${q.time?'LIVE':'WAIT'}</span></div><div class="text-lg font-extrabold mt-2">${Number.isFinite(p)?marketMoney(p,k):'—'}</div><div class="text-[10px] ${tone} mt-1">${pct==null?'Perubahan belum tersedia':`${ch>=0?'+':''}${marketMoney(ch,k)} (${pct>=0?'+':''}${pct.toFixed(2)}%)`}</div><div class="muted text-[9px] mt-2">Bid ${q.bid!=null?marketMoney(q.bid,k):'—'} · Ask ${q.ask!=null?marketMoney(q.ask,k):'—'}</div><div class="muted text-[9px] mt-1">${updated} WIB · BiQuote MT5 tick</div></button>`}).join('');}
 async function connectLiveTicks(){if(marketHub||!window.signalR)return;try{marketHub=new signalR.HubConnectionBuilder().withUrl('https://biquote.io/hubs/tick').withAutomaticReconnect().build();marketHub.on('ReceiveTick',tick=>{const k=String(tick.symbol||'').toUpperCase();if(!RITELAI_SYMBOLS.includes(k))return;window.ritelaiLiveQuotes=window.ritelaiLiveQuotes||{};window.ritelaiLiveQuotes[k]={...window.ritelaiLiveQuotes[k],...tick,source:'BiQuote MT5 streaming'};renderLiveQuotes(window.ritelaiLiveQuotes);evaluateActiveSetup();const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Feed harga streaming aktif';s.className='pill text-emerald-300';}});await marketHub.start();await marketHub.invoke('Subscribe',RITELAI_SYMBOLS); }catch(e){console.warn('Live tick stream unavailable:',e);const s=document.getElementById('marketConnectionStatus');if(s){s.textContent='Streaming belum tersedia';s.className='pill text-amber-200';}}}
+loadMarketTradingViewChart();
 let selectedCalendarMonth='all';
 let selectedCalendarImpact='high';
 function calendarMonthKeys(){return Array.from({length:14},(_,i)=>{const d=new Date(Date.UTC(2026,10+i,1));return d.toISOString().slice(0,7);});}
