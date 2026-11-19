@@ -699,16 +699,22 @@ function calendarMonthLabel(key){const [y,m]=key.split('-').map(Number);return n
 let latestCalendarEvents=[];
 function renderNextNewsReminder(){
  const host=document.getElementById('nextNewsReminder');if(!host)return;
- const now=Date.now();
- const next=(Array.isArray(latestCalendarEvents)?latestCalendarEvents:[])
-  .filter(e=>{const t=Date.parse(e.time);return Number.isFinite(t)&&t>now&&String(e.importance||'').toLowerCase()==='high';})
-  .sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))[0];
- if(!next){host.innerHTML='<p class="text-xs muted">Belum ada agenda berdampak tinggi mendatang dari feed kalender.</p>';return;}
- const ms=Date.parse(next.time)-now,total=Math.max(0,Math.floor(ms/1000));
- const hh=String(Math.floor(total/3600)).padStart(2,'0'),mm=String(Math.floor(total%3600/60)).padStart(2,'0'),ss=String(total%60).padStart(2,'0');
- const when=new Date(next.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+ const now=Date.now(),events=Array.isArray(latestCalendarEvents)?latestCalendarEvents:[];
+ const high=events.filter(e=>Number.isFinite(Date.parse(e.time))&&String(e.importance||'').toLowerCase()==='high');
+ const next=high.filter(e=>Date.parse(e.time)>now).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))[0];
  const val=v=>v===null||v===undefined||String(v).trim()===''?'Belum tersedia':escapeHtml(String(v));
- host.innerHTML='<div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-[10px] tracking-wider font-extrabold text-amber-200"><i class="fa-solid fa-bell mr-1"></i> PENGINGAT NEWS BERIKUTNYA · HIGH IMPACT</div><b class="block text-sm text-white mt-1">'+escapeHtml(String(next.name||'Rilis ekonomi'))+'</b><p class="muted text-[10px] mt-1">'+when+' WIB · '+escapeHtml(String(next.currency||next.countryCode||'Market'))+'</p></div><div class="rounded-lg border border-amber-600/40 bg-slate-950/70 px-4 py-2 text-center"><div class="text-[9px] muted">HITUNG MUNDUR</div><b class="font-mono text-xl text-amber-200 tabular-nums">'+hh+':'+mm+':'+ss+'</b></div></div><div class="grid grid-cols-3 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Previous</span><b class="block text-xs mt-1">'+val(next.previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Forecast</span><b class="block text-xs mt-1">'+val(next.forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Actual</span><b class="block text-xs mt-1">'+val(next.actual)+'</b></div></div><p class="text-[10px] text-amber-100/70 mt-2">Pengingat push dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis. Pastikan notifikasi perangkat sudah diaktifkan.</p>';
+ if(!next){
+  const last=high.filter(e=>Date.parse(e.time)<=now).sort((a,b)=>Date.parse(b.time)-Date.parse(a.time))[0];
+  if(!last){host.innerHTML='<p class="text-xs muted">Belum ada agenda HIGH IMPACT mendatang dari feed kalender.</p>';return;}
+  const when=new Date(last.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+  host.innerHTML='<div class="text-[10px] tracking-wider font-extrabold text-emerald-300"><i class="fa-solid fa-check-circle mr-1"></i> WAKTU RILIS TERCAPAI</div><b class="block text-sm text-white mt-1">'+escapeHtml(String(last.name||'Rilis ekonomi'))+'</b><p class="muted text-[10px] mt-1">'+when+' WIB · '+escapeHtml(String(last.currency||last.countryCode||'Market'))+'</p><p class="text-[10px] text-amber-100/80 mt-2">Menunggu pembaruan Actual dari penyedia data. Waktu tercapai tidak berarti hasil rilis sudah terkonfirmasi.</p><div class="grid grid-cols-3 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Previous</span><b class="block text-xs mt-1">'+val(last.previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Forecast</span><b class="block text-xs mt-1">'+val(last.forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Actual</span><b class="block text-xs mt-1">'+val(last.actual)+'</b></div></div>';
+  return;
+ }
+ const total=Math.max(0,Math.floor((Date.parse(next.time)-now)/1000));
+ const days=Math.floor(total/86400),hh=String(Math.floor(total%86400/3600)).padStart(2,'0'),mm=String(Math.floor(total%3600/60)).padStart(2,'0'),ss=String(total%60).padStart(2,'0');
+ const countdown=(days?days+' hari ':'')+hh+':'+mm+':'+ss;
+ const when=new Date(next.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',weekday:'long',day:'2-digit',month:'long',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false});
+ host.innerHTML='<div class="flex flex-wrap items-center justify-between gap-2"><div><div class="text-[10px] tracking-wider font-extrabold text-amber-200"><i class="fa-solid fa-bell mr-1"></i> PENGINGAT NEWS BERIKUTNYA · HIGH IMPACT</div><b class="block text-sm text-white mt-1">'+escapeHtml(String(next.name||'Rilis ekonomi'))+'</b><p class="muted text-[10px] mt-1">'+when+' WIB · '+escapeHtml(String(next.currency||next.countryCode||'Market'))+'</p></div><div class="rounded-lg border border-amber-600/40 bg-slate-950/70 px-4 py-2 text-center"><div class="text-[9px] muted">HITUNG MUNDUR</div><b class="font-mono text-xl text-amber-200 tabular-nums">'+countdown+'</b></div></div><div class="grid grid-cols-3 gap-2 mt-3"><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Previous</span><b class="block text-xs mt-1">'+val(next.previous)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Forecast</span><b class="block text-xs mt-1">'+val(next.forecast)+'</b></div><div class="rounded-lg bg-slate-950/70 p-2"><span class="muted text-[10px]">Actual</span><b class="block text-xs mt-1">'+val(next.actual)+'</b></div></div><p class="text-[10px] text-amber-100/70 mt-2">Hitung mundur diperbarui setiap detik. Pengingat push dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis; notifikasi perangkat memerlukan izin aktif.</p>';
 }
 if(!window.ritelaiNewsCountdownTimer)window.ritelaiNewsCountdownTimer=setInterval(renderNextNewsReminder,1000);
 function setCalendarImpact(impact){
