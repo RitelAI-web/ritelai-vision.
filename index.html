@@ -1488,6 +1488,7 @@ window.addEventListener('DOMContentLoaded',async()=>{
   await refreshAuth();await loadPlans();
   supabaseClient.auth.onAuthStateChange(()=>setTimeout(refreshAuth,0));
   startMarketAutoRefresh();
+  startMarketWatch();loadMarketTradingViewChart();
  }catch(e){console.error(e);toast('Koneksi Supabase gagal diinisialisasi.')}
 });
 </script>
