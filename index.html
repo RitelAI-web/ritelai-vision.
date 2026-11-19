@@ -429,7 +429,7 @@ async function refreshAnalysisQuota(){
  if(!value||!plan||!bar)return;
  try{
   const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){value.textContent='5/5';plan.textContent='Pratinjau paket Gratis · 5 analisis per 30 hari. Login untuk melihat sisa kuota akun.';bar.style.width='100%';bar.className='h-full rounded-full bg-cyan-400';return}
+  if(!session){value.textContent='10/10';plan.textContent='Pratinjau paket Gratis · 10 analisis per 30 hari. Login untuk melihat sisa kuota akun.';bar.style.width='100%';bar.className='h-full rounded-full bg-cyan-400';return}
   const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'quota_status'}});
   if(error||data?.error)throw error||new Error(data.error);
   const q=data.quota||{};
@@ -1103,9 +1103,20 @@ async function requestAnalysis(){
    putSummary('summarySR',r.support_resistance);
    putSummary('summaryIndicators',[r.rsi,r.macd].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
    putSummary('summaryVolatility',[r.volume,r.volatility].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
+   const {error:historySaveError}=await supabaseClient.from('analysis_history').insert({
+    user_id:session.user.id,
+    asset:document.getElementById('asset').value,
+    timeframe:document.getElementById('timeframe').value,
+    result:r
+   });
+   if(historySaveError){
+    console.error('Simpan riwayat analisis',historySaveError);
+    toast('Analisis selesai, tetapi riwayat gagal disimpan: '+historySaveError.message);
+   }else{
+    toast('Analisis chart selesai dan tersimpan di riwayat.');
+   }
    await refreshAnalysisQuota();
    await loadAnalysisHistory();
-   toast('Analisis chart selesai.');
   }catch(e){
    console.error(e);
    resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
