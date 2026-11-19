@@ -466,7 +466,7 @@ async function loadAnalysisHistory(){
   const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'history_list'}});
   if(error)throw error;if(data?.error)throw new Error(data.error);
   const rows=Array.isArray(data?.items)?data.items:[];
-  if(count)count.textContent=rows.length+' analisis';
+  if(count)count.textContent=Number(data?.total??rows.length).toLocaleString('id-ID')+' analisis total';
   if(!rows.length){host.innerHTML='';if(empty)empty.textContent='Belum ada analisis tersimpan untuk akun ini.';return}
   if(empty)empty.textContent='';
   host.innerHTML=rows.map(row=>{
