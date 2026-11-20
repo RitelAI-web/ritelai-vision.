@@ -755,17 +755,7 @@ function renderHistoryCheckpoints(){
  if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi event HIGH IMPACT pada periode ini.</div>';return;}
  host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
 }
-const RITEL_OFFICIAL_NOV_2026=[
- {name:'US CPI (M-o-M) · October 2026',date:'2026-11-10T20:30:00+07:00',actual:'0.4%',forecast:'0.3%',previous:'0.6%',currency:'USD',importance:'HIGH',source:'BLS + Economic Calendar · CPI October 2026'},
- {name:'US PPI (M-o-M) · October 2026',date:'2026-11-13T20:30:00+07:00',actual:'0.3%',forecast:'0.4%',previous:'1.4%',currency:'USD',importance:'HIGH',source:'BLS + Economic Calendar · PPI October 2026'}
-];
-function ritelMergeOfficialReleases(items=[]){
- const merged=(Array.isArray(items)?items:[]).filter(r=>{
-  const day=String(r.date||'').slice(0,10),name=String(r.name||r.category||'');
-  return !((day==='2026-11-10'&&/\bCPI\b/i.test(name))||(day==='2026-11-13'&&/\bPPI\b/i.test(name)));
- });
- return [...merged,...RITEL_OFFICIAL_NOV_2026];
-}
+function ritelMergeOfficialReleases(items=[]){return Array.isArray(items)?items:[];}
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
  const merged=ritelMergeOfficialReleases(items);
@@ -861,8 +851,12 @@ function renderNextNewsReminder(){
  rem.innerHTML='<div class="flex flex-wrap justify-between gap-2"><b class="text-xs text-amber-200">🔔 PENGINGAT NEWS BERIKUTNYA · '+ritelEscape(String(next.importance||'HIGH').toUpperCase())+'</b><span class="text-[10px] muted">'+ritelEscape(next.currency||'USD')+'</span></div><h3 class="font-bold text-base mt-3">'+ritelEscape(next.name)+'</h3><p class="muted text-xs mt-2">'+new Date(t).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB</p><div class="inline-block rounded-xl border border-amber-700/50 bg-slate-950 px-4 py-3 mt-3"><span class="muted text-[10px] block">HITUNG MUNDUR</span><b class="text-2xl tracking-widest text-amber-200 tabular-nums">'+countdown+'</b></div>'+ritelNewsValues(next)+'<div class="mt-3"><b class="text-xs">KEPUTUSAN AI & REASON</b>'+ritelNewsImpactRows(next.ai||{})+'</div><p class="muted text-[10px] mt-3">Pengingat perangkat dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis. Aktifkan izin notifikasi pada perangkat.</p>';
 }
 function ritelIsPriorityHighImpact(e){
- const raw=String(e?.importance||e?.impact||e?.importanceLevel||'').toLowerCase().trim();
- return ['high','high impact','3','3.0','tinggi','red'].includes(raw)||Number(raw)===3;
+ const rawValue=e?.importance??e?.impact??e?.importanceLevel??e?.impactLevel??e?.impact_level??'';
+ const raw=String(typeof rawValue==='object'?(rawValue?.label??rawValue?.name??rawValue?.value??rawValue?.level??''):rawValue).toLowerCase().trim();
+ if(['high','high impact','3','3.0','tinggi','red','3 stars','3-star','three stars'].includes(raw)||Number(raw)===3)return true;
+ if(['medium','med','medium impact','2','2.0','moderate','orange','kuning','low','low impact','1','1.0','rendah','yellow'].includes(raw)||Number(raw)===1||Number(raw)===2)return false;
+ const name=String(e?.name||e?.title||e?.event||e?.category||'').toLowerCase();
+ return /consumer price index|\bcpi\b|producer price index|\bppi\b|non.?farm payroll|\bnfp\b|employment situation|fomc|interest rate decision|fed funds rate|federal funds rate|policy rate decision|gross domestic product|\bgdp\b|personal consumption expenditures|\bpce\b|core inflation|unemployment rate/.test(name);
 }
 function renderEconomicCalendar(){
  const host=document.getElementById('economicCalendar');if(!host)return;
