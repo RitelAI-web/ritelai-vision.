@@ -718,12 +718,17 @@ function renderHistoryMonthTabs(){
 }
 function historyMonthMatch(value){if(ritelHistoryMonth==='all')return true;const t=Date.parse(value||'');return Number.isFinite(t)&&new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)===ritelHistoryMonth;}
 function setHistoryMonth(value){ritelHistoryMonth=value;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
-function renderHistoryCheckpoints(){const host=document.getElementById('newsHistoryItems');if(!host)return;const items=ritelHistoryCheckpoints.filter(x=>historyMonthMatch(x.event_snapshot?.time||x.event_snapshot?.event_time));if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada checkpoint evaluasi untuk periode ini.</div>';return;}host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');}
+function renderHistoryCheckpoints(){
+ const host=document.getElementById('newsHistoryItems');if(!host)return;
+ const items=ritelHistoryCheckpoints.filter(x=>historyMonthMatch(x.event_snapshot?.time||x.event_snapshot?.event_time));
+ if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada checkpoint evaluasi untuk periode ini.</div>';return;}
+ host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
+}
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
  const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)).slice().sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Tidak ada arsip rilis pada periode yang dipilih.</p>';return;}
- host.innerHTML=rows.slice(0,100).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Data arsip aktual dari penyedia kalender. Evaluasi AI historis tidak tersedia pada rekaman ini.'}})).join('');
+ host.innerHTML=rows.slice(0,100).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Data arsip aktual dari penyedia kalender. Keputusan fundamental dihitung dari Actual vs Forecast bila jenis indikator dan kedua nilai tersedia; evaluasi AI historis terpisah tidak tersedia pada rekaman ini.'}})).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
@@ -748,14 +753,41 @@ async function loadNewsHistory(){
 }
 let ritelMacroPastReleases=[];
 let ritelNewsCountdownTimer=null;
-function ritelNewsImpactRows(ai){
+function ritelDerivedNewsDecision(event){
+ const name=String(event?.name||event?.title||event?.category||'').toLowerCase();
+ const actualRaw=event?.actual??event?.actualValue,forecastRaw=event?.forecast??event?.forecastValue;
+ const parse=v=>{
+  if(v===null||v===undefined||v==='')return NaN;
+  const s=String(v).replace(/,/g,'').trim(),m=s.match(/[-+]?\d*\.?\d+/);
+  if(!m)return NaN;
+  let n=Number(m[0]);if(/\bk\b/i.test(s))n*=1000;if(/\bm\b/i.test(s))n*=1000000;
+  return n;
+ };
+ const actual=parse(actualRaw),forecast=parse(forecastRaw);
+ if(!Number.isFinite(actual)||!Number.isFinite(forecast))return{usd:'PENDING',gold:'PENDING',reason:'Actual atau Forecast belum tersedia/berupa angka. Keputusan menunggu data rilis yang terverifikasi.'};
+ const inverse=/unemployment|jobless claims|initial claims|continuing claims|claimant count/.test(name);
+ const known=/cpi|consumer price|ppi|producer price|pce|inflation|non.?farm|payroll|employment change|unemployment|jobless claims|gdp|gross domestic|retail sales|pmi|ism|hourly earnings|wage|interest rate|policy rate/.test(name);
+ if(!known)return{usd:'PENDING',gold:'PENDING',reason:'Jenis indikator belum dikenali untuk menentukan arah USD secara aman. Actual dan Forecast ditampilkan tanpa mengarang keputusan.'};
+ const stronger=actual>forecast, weaker=actual<forecast;
+ const usdGood=inverse?weaker:stronger;
+ const usdBad=inverse?stronger:weaker;
+ if(actual===forecast)return{usd:'NEUTRAL',gold:'NEUTRAL',reason:'Actual sama dengan Forecast; tidak ada kejutan data berdasarkan perbandingan angka.'};
+ const label=inverse?'Indikator tenaga kerja (pengangguran/klaim) lebih rendah biasanya mendukung USD. ':'Untuk indikator ini, Actual yang lebih tinggi dari Forecast biasanya mendukung USD. ';
+ return{usd:usdGood?'BULLISH':'BEARISH',gold:usdGood?'BEARISH':'BULLISH',reason:label+'Actual '+String(actualRaw)+' dibanding Forecast '+String(forecastRaw)+'. Ini pembacaan kejutan fundamental, bukan jaminan pergerakan harga.'};
+}
+function ritelNewsImpactRows(ai,event={}){
  const fb=ai?.fundamentalBias||{};
- const usd=String(fb.usd||'PENDING').toUpperCase(),gold=String(fb.gold||'PENDING').toUpperCase();
- const decision=(usd==='BULLISH'&&gold==='BEARISH')?'GOOD FOR USD → GOLD BEARISH':(usd==='BEARISH'&&gold==='BULLISH')?'BAD FOR USD → GOLD BULLISH':(usd==='PENDING'||gold==='PENDING')?'KEPUTUSAN USD & GOLD BELUM TERSEDIA':'USD '+usd+' · GOLD '+gold;
+ let usd=String(fb.usd||'PENDING').toUpperCase(),gold=String(fb.gold||'PENDING').toUpperCase(),reason=fb.reason||'';
+ if((usd==='PENDING'||gold==='PENDING')&&event){
+  const derived=ritelDerivedNewsDecision(event);
+  if(derived.usd!=='PENDING'){usd=derived.usd;gold=derived.gold;reason=derived.reason;}
+  else if(!reason)reason=derived.reason;
+ }
+ const decision=(usd==='BULLISH'&&gold==='BEARISH')?'GOOD FOR USD → GOLD BEARISH':(usd==='BEARISH'&&gold==='BULLISH')?'BAD FOR USD → GOLD BULLISH':(usd==='PENDING'||gold==='PENDING')?'KEPUTUSAN MENUNGGU DATA / KLASIFIKASI':'USD '+usd+' · GOLD '+gold;
  const decisionTone=usd==='BULLISH'&&gold==='BEARISH'?'text-emerald-200':usd==='BEARISH'&&gold==='BULLISH'?'text-rose-200':'text-amber-200';
- const fundamental='<div class="rounded-xl border border-slate-700 bg-slate-900/90 p-3 mt-3"><span class="muted text-[10px]">KESIMPULAN FUNDAMENTAL USD & GOLD</span><b class="block text-sm mt-1 '+decisionTone+'">'+ritelEscape(decision)+'</b><div class="grid grid-cols-2 gap-2 mt-2"><div><span class="muted text-[10px]">ARAH USD</span><b class="block text-xs mt-1">'+ritelEscape(usd)+'</b></div><div><span class="muted text-[10px]">DAMPAK GOLD</span><b class="block text-xs mt-1">'+ritelEscape(gold)+'</b></div></div><p class="muted text-[10px] mt-2">'+ritelEscape(fb.reason||'Alasan fundamental belum tersedia.')+'</p>'+(fb.confidence!==undefined?'<span class="muted text-[9px]">Confidence fundamental: '+Math.round(Number(fb.confidence)||0)+'%</span>':'')+'</div>';
+ const fundamental='<div class="rounded-xl border border-slate-700 bg-slate-900/90 p-3 mt-3"><span class="muted text-[10px]">KESIMPULAN FUNDAMENTAL USD & GOLD</span><b class="block text-sm mt-1 '+decisionTone+'">'+ritelEscape(decision)+'</b><div class="grid grid-cols-2 gap-2 mt-2"><div><span class="muted text-[10px]">ARAH USD</span><b class="block text-xs mt-1">'+ritelEscape(usd)+'</b></div><div><span class="muted text-[10px]">DAMPAK GOLD</span><b class="block text-xs mt-1">'+ritelEscape(gold)+'</b></div></div><p class="muted text-[10px] mt-2">'+ritelEscape(reason||ai?.reason||'Alasan keputusan belum tersedia.')+'</p>'+(fb.confidence!==undefined?'<span class="muted text-[9px]">Confidence fundamental: '+Math.round(Number(fb.confidence)||0)+'%</span>':'')+'</div>';
  const impacts=Array.isArray(ai?.impacts)?ai.impacts:[];
- if(!impacts.length)return fundamental+'<p class="muted text-xs mt-2">'+ritelEscape(ai?.reason||'Analisis AI belum tersedia. Agenda tetap ditampilkan; keputusan belum dibuat.')+'</p>';
+ if(!impacts.length)return fundamental+'<p class="muted text-xs mt-2">'+ritelEscape(ai?.reason||'Dampak aset per instrumen belum tersedia; kesimpulan di atas hanya evaluasi fundamental berdasarkan data rilis.')+'</p>';
  return fundamental+'<div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3">'+impacts.map(x=>{
   const symbol=ritelEscape(x.symbol||'Market'),bias=String(x.bias||'PENDING').toUpperCase();
   const tone=/BULLISH|BUY/.test(bias)?'text-emerald-300':/BEARISH|SELL/.test(bias)?'text-rose-300':'text-amber-200';
@@ -765,13 +797,13 @@ function ritelNewsImpactRows(ai){
 }
 function ritelNewsValues(e){
  const val=v=>v===null||v===undefined||v===''?'Belum tersedia':ritelEscape(v);
- return '<div class="grid grid-cols-3 gap-2 mt-3"><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Actual</span><b class="block text-sm mt-1 break-words">'+val(e.actual??e.actualValue)+'</b></div><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Forecast</span><b class="block text-sm mt-1 break-words">'+val(e.forecast??e.forecastValue)+'</b></div><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Previous</span><b class="block text-sm mt-1 break-words">'+val(e.previous??e.previousValue)+'</b></div></div>';
+ return '<div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3"><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Actual</span><b class="block text-sm mt-1 break-words">'+val(e.actual??e.actualValue)+'</b></div><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Forecast</span><b class="block text-sm mt-1 break-words">'+val(e.forecast??e.forecastValue)+'</b></div><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Previous</span><b class="block text-sm mt-1 break-words">'+val(e.previous??e.previousValue)+'</b></div><div class="rounded-lg bg-slate-900/90 p-3 min-w-0"><span class="muted text-[10px]">Revised Previous</span><b class="block text-sm mt-1 break-words">'+val(e.revisedPrevious??e.revised_previous)+'</b></div></div>';
 }
 function ritelNewsCard(e,opts={}){
  const time=e.time||e.event_time||null,stamp=time&&Number.isFinite(Date.parse(time))?new Date(time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB':'Waktu belum tersedia';
  const ai=opts.ai||e.ai||e.ai_snapshot||{},name=e.name||e.title||'Rilis ekonomi',currency=e.currency||e.countryCode||'USD';
  const impacts=ai.impacts||[],status=opts.status||((time&&Date.parse(time)<Date.now())?'Sudah rilis':'Mendatang');
- return '<article class="rounded-xl border border-slate-700 bg-slate-950/65 p-4 sm:p-5 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-2"><span class="pill">'+ritelEscape(String(e.importance||'HIGH').toUpperCase())+' · '+ritelEscape(currency)+'</span><span class="text-[10px] muted">'+ritelEscape(status)+(opts.checkpoint?' · T+'+Number(opts.checkpoint)+' menit':'')+'</span></div><h3 class="font-bold text-base mt-3">'+ritelEscape(name)+'</h3><p class="text-xs text-cyan-200 mt-2">'+ritelEscape(stamp)+'</p>'+ritelNewsValues(e)+'<div class="mt-4 border-t border-slate-700/70 pt-3"><div class="font-extrabold text-sm">KEPUTUSAN AI · ARAH USD & DAMPAK ASET</div>'+ritelNewsImpactRows(ai)+'</div><p class="muted text-[9px] mt-3">Sumber: '+ritelEscape(e.source||e.eventSource||'Kalender ekonomi')+(opts.validation?' · Status: '+ritelEscape(opts.validation):'')+'</p></article>';
+ return '<article class="rounded-xl border border-slate-700 bg-slate-950/65 p-4 sm:p-5 shadow-sm"><div class="flex flex-wrap items-center justify-between gap-2"><span class="pill">'+ritelEscape(String(e.importance||'HIGH').toUpperCase())+' · '+ritelEscape(currency)+'</span><span class="text-[10px] muted">'+ritelEscape(status)+(opts.checkpoint?' · T+'+Number(opts.checkpoint)+' menit':'')+'</span></div><h3 class="font-bold text-base mt-3">'+ritelEscape(name)+'</h3><p class="text-xs text-cyan-200 mt-2">'+ritelEscape(stamp)+'</p>'+ritelNewsValues(e)+'<div class="mt-4 border-t border-slate-700/70 pt-3"><div class="font-extrabold text-sm">KEPUTUSAN AI · ARAH USD & DAMPAK ASET</div>'+ritelNewsImpactRows(ai,e)+'</div><p class="muted text-[9px] mt-3">Sumber: '+ritelEscape(e.source||e.eventSource||'Kalender ekonomi')+(opts.validation?' · Status: '+ritelEscape(opts.validation):'')+'</p></article>';
 }
 function renderNextNewsReminder(){
  const rem=document.getElementById('nextNewsReminder');if(!rem)return;
@@ -925,7 +957,18 @@ function showAdmin(){if(!['owner','super_admin'].includes(currentRole)){toast('A
 let selectedRitelPlan = null;
 let appliedRitelAIPromo = null;
 function ritelPlanAmount(plan){const original=Number(plan?.price_idr||0),eligible=appliedRitelAIPromo==='RITELAI30'&&['pro','elite'].includes(String(plan?.code||'').toLowerCase());return{original,discount:eligible?Math.round(original*.30):0,total:eligible?Math.round(original*.70):original};}
-function renderRitelSelectedPlan(){document.querySelectorAll('[data-plan-price]').forEach(node=>{node.innerHTML=ritelMoney(node.dataset.originalPrice)+' <span class="muted">/ '+Number(node.dataset.planDuration||30)+' hari</span>';});const plan=selectedRitelPlan,info=document.getElementById('selectedPlanInfo');if(!plan||!info)return;const price=ritelPlanAmount(plan);info.classList.remove('hidden');info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>';const button=[...document.querySelectorAll('[data-plan-id]')].find(x=>x.dataset.planId===String(plan.id));const node=button?.closest('article')?.querySelector('[data-plan-price]');if(node)node.innerHTML=price.discount?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(price.original)+'</span><br><b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="muted">/ '+Number(plan.duration_days||30)+' hari</span>':ritelMoney(price.original)+' <span class="muted">/ '+Number(plan.duration_days||30)+' hari</span>';}
+function renderRitelSelectedPlan(){
+ const promoActive=appliedRitelAIPromo==='RITELAI30';
+ document.querySelectorAll('[data-plan-price]').forEach(node=>{
+  const original=Number(node.dataset.originalPrice||0),duration=Number(node.dataset.planDuration||30),code=String(node.dataset.planCode||'').toLowerCase();
+  const eligible=promoActive&&['pro','elite'].includes(code);
+  node.innerHTML=eligible?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(original)+'</span><br><b class="text-emerald-300">'+ritelMoney(Math.round(original*.70))+'</b> <span class="muted">/ '+duration+' hari</span>':ritelMoney(original)+' <span class="muted">/ '+duration+' hari</span>';
+ });
+ const plan=selectedRitelPlan,info=document.getElementById('selectedPlanInfo');
+ if(!plan||!info)return;
+ const price=ritelPlanAmount(plan);info.classList.remove('hidden');
+ info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>';
+}
 function ritelEscape(value){
  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -946,7 +989,7 @@ async function loadPlans(){
    const features=Array.isArray(p.features)?p.features:(p.features&&typeof p.features==='object'?Object.values(p.features):[]);
    const featureHtml=features.slice(0,6).map(x=>'<li class="muted text-[10px]">• '+ritelEscape(typeof x==='string'?x:(x?.label||x?.name||''))+'</li>').join('');
    const quota=Number(p.analysis_quota||0)>0?Number(p.analysis_quota).toLocaleString('id-ID')+' analisis':'Akses sesuai ketentuan paket';
-   return '<article class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex items-start justify-between gap-3"><div><b class="text-sm">'+ritelEscape(p.name)+'</b><p class="text-xs cyan mt-1" data-plan-price data-original-price="'+Number(p.price_idr)+'" data-plan-duration="'+Number(p.duration_days||30)+'">'+ritelMoney(p.price_idr)+' <span class="muted">/ '+Number(p.duration_days||30)+' hari</span></p><p class="muted text-[10px] mt-1">'+quota+'</p></div><button type="button" class="btn primary shrink-0" data-plan-id="'+ritelEscape(p.id)+'">Pilih</button></div>'+(featureHtml?'<ul class="mt-2 space-y-1">'+featureHtml+'</ul>':'')+'</article>';
+   return '<article class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex items-start justify-between gap-3"><div><b class="text-sm">'+ritelEscape(p.name)+'</b><p class="text-xs cyan mt-1" data-plan-price data-plan-code="'+ritelEscape(p.code)+'" data-original-price="'+Number(p.price_idr)+'" data-plan-duration="'+Number(p.duration_days||30)+'">'+ritelMoney(p.price_idr)+' <span class="muted">/ '+Number(p.duration_days||30)+' hari</span></p><p class="muted text-[10px] mt-1">'+quota+'</p></div><button type="button" class="btn primary shrink-0" data-plan-id="'+ritelEscape(p.id)+'">Pilih</button></div>'+(featureHtml?'<ul class="mt-2 space-y-1">'+featureHtml+'</ul>':'')+'</article>';
   }).join('');
   host.querySelectorAll('[data-plan-id]').forEach(button=>button.addEventListener('click',()=>{
    selectedRitelPlan=plans.find(p=>p.id===button.dataset.planId)||null;
