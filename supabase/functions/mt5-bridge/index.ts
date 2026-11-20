@@ -158,6 +158,12 @@ Deno.serve(async req=>{
       volume_min:Number.isFinite(Number(body.volume_min))?Number(body.volume_min):null,
       volume_max:Number.isFinite(Number(body.volume_max))?Number(body.volume_max):null,
       volume_step:Number.isFinite(Number(body.volume_step))?Number(body.volume_step):null,
+      execution_mode:body.is_demo?"SEMI_AUTO":"FULL_AUTO",
+      emergency_stop:body.is_demo?true:false,
+      max_risk_pct:0.25,
+      max_daily_loss_pct:2,
+      max_spread_points:80,
+      max_open_positions:1,
       last_seen_at:new Date().toISOString()
     }).select("id").single();
     if(deviceErr) return reply({error:"Gagal mendaftarkan terminal."},500);
