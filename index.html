@@ -696,6 +696,51 @@ function loadMarketTradingViewChart(){
 }
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
+
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0;
+function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
+function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
+function renderEconomicCalendar(){
+ const host=document.getElementById('economicCalendar');if(!host)return;
+ const now=Date.now(),rows=ritelCalendarEvents.filter(e=>{
+  const t=Date.parse(e.time||'');if(!Number.isFinite(t))return false;
+  const month=new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7);
+  return (ritelCalendarImpact==='all'||String(e.importance||'unknown').toLowerCase()===ritelCalendarImpact)&&(ritelCalendarMonth==='all'||month===ritelCalendarMonth);
+ }).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
+ const status=document.getElementById('calendarStatus');if(status)status.textContent=rows.length+' agenda · '+(ritelCalendarLastLoad?new Date(ritelCalendarLastLoad).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB':'');
+ if(!rows.length){host.innerHTML='<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs muted">Tidak ada agenda untuk filter ini. Coba Semua bulan atau tingkat dampak lain.</div>';return;}
+ host.innerHTML=rows.map(e=>{
+  const t=new Date(e.time),past=t.getTime()<now,impact=String(e.importance||'unknown').toUpperCase(),currency=ritelEscape(e.currency||e.countryCode||'—');
+  const impacts=Array.isArray(e.ai?.impacts)?e.ai.impacts:[];
+  const usd=impacts.find(x=>x.symbol==='XAUUSD'||x.symbol==='BTCUSD')||impacts[0];
+  const ai=usd?'<div class="mt-3 rounded-lg bg-slate-900/80 p-3"><div class="flex justify-between gap-2 text-[10px]"><b>AI · '+ritelEscape(usd.symbol)+'</b><b>'+ritelEscape(usd.bias||'PENDING')+'</b></div><p class="muted text-[10px] mt-1">'+ritelEscape(usd.reason||e.ai?.reason||'Belum ada analisis')+'</p></div>':'<p class="muted text-[10px] mt-2">'+ritelEscape(e.ai?.reason||'Analisis AI belum tersedia')+'</p>';
+  return '<article class="rounded-xl border border-slate-700 bg-slate-950/60 p-4"><div class="flex flex-wrap items-center justify-between gap-2"><span class="pill">'+impact+' · '+currency+'</span><span class="text-[10px] '+(past?'text-slate-400':'text-cyan-200')+'">'+(past?'Sudah rilis':'Mendatang')+'</span></div><h4 class="font-bold text-sm mt-3">'+ritelEscape(e.name)+'</h4><p class="text-xs text-cyan-200 mt-2">'+t.toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB</p><div class="grid grid-cols-3 gap-2 mt-3 text-[10px]"><div class="rounded-lg bg-slate-900 p-2"><span class="muted">Actual</span><b class="block mt-1">'+ritelEscape(e.actual??'—')+'</b></div><div class="rounded-lg bg-slate-900 p-2"><span class="muted">Forecast</span><b class="block mt-1">'+ritelEscape(e.forecast??'—')+'</b></div><div class="rounded-lg bg-slate-900 p-2"><span class="muted">Previous</span><b class="block mt-1">'+ritelEscape(e.previous??'—')+'</b></div></div>'+ai+'<p class="muted text-[9px] mt-3">Sumber: '+ritelEscape(e.source||e.eventSource||'Kalender ekonomi')+(e.scheduleNote?' · '+ritelEscape(e.scheduleNote):'')+'</p></article>';
+ }).join('');
+ const next=rows.find(e=>Date.parse(e.time)>now),rem=document.getElementById('nextNewsReminder');
+ if(rem)rem.innerHTML=next?'<b class="text-xs text-amber-200">Agenda berikutnya</b><p class="text-sm font-bold mt-2">'+ritelEscape(next.name)+'</p><p class="text-xs muted mt-1">'+new Date(next.time).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB</p>':'<p class="text-xs muted">Belum ada agenda mendatang pada filter ini.</p>';
+}
+async function loadEconomicCalendar(force=false){
+ const host=document.getElementById('economicCalendar');if(!host||ritelCalendarLoading)return;
+ if(!force&&ritelCalendarEvents.length&&Date.now()-ritelCalendarLastLoad<60000){renderEconomicCalendar();return;}
+ if(!supabaseClient){host.textContent='Koneksi layanan belum siap. Muat ulang halaman.';return;}
+ ritelCalendarLoading=true;host.innerHTML='<p class="muted text-xs">Mengambil jadwal ekonomi dari server...</p>';
+ const status=document.getElementById('calendarStatus');if(status)status.textContent='Memuat jadwal...';
+ try{
+  const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();if(sessionError)throw sessionError;
+  if(!session){host.innerHTML='<p class="text-xs text-amber-200">Login diperlukan untuk membuka kalender News.</p>';return;}
+  const {data,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'market_calendar'}});
+  if(error)throw new Error(error.message||'Layanan kalender gagal dihubungi.');
+  if(data?.error)throw new Error(data.error);
+  if(!Array.isArray(data?.events))throw new Error(data?.calendarError||'Format jadwal ekonomi tidak valid.');
+  ritelCalendarEvents=data.events;ritelCalendarLastLoad=Date.now();
+  if(status)status.textContent=(data.events.length||0)+' agenda tersedia';
+  if(data.calendarError&&host){const warn=document.createElement('p');warn.className='text-[10px] text-amber-200 mb-2';warn.textContent='Feed tambahan: '+data.calendarError;host.before(warn);}
+  renderEconomicCalendar();
+ }catch(e){host.innerHTML='<div class="rounded-xl border border-amber-800/50 bg-amber-950/20 p-4 text-xs text-amber-100">Kalender belum dapat dimuat: '+ritelEscape(e.message||'Kesalahan koneksi')+'. Tekan Muat ulang untuk mencoba lagi.</div>';if(status)status.textContent='Gagal memuat';}
+ finally{ritelCalendarLoading=false;}
+}
+
 async function showTab(name,btn){
  if(name==='market')name='analyze';
  const target=document.getElementById('tab-'+name);
@@ -722,7 +767,7 @@ async function showTab(name,btn){
  if(name==='history')loadAnalysisHistory();
  if(name==='journal')loadTradeJournal();
  if(name==='mt5')refreshMT5Access();
- if(name==='news'){loadMarketIntelligence({silent:true});}
+ if(name==='news'){loadMarketIntelligence({silent:true});loadEconomicCalendar();}
 }
 function updateMT5ProfileOptions(){
  const profile=document.getElementById('mt5Profile');
