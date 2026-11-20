@@ -889,6 +889,95 @@ async function createMT5Pairing(){
  finally{btn.disabled=!currentUser;btn.textContent='Buat kode pairing'}
 }
 function showAdmin(){if(!['owner','super_admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
+
+let selectedRitelPlan = null;
+function ritelEscape(value){
+ return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function ritelMoney(value){
+ return new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(Number(value||0));
+}
+async function loadPlans(){
+ const host=document.getElementById('customerPlans');
+ if(!host)return;
+ if(!supabaseClient){host.innerHTML='<p class="muted text-xs">Koneksi database belum siap. Muat ulang halaman.</p>';return;}
+ host.innerHTML='<p class="muted text-xs">Memuat daftar paket...</p>';
+ try{
+  const {data,error}=await supabaseClient.from('plans').select('id,code,name,price_idr,duration_days,analysis_quota,features').eq('is_active',true).order('price_idr',{ascending:true});
+  if(error)throw error;
+  const plans=Array.isArray(data)?data:[];
+  if(!plans.length){host.innerHTML='<p class="muted text-xs">Belum ada paket aktif. Silakan hubungi admin.</p>';return;}
+  host.innerHTML=plans.map(p=>{
+   const features=Array.isArray(p.features)?p.features:(p.features&&typeof p.features==='object'?Object.values(p.features):[]);
+   const featureHtml=features.slice(0,6).map(x=>'<li class="muted text-[10px]">• '+ritelEscape(typeof x==='string'?x:(x?.label||x?.name||''))+'</li>').join('');
+   const quota=Number(p.analysis_quota||0)>0?Number(p.analysis_quota).toLocaleString('id-ID')+' analisis':'Akses sesuai ketentuan paket';
+   return '<article class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex items-start justify-between gap-3"><div><b class="text-sm">'+ritelEscape(p.name)+'</b><p class="text-xs cyan mt-1">'+ritelMoney(p.price_idr)+' <span class="muted">/ '+Number(p.duration_days||30)+' hari</span></p><p class="muted text-[10px] mt-1">'+quota+'</p></div><button type="button" class="btn primary shrink-0" data-plan-id="'+ritelEscape(p.id)+'">Pilih</button></div>'+(featureHtml?'<ul class="mt-2 space-y-1">'+featureHtml+'</ul>':'')+'</article>';
+  }).join('');
+  host.querySelectorAll('[data-plan-id]').forEach(button=>button.addEventListener('click',()=>{
+   selectedRitelPlan=plans.find(p=>p.id===button.dataset.planId)||null;
+   const info=document.getElementById('selectedPlanInfo');
+   const proofStatus=document.getElementById('proofUploadStatus');
+   if(info&&selectedRitelPlan){
+    info.classList.remove('hidden');
+    info.innerHTML='<b>Paket dipilih: '+ritelEscape(selectedRitelPlan.name)+'</b><p class="muted text-xs mt-1">Total pembayaran: '+ritelMoney(selectedRitelPlan.price_idr)+' · '+Number(selectedRitelPlan.duration_days||30)+' hari.</p>';
+   }
+   if(proofStatus)proofStatus.textContent=selectedRitelPlan&&Number(selectedRitelPlan.price_idr)>0?'Paket dipilih. Lakukan pembayaran QRIS, lalu unggah bukti transaksi asli.':'Paket Gratis tidak memerlukan bukti pembayaran.';
+   host.querySelectorAll('[data-plan-id]').forEach(b=>{b.textContent=b===button?'Dipilih':'Pilih';b.classList.toggle('border',b!==button);});
+  }));
+ }catch(error){
+  console.error('loadPlans:',error);
+  host.innerHTML='<div class="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3"><p class="text-xs text-rose-200">Daftar paket gagal dimuat.</p><p class="muted text-[10px] mt-1">'+ritelEscape(error?.message||'Periksa koneksi Supabase dan kebijakan akses paket.')+'</p><button type="button" class="btn border border-slate-600 mt-2" id="retryLoadPlans">Coba lagi</button></div>';
+  document.getElementById('retryLoadPlans')?.addEventListener('click',loadPlans);
+ }
+}
+async function submitPaymentProof(){
+ const status=document.getElementById('proofUploadStatus'),button=document.getElementById('submitProofBtn');
+ const setStatus=(message,isError=false)=>{if(status){status.textContent=message;status.style.color=isError?'#fca5a5':'';}};
+ if(!supabaseClient){setStatus('Koneksi Supabase belum siap. Muat ulang halaman.',true);return;}
+ if(!selectedRitelPlan||Number(selectedRitelPlan.price_idr)<=0){setStatus('Pilih paket berbayar terlebih dahulu.',true);return;}
+ const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
+ if(sessionError||!session?.user){setStatus('Silakan login sebelum mengirim bukti pembayaran.',true);openModal('accountModal');return;}
+ const file=document.getElementById('proofFile')?.files?.[0];
+ const payer=document.getElementById('proofPayerName')?.value?.trim()||'';
+ const reference=document.getElementById('proofReference')?.value?.trim()||'';
+ if(!payer){setStatus('Masukkan nama pembayar sesuai aplikasi pembayaran.',true);return;}
+ if(!file){setStatus('Pilih foto atau screenshot bukti pembayaran.',true);return;}
+ if(!['image/jpeg','image/png','image/webp'].includes(file.type)){setStatus('Format bukti harus JPG, PNG, atau WebP.',true);return;}
+ if(file.size>5*1024*1024){setStatus('Ukuran bukti maksimal 5 MB.',true);return;}
+ button.disabled=true;button.textContent='Mengunggah bukti...';
+ try{
+  const ext=file.type==='image/png'?'png':file.type==='image/webp'?'webp':'jpg';
+  const objectPath=session.user.id+'/'+(crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2))+'.'+ext;
+  const {error:uploadError}=await supabaseClient.storage.from('payment-proofs').upload(objectPath,file,{contentType:file.type,upsert:false});
+  if(uploadError)throw uploadError;
+  const {error:insertError}=await supabaseClient.from('payment_proofs').insert({
+   user_id:session.user.id,plan_id:selectedRitelPlan.id,amount_idr:Number(selectedRitelPlan.price_idr),
+   storage_path:objectPath,payer_name:payer,reference_note:reference||null,status:'pending'
+  });
+  if(insertError){
+   await supabaseClient.storage.from('payment-proofs').remove([objectPath]);
+   throw insertError;
+  }
+  setStatus('Bukti pembayaran berhasil dikirim. Paket akan aktif setelah diverifikasi admin.');
+  document.getElementById('proofFile').value='';
+  document.getElementById('proofPayerName').value='';
+  document.getElementById('proofReference').value='';
+  toast('Bukti pembayaran terkirim untuk verifikasi.');
+ }catch(error){
+  console.error('submitPaymentProof:',error);
+  setStatus('Gagal mengirim bukti: '+(error?.message||'kesalahan tidak diketahui'),true);
+ }finally{button.disabled=false;button.textContent='Kirim bukti untuk diverifikasi';}
+}
+function applyRitelAIPromo(){
+ const code=(document.getElementById('promoCodeInput')?.value||'').trim().toUpperCase();
+ const status=document.getElementById('promoCodeStatus');
+ if(!status)return;
+ if(code!=='RITELAI30'){status.textContent='Kode promo tidak dikenali. Periksa kembali penulisannya.';status.style.color='#fca5a5';return;}
+ if(!selectedRitelPlan||!['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())){status.textContent='Pilih paket Pro atau Elite terlebih dahulu untuk mengajukan promo.';status.style.color='#fcd34d';return;}
+ status.textContent='Kode RITELAI30 dikenali. Diskon 30% perlu divalidasi saat pemeriksaan bukti oleh admin; nominal pembayaran jangan dikurangi sebelum total terkonfirmasi.';
+ status.style.color='#fcd34d';
+}
+
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
 function closeModal(id){let m=document.getElementById(id);m.classList.add('hidden');m.classList.remove('flex')}
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500)}
