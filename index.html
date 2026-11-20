@@ -701,6 +701,24 @@ let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',r
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
 function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
+function renderMacroReleaseArchive(items=[]){
+ const host=document.getElementById('macroReleaseArchive');if(!host)return;
+ const rows=Array.isArray(items)?items.slice().sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)):[];
+ if(!rows.length){host.innerHTML='<p class="muted text-xs">Arsip rilis aktual belum tersedia dari penyedia data.</p>';return;}
+ host.innerHTML=rows.slice(0,100).map(r=>'<article class="rounded-lg border border-slate-700 bg-slate-950/50 p-3"><div class="flex flex-wrap justify-between gap-2"><b class="text-xs">'+ritelEscape(r.category||'Makro')+' · '+ritelEscape(r.name||'Rilis ekonomi')+'</b><span class="muted text-[10px]">'+(r.date?new Date(r.date).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}):'Waktu tidak tersedia')+' WIB</span></div><div class="grid grid-cols-3 gap-2 mt-2 text-[10px]"><div><span class="muted">Actual</span><b class="block">'+ritelEscape(r.actual??'—')+'</b></div><div><span class="muted">Forecast</span><b class="block">'+ritelEscape(r.forecast??'—')+'</b></div><div><span class="muted">Previous</span><b class="block">'+ritelEscape(r.previous??'—')+'</b></div></div><p class="muted text-[9px] mt-2">Sumber: '+ritelEscape(r.source||'Kalender ekonomi')+'</p></article>').join('');
+}
+async function loadNewsHistory(){
+ const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
+ if(!host)return;
+ if(status)status.textContent='Memeriksa arsip rilis...';
+ try{
+  await loadEconomicCalendar(true);
+  renderMacroReleaseArchive(ritelMacroPastReleases);
+  host.innerHTML='<div class="rounded-xl border border-amber-800/50 bg-amber-950/20 p-3 text-xs text-amber-100">Riwayat analisis News per akun (checkpoint 1, 2, 5, 15, dan 30 menit) belum tersimpan di database. Bagian ini tidak akan menampilkan data simulasi sebagai riwayat nyata. Arsip rilis resmi dengan Actual/Forecast/Previous tersedia di bagian atas.</div>';
+  if(status)status.textContent='Arsip rilis dimuat · checkpoint per akun belum tersedia';
+ }catch(e){host.innerHTML='<p class="text-xs text-amber-200">Riwayat News gagal dimuat: '+ritelEscape(e.message)+'</p>';if(status)status.textContent='Gagal memuat riwayat';}
+}
+let ritelMacroPastReleases=[];
 function renderEconomicCalendar(){
  const host=document.getElementById('economicCalendar');if(!host)return;
  const now=Date.now(),rows=ritelCalendarEvents.filter(e=>{
@@ -733,7 +751,7 @@ async function loadEconomicCalendar(force=false){
   if(error)throw new Error(error.message||'Layanan kalender gagal dihubungi.');
   if(data?.error)throw new Error(data.error);
   if(!Array.isArray(data?.events))throw new Error(data?.calendarError||'Format jadwal ekonomi tidak valid.');
-  ritelCalendarEvents=data.events;ritelCalendarLastLoad=Date.now();
+  ritelCalendarEvents=data.events;ritelMacroPastReleases=Array.isArray(data.pastReleases)?data.pastReleases:[];ritelCalendarLastLoad=Date.now();renderMacroReleaseArchive(ritelMacroPastReleases);
   if(status)status.textContent=(data.events.length||0)+' agenda tersedia';
   if(data.calendarError&&host){const warn=document.createElement('p');warn.className='text-[10px] text-amber-200 mb-2';warn.textContent='Feed tambahan: '+data.calendarError;host.before(warn);}
   renderEconomicCalendar();
@@ -767,7 +785,7 @@ async function showTab(name,btn){
  if(name==='history')loadAnalysisHistory();
  if(name==='journal')loadTradeJournal();
  if(name==='mt5')refreshMT5Access();
- if(name==='news'){loadMarketIntelligence({silent:true});loadEconomicCalendar();}
+ if(name==='news'){loadEconomicCalendar(true);}
 }
 function updateMT5ProfileOptions(){
  const profile=document.getElementById('mt5Profile');
