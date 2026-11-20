@@ -765,7 +765,8 @@ function ritelDerivedNewsDecision(event){
  };
  const actual=parse(actualRaw),forecast=parse(forecastRaw);
  if(!Number.isFinite(actual)||!Number.isFinite(forecast))return{usd:'PENDING',gold:'PENDING',reason:'Actual atau Forecast belum tersedia/berupa angka. Keputusan menunggu data rilis yang terverifikasi.'};
- const inverse=/unemployment|jobless claims|initial claims|continuing claims|claimant count/.test(name);
+ const employmentStrength=/non.?farm|payroll|employment situation|average hourly earnings/.test(name);
+ const inverse=!employmentStrength&&/unemployment rate|jobless claims|initial claims|continuing claims|claimant count/.test(name);
  const known=/cpi|consumer price|ppi|producer price|pce|inflation|non.?farm|payroll|employment change|unemployment|jobless claims|gdp|gross domestic|retail sales|pmi|ism|hourly earnings|wage|interest rate|policy rate/.test(name);
  if(!known)return{usd:'PENDING',gold:'PENDING',reason:'Jenis indikator belum dikenali untuk menentukan arah USD secara aman. Actual dan Forecast ditampilkan tanpa mengarang keputusan.'};
  const stronger=actual>forecast, weaker=actual<forecast;
