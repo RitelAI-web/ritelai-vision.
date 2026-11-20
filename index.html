@@ -696,27 +696,193 @@ async function refreshAnalysisQuota(){
 async function loadAnalysisHistory(){
  const host=document.getElementById('historyItems'),empty=document.getElementById('emptyHistory'),count=document.getElementById('historyCount');
  if(!host||!supabaseClient)return;
+ const {data:{session}}=await supabaseClient.auth.getSession();
+ if(!session){host.innerHTML='';if(empty)empty.textContent='Login untuk melihat riwayat analisis akun.';if(count)count.textContent='0 analisis';return}
+ if(empty)empty.textContent='Memuat riwayat...';
  try{
-  const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){host.innerHTML='';if(empty)empty.textContent='Login untuk melihat riwayat analisis akun.';if(count)count.textContent='0 analisis';return;}
-  if(empty)empty.textContent='Memuat riwayat...';
   const {data,error}=await supabaseClient.functions.invoke('quick-handler',{body:{action:'history_list'}});
-  if(error)throw error;
-  if(data?.error)throw new Error(data.error);
+  if(error)throw error;if(data?.error)throw new Error(data.error);
   const rows=Array.isArray(data?.items)?data.items:[];
   if(count)count.textContent=Number(data?.total??rows.length).toLocaleString('id-ID')+' analisis total';
-  if(!rows.length){host.innerHTML='';if(empty)empty.textContent='Belum ada analisis tersimpan untuk akun ini.';return;}
+  if(!rows.length){host.innerHTML='';if(empty)empty.textContent='Belum ada analisis tersimpan untuk akun ini.';return}
   if(empty)empty.textContent='';
-  const esc=v=>String(v===null||v===undefined?'—':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   host.innerHTML=rows.map(row=>{
    const r=row.result&&typeof row.result==='object'?row.result:{};
-   const signal=String(r.signal||'WAIT').toUpperCase();
+   const signal=String(r.signal||'ANALISIS').toUpperCase();
    const tone=signal==='BUY'?'text-emerald-300':signal==='SELL'?'text-rose-300':'text-amber-300';
-   const when=row.created_at?new Date(row.created_at).toLocaleString('id-ID'):'Waktu tidak tersedia';
-   return '<article class="rounded-xl border border-slate-700 bg-slate-950/60 p-4 mb-3"><div class="flex items-center justify-between gap-2"><b class="'+tone+'">'+esc(signal)+'</b><span class="pill">'+esc(row.asset)+' · '+esc(row.timeframe)+'</span></div><p class="text-xs mt-2">'+esc(r.summary||'Analisis tersimpan')+'</p><div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3 text-xs"><div><span class="muted">Trend</span><b class="block">'+esc(r.trend)+'</b></div><div><span class="muted">Confidence</span><b class="block">'+esc(r.confidence)+'%</b></div><div><span class="muted">Entry</span><b class="block">'+esc(r.entry)+'</b></div><div><span class="muted">Stop Loss</span><b class="block">'+esc(r.stop_loss)+'</b></div></div><p class="muted text-[10px] mt-3">'+esc(when)+'</p></article>';
-  }).join('');
- }catch(e){console.error('analysis history',e);if(empty)empty.textContent='Riwayat gagal dimuat: '+(e?.message||'kesalahan tidak diketahui');}
+   const md=r.market_data||{},mi=md.indicators||{};
+   const annotation=r.chart_annotations||{},annZones=Array.isArray(annotation.zones)?annotation.zones:[],annLevels=Array.isArray(annotation.levels)?annotation.levels:[];
+   const clampPct=v=>Math.max(0,Math.min(100,Number(v)||0));
+   const plotTop=clampPct(annotation.plot_area?.y_pct??16),plotBottom=Math.min(100,plotTop+clampPct(annotation.plot_area?.height_pct??68)),plotX=clampPct(annotation.plot_area?.x_pct??8),plotW=Math.max(1,Math.min(100-plotX,clampPct(annotation.plot_area?.width_pct??76)));
+   const annotationColors={BUY_ZONE:'#22c55e',DEMAND:'#34d399',SUPPORT:'#2dd4bf',SELL_ZONE:'#fb7185',SUPPLY:'#f97316',RESISTANCE:'#f87171',FVG:'#a78bfa',RETEST:'#fbbf24'};
+   const overlayRects=annZones.filter(z=>[z.x_pct??plotX,z.y_top_pct,z.y_bottom_pct].every(v=>Number.isFinite(Number(v)))&&Number(z.y_bottom_pct)>Number(z.y_top_pct)&&Number(z.y_bottom_pct)>plotTop&&Number(z.y_top_pct)<plotBottom).slice(0,8).map(z=>{const x=Math.max(plotX,clampPct(z.x_pct??plotX)),right=Math.min(plotX+plotW,clampPct((z.x_pct??plotX)+(z.width_pct??plotW))),w=Math.max(1,right-x),top=Math.max(plotTop,clampPct(z.y_top_pct)),bottom=Math.min(plotBottom,clampPct(z.y_bottom_pct)),type=String(z.type||'').toUpperCase(),color=annotationColors[type]||'#94a3b8',label=escapeHtml(String(z.label||type.replaceAll('_',' ')));const tagW=Math.min(25,Math.max(12,label.length*.85+4));return '<g><rect x="'+x+'" y="'+top+'" width="'+w+'" height="'+Math.max(.5,bottom-top)+'" fill="'+color+'" fill-opacity=".14" stroke="'+color+'" stroke-width=".28"/><rect x="'+x+'" y="'+Math.max(plotTop,top-2.5)+'" width="'+tagW+'" height="2.3" rx=".45" fill="'+color+'"/><text x="'+(x+.7)+'" y="'+Math.max(plotTop+1.7,top-.85)+'" fill="#07111f" font-size="1.5" font-weight="800">'+label+'</text></g>';}).join('');
+   const preferredSide=String(r.directional_bias||r.signal||'').toUpperCase(),activeSide=['BUY','SELL'].includes(preferredSide)?preferredSide:null;const cleanLevels=annLevels.filter(l=>l.y_pct!==null&&l.y_pct!==undefined&&Number.isFinite(Number(l.y_pct))).filter(l=>{const y=Number(l.y_pct);if(y<plotTop+1||y>plotBottom-1)return false;const t=(String(l.type||'')+' '+String(l.label||'')).toUpperCase(),isTrade=/ENTRY|STOP.?LOSS|TAKE.?PROFIT|\bSL\b|\bTP\d?\b/.test(t);if(!isTrade)return true;if(!activeSide)return false;const mentionsBuy=/\bBUY\b/.test(t),mentionsSell=/\bSELL\b/.test(t);return !(mentionsBuy&&activeSide!=='BUY')&&!(mentionsSell&&activeSide!=='SELL');}).slice(0,7);const overlayLines=cleanLevels.map(l=>{const y=clampPct(l.y_pct),type=String(l.type||'').toUpperCase(),color=annotationColors[type]||'#e2e8f0',label=escapeHtml(String(l.label||type.replaceAll('_',' '))),price=l.price!=null?escapeHtml(String(l.price)):'',xLabel=Math.max(plotX,Math.min(plotX+plotW-39,100-39)),isTarget=/TAKE_PROFIT/.test(type),isStop=/STOP_LOSS/.test(type),isEntry=/ENTRY/.test(type),tagColor=isTarget?'#168a48':isStop?'#c92e3a':isEntry?'#147eb5':color,tagY=Math.max(plotTop,Math.min(plotBottom-2.8,y-1.4));return '<g><line x1="'+plotX+'" x2="'+(plotX+plotW)+'" y1="'+y+'" y2="'+y+'" stroke="'+color+'" stroke-width=".38" stroke-dasharray="1.6 1.2"/><rect x="'+xLabel+'" y="'+tagY+'" width="39" height="2.8" rx=".5" fill="'+tagColor+'"/><text x="'+(xLabel+1)+'" y="'+(tagY+1.9)+'" fill="#fff" font-size="1.55" font-weight="800">'+label+(price?' · '+price:'')+'</text></g>';}).join('');const overlayLegendMarkup='';
+    const chartImageSrc=typeof window.latestUploadedChartImage==='string'?window.latestUploadedChartImage:'';
+    window.annotatedChartMarkup=chartImageSrc?'<section class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/70 p-3 text-left"><div class="flex items-center justify-between gap-2 mb-2"><b class="text-xs">CHART · ZONA & LEVEL</b><span class="pill">'+safe(annotation.status||'UNAVAILABLE')+'</span></div><div class="relative w-full overflow-hidden rounded-lg bg-black"><img src="'+chartImageSrc+'" alt="Chart asli dengan overlay zona analisis" class="block w-full h-auto"><svg viewBox="0 0 100 100" preserveAspectRatio="none" class="absolute inset-0 w-full h-full pointer-events-none">'+overlayRects+overlayLines+'</svg></div><p class="muted text-[10px] mt-2">'+safe((annotation.notes||[]).join(' · ')||'Zona dan level ditampilkan langsung pada chart.')+'</p></section>':'';
+   const marketIndicatorCard=md.status==='AVAILABLE'?'<div class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"><div class="font-bold text-xs mb-2">DATA ENGINE · OHLC & INDIKATOR TERHITUNG</div><p class="muted text-[10px] mb-3">Sumber: '+safe(md.source)+' · '+safe(md.symbol)+' · '+safe(md.interval)+' · '+safe(md.closed_bars)+' candle tertutup</p><div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs"><div class="bg-slate-900 rounded-lg p-2"><span class="muted">EMA 9 / 20</span><div>'+safe(mi.ema?.ema9)+' / '+safe(mi.ema?.ema20)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">EMA 50 / 200</span><div>'+safe(mi.ema?.ema50)+' / '+safe(mi.ema?.ema200)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">RSI 14</span><div>'+safe(mi.rsi14)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">MACD / Signal</span><div>'+safe(mi.macd?.line)+' / '+safe(mi.macd?.signal)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">ATR 14</span><div>'+safe(mi.atr14)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">ADX 14</span><div>'+safe(mi.adx14)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">Parabolic SAR</span><div>'+safe(mi.parabolicSar?.bias)+' · '+safe(mi.parabolicSar?.value)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">Trend OHLC</span><div>'+safe(mi.trend)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">Konfirmasi MTF</span><div>'+safe(md.multi_timeframe?.timeframe)+' · '+safe(md.multi_timeframe?.trend||md.multi_timeframe?.status)+'</div></div><div class="bg-slate-900 rounded-lg p-2"><span class="muted">Candle tersimpan</span><div>'+safe(md.persisted_bars??0)+'</div></div></div><p class="muted text-[10px] mt-3">Candle terakhir: '+safe(md.last_closed_bar_at)+' · hanya candle tertutup digunakan.</p><div class="mt-3 rounded-lg border border-violet-800/50 bg-violet-950/20 p-3"><b class="text-xs">SKOR KUALITAS SETUP: '+safe(r.setup_quality_score??"—")+' / 100 · '+safe(r.setup_quality_label||"Menunggu data")+'</b><p class="muted text-[10px] mt-1">'+safe(r.setup_quality_disclaimer||"Skor teknikal, bukan probabilitas profit.")+'</p></div></div>':'<div class="mt-4 rounded-xl border border-amber-800/60 bg-amber-950/20 p-4 text-left"><b class="text-xs text-amber-200">DATA ENGINE OHLC BELUM TERSEDIA</b><p class="muted text-[11px] mt-1">'+safe(md.reason||'Feed candle tidak tersedia atau stale. Hasil kembali ke pembacaan screenshot.')+'</p></div>';
+   const pending=r.pending_orders||{};
+   const fmtLevel=(v)=>v===null||v===undefined||v===""?"Belum terdeteksi":Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:8}):String(v);
+   const buyPlan=pending.buy_limit||{},sellPlan=pending.sell_limit||{};
+   const buyEntry=buyPlan.entry_price??r.scenario_buy?.entry_price??null,buyLow=buyPlan.entry_zone_low??r.scenario_buy?.entry_zone_low??null,buyHigh=buyPlan.entry_zone_high??r.scenario_buy?.entry_zone_high??null;
+   const sellEntry=sellPlan.entry_price??r.scenario_sell?.entry_price??null,sellLow=sellPlan.entry_zone_low??r.scenario_sell?.entry_zone_low??null,sellHigh=sellPlan.entry_zone_high??r.scenario_sell?.entry_zone_high??null;
+   const buyZoneNumeric=buyLow!==null&&buyHigh!==null?fmtLevel(buyLow)+" – "+fmtLevel(buyHigh):fmtLevel(buyEntry);
+   const sellZoneNumeric=sellLow!==null&&sellHigh!==null?fmtLevel(sellLow)+" – "+fmtLevel(sellHigh):fmtLevel(sellEntry);
+   const riskSide=String(r.signal||"WAIT").toUpperCase()==="SELL"?"SELL":"BUY";
+   const riskCandidate=riskSide==="SELL"?{entry:r.scenario_sell?.entry_price??sellEntry,sl:r.scenario_sell?.stop_loss??sellPlan.stop_loss,tp1:r.scenario_sell?.take_profit_1??sellPlan.take_profit_1,tp2:r.scenario_sell?.take_profit_2??sellPlan.take_profit_2}:{entry:r.scenario_buy?.entry_price??buyEntry,sl:r.scenario_buy?.stop_loss??buyPlan.stop_loss,tp1:r.scenario_buy?.take_profit_1??buyPlan.take_profit_1,tp2:r.scenario_buy?.take_profit_2??buyPlan.take_profit_2};
+   window.latestRiskSetup=riskCandidate;
+   const trendKey=String(r.trend||"UNCLEAR").toUpperCase();
+   const readinessKey=String(r.entry_readiness||"WAIT_CONFIRMATION").toUpperCase();
+   const zoneLabel=(v)=>({SUPPORT:"Support",DEMAND:"Demand zone",RESISTANCE:"Resistance",SUPPLY:"Supply zone",RETEST:"Retest"}[String(v||"").toUpperCase()]||"Zona belum tervalidasi");
+   const buyZone=zoneLabel(pending.buy_limit?.zone_type||r.scenario_buy?.zone_type);
+   const sellZone=zoneLabel(pending.sell_limit?.zone_type||r.scenario_sell?.zone_type);
+   const cautionItems=[];
+   if(trendKey==="UPTREND")cautionItems.push("Trend naik: utamakan menunggu pullback ke demand/support dan candle bullish konfirmasi. Hindari mengejar harga setelah kenaikan tajam.");
+   else if(trendKey==="DOWNTREND")cautionItems.push("Trend turun: utamakan menunggu rejection di supply/resistance atau breakdown yang sudah close. Hindari BUY melawan tren tanpa bukti reversal.");
+   else if(trendKey==="SIDEWAYS")cautionItems.push("Sideways: hindari entry di tengah range. Pantau batas bawah (support/demand) untuk skenario BUY dan batas atas (resistance/supply) untuk skenario SELL.");
+   else cautionItems.push("Arah trend belum jelas: jangan memaksakan BUY/SELL. Tunggu struktur swing dan candle tertutup yang lebih meyakinkan.");
+   if(readinessKey!=="READY"&&!/ENTRY_READY/i.test(String(r.decision_type||"")))cautionItems.push("Belum ada konfirmasi entry yang memadai. Tunggu pemicu dan candle konfirmasi; status saat ini: "+readinessKey+".");
+   if(pending.buy_limit?.status!=="VALID_SETUP")cautionItems.push("BUY LIMIT belum tervalidasi. Area "+buyZone+" hanya dipantau; jangan pasang order sebelum level, reaksi harga, SL, TP, dan risk/reward memenuhi syarat.");
+   if(pending.sell_limit?.status!=="VALID_SETUP")cautionItems.push("SELL LIMIT belum tervalidasi. Area "+sellZone+" hanya dipantau; jangan pasang order sebelum level, reaksi harga, SL, TP, dan risk/reward memenuhi syarat.");
+   if(Array.isArray(r.warnings))r.warnings.forEach(w=>{if(w)cautionItems.push(String(w));});
+   const marketCautionCard='<section class="mt-4 rounded-xl border border-amber-700/60 bg-amber-950/20 p-4 text-left"><div class="flex items-center gap-2"><span class="text-amber-300"><i class="fa-solid fa-triangle-exclamation"></i></span><b class="text-xs text-amber-100">AI CAUTION · SARAN KONDISI PASAR</b></div><p class="text-xs mt-2 text-amber-50">'+safe(cautionItems[0])+'</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-3 text-xs"><div class="rounded-lg bg-slate-950/60 p-3"><b class="text-emerald-200">BUY ZONE · '+safe(buyZoneNumeric)+'</b><p class="muted mt-1">Entry '+safe(fmtLevel(buyEntry))+' · SL '+safe(fmtLevel(buyPlan.stop_loss??r.scenario_buy?.stop_loss))+' · TP1 '+safe(fmtLevel(buyPlan.take_profit_1??r.scenario_buy?.take_profit_1))+' · '+safe(buyZone)+'. Tunggu konfirmasi candle.</p></div><div class="rounded-lg bg-slate-950/60 p-3"><b class="text-rose-200">SELL ZONE · '+safe(sellZoneNumeric)+'</b><p class="muted mt-1">Entry '+safe(fmtLevel(sellEntry))+' · SL '+safe(fmtLevel(sellPlan.stop_loss??r.scenario_sell?.stop_loss))+' · TP1 '+safe(fmtLevel(sellPlan.take_profit_1??r.scenario_sell?.take_profit_1))+' · '+safe(sellZone)+'. Tunggu rejection/breakdown.</p></div></div><ul class="mt-3 space-y-1 text-[11px] text-amber-100">'+cautionItems.slice(1,6).map(x=>'<li>• '+safe(x)+'</li>').join('')+'</ul><p class="muted text-[10px] mt-3">Jika level tidak terbaca, zona ditembus, atau RR tidak layak, pilih WAIT. Level di atas adalah rencana bersyarat, bukan order otomatis.</p></section>';
+   const renderLimit=(o,label,color)=>{
+    const score=Number(o?.confidence_score||0),rr=Number(o?.risk_reward||0),valid=o?.status==="VALID_SETUP"&&score>=75&&rr>=1.5&&o?.entry_price!=null&&o?.stop_loss!=null&&o?.take_profit_1!=null;
+    const status=valid?"LAYAK DIPANTAU":"WAIT · BELUM VALID";
+    const hasConfidence=o?.confidence_score!=null&&Number.isFinite(Number(o.confidence_score));
+    const confidence=hasConfidence?Math.max(0,Math.min(100,Math.round(Number(o.confidence_score)))):null;
+    const confidenceCategory=confidence===null?'Belum tersedia':confidence>=75?'Tinggi':confidence>=50?'Sedang':'Rendah';
+    const confidenceTone=confidence===null?'text-slate-400':confidence>=75?'text-emerald-300':confidence>=50?'text-amber-300':'text-rose-300';
+    const confidenceMarkup='<div class="mt-3 rounded-lg border border-slate-800 bg-slate-950/70 p-3"><div class="flex items-center justify-between gap-2 text-xs"><span class="muted">Confidence setup</span><b class="'+confidenceTone+'">'+(confidence===null?'Belum tersedia':confidence+'%')+'</b></div><div class="h-2 rounded-full bg-slate-700 overflow-hidden mt-2"><div class="h-full rounded-full '+(confidence===null?'bg-slate-600':confidence>=75?'bg-emerald-400':confidence>=50?'bg-amber-400':'bg-rose-400')+'" style="width:'+(confidence===null?0:confidence)+'%"></div></div><div class="flex items-center justify-between mt-2 text-[10px]"><span class="muted">Kategori: '+confidenceCategory+'</span><span class="muted">Skor teknikal, bukan win rate</span></div></div>';
+    return '<section class="rounded-xl border '+(valid?'border-emerald-700/60 bg-emerald-950/20':'border-slate-700 bg-slate-950/60')+' p-4"><div class="flex items-center justify-between gap-2"><b class="text-sm '+color+'">'+label+'</b><span class="pill">'+status+'</span></div>'+confidenceMarkup+'<div class="grid grid-cols-2 gap-2 mt-3 text-xs"><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Harga limit</span><b class="block mt-1">'+(o?.entry_price!=null?safe(o.entry_price):'Belum valid')+'</b></div><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Zona limit</span><b class="block mt-1">'+(o?.entry_zone_low!=null&&o?.entry_zone_high!=null?safe(o.entry_zone_low)+' – '+safe(o.entry_zone_high):'Belum tersedia')+'</b></div><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Stop Loss</span><b class="block mt-1">'+(o?.stop_loss!=null?safe(o.stop_loss):'—')+'</b></div><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Take Profit 1 / 2</span><b class="block mt-1">'+(o?.take_profit_1!=null?safe(o.take_profit_1):'—')+' / '+(o?.take_profit_2!=null?safe(o.take_profit_2):'—')+'</b></div><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Risk / Reward</span><b class="block mt-1">'+(o?.risk_reward!=null?'1 : '+safe(o.risk_reward):'Belum dihitung')+'</b></div><div class="bg-slate-950/60 rounded-lg p-3"><span class="muted">Skor kualitas setup</span><b class="block mt-1">'+score+'/100</b></div></div><p class="text-xs mt-3"><b>Alasan:</b> '+safe(o?.rationale||'Zona belum cukup tervalidasi.')+'</p><p class="text-xs mt-2"><b>Bukti:</b> '+safe(Array.isArray(o?.evidence)?o.evidence.join(' · '):'Belum ada bukti terstruktur')+'</p><p class="text-xs mt-2"><b>Invalidasi:</b> '+safe(o?.invalidation||'Batalkan jika zona ditembus candle close.')+'</p><p class="muted text-[10px] mt-2">'+(valid?'Tunggu harga masuk zona dan konfirmasi candle sebelum mempertimbangkan order.':'Jangan pasang pending order. Tunggu level, bukti, skor, dan RR memenuhi syarat.')+'</p></section>';
+   };
+   const pendingOrderCard='<div class="mt-5 text-left rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4"><div class="font-bold text-xs mb-1">REKOMENDASI PENDING ORDER · BUY LIMIT / SELL LIMIT</div><p class="muted text-[10px] mb-3">Skor menunjukkan kualitas bukti teknikal, bukan persentase peluang profit. Ambang pantau: skor ≥75/100 dan RR ≥1:1.5.</p><div class="grid grid-cols-1 md:grid-cols-2 gap-3">'+renderLimit(pending.buy_limit,'BUY LIMIT','text-emerald-200')+renderLimit(pending.sell_limit,'SELL LIMIT','text-rose-200')+'</div><p class="muted text-[10px] mt-3"><b>Alasan tidak entry:</b> '+safe(pending.no_trade_reason||'Jika setup belum valid, tunggu konfirmasi.')+'</p></div>';
+   const analysisSignal=String(r.signal||'WAIT').toUpperCase();
+   const analysisTone=analysisSignal==='BUY'?'text-emerald-300':analysisSignal==='SELL'?'text-rose-300':'text-amber-300';
+   resultBox.innerHTML=`<div class="text-[10px] tracking-widest muted">HASIL PEMBACAAN CHART</div>
+    ${window.annotatedChartMarkup||''}
+    <div class="text-3xl font-extrabold ${analysisTone} mt-2">${safe(analysisSignal)}</div>
+    <p class="text-sm mt-3">${safe(r.summary)}</p>
+    <div class="mt-3 rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-left">
+     <div class="flex flex-wrap items-center justify-between gap-2 text-xs"><b>BIAS ARAH PASAR: ${safe(r.directional_bias||analysisSignal)}</b><span class="font-bold">${safe(r.trend)}</span></div>
+     <div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs">
+      <div class="rounded bg-emerald-950/50 p-2"><b class="text-emerald-300">${safe(r.buy_score_pct??"—")}%</b><div>BUY</div></div>
+      <div class="rounded bg-rose-950/50 p-2"><b class="text-rose-300">${safe(r.sell_score_pct??"—")}%</b><div>SELL</div></div>
+      <div class="rounded bg-amber-950/50 p-2"><b class="text-amber-300">${safe(r.wait_score_pct??"—")}%</b><div>WAIT</div></div>
+     </div>
+     <p class="muted text-[10px] mt-2">Bobot skenario dari bukti chart, bukan probabilitas profit atau win rate.</p>
+     <p class="text-xs mt-2"><b>Kesiapan entry:</b> ${safe(r.entry_readiness||"WAIT_CONFIRMATION")}</p>
+    </div>
+    ${marketCautionCard}
+    <div class="mt-5 text-left">
+     <div class="font-bold text-xs mb-3">SKENARIO BUY &amp; SELL — RENCANA BERSYARAT</div>
+    ${pendingOrderCard}
+     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <section class="rounded-xl border border-emerald-700/60 bg-emerald-950/20 p-4">
+       <div class="font-extrabold text-sm text-emerald-200">BUY · BREAKOUT / RETEST</div>
+       <div class="text-xs mt-3 space-y-2">
+        <div class="rounded-lg bg-slate-950/50 p-3 space-y-1"><p><b>Harga entry BUY:</b> <span class="text-emerald-200 font-bold">${r.scenario_buy?.entry_price != null ? safe(r.scenario_buy.entry_price) : "Belum terbaca dari chart"}</span></p><p><b>Zona entry:</b> ${r.scenario_buy?.entry_zone_low != null && r.scenario_buy?.entry_zone_high != null ? safe(r.scenario_buy.entry_zone_low)+" – "+safe(r.scenario_buy.entry_zone_high) : "Belum tersedia"}</p><p><b>Stop Loss:</b> ${r.scenario_buy?.stop_loss != null ? safe(r.scenario_buy.stop_loss) : "Belum tersedia"} · <b>TP1:</b> ${r.scenario_buy?.take_profit_1 != null ? safe(r.scenario_buy.take_profit_1) : "—"} · <b>TP2:</b> ${r.scenario_buy?.take_profit_2 != null ? safe(r.scenario_buy.take_profit_2) : "—"}</p><p><b>Risk/Reward:</b> ${r.scenario_buy?.risk_reward != null ? safe(r.scenario_buy.risk_reward) : "Belum tersedia"}</p></div>
+        <p><b>Pemicu:</b> ${safe(r.scenario_buy?.trigger || "Tunggu harga menguji resistance terdekat.")}</p>
+        <p><b>Konfirmasi:</b> ${safe(r.scenario_buy?.confirmation || "Tunggu candle bullish close di atas resistance; idealnya retest bertahan.")}</p>
+        <p><b>Kondisi entry:</b> ${safe(r.scenario_buy?.entry_condition || "Entry hanya setelah breakout terkonfirmasi dan level entry terbaca.")}</p>
+        <p><b>Invalidasi:</b> ${safe(r.scenario_buy?.invalidation || "Batalkan jika harga kembali close di bawah resistance yang ditembus.")}</p>
+        <p><b>Alasan:</b> ${safe(r.scenario_buy?.rationale || "Skenario alternatif jika resistance berhasil ditembus.")}</p>
+       </div>
+      </section>
+      <section class="rounded-xl border border-rose-700/60 bg-rose-950/20 p-4">
+       <div class="font-extrabold text-sm text-rose-200">SELL · REJECTION / BREAKDOWN</div>
+       <div class="text-xs mt-3 space-y-2">
+        <div class="rounded-lg bg-slate-950/50 p-3 space-y-1"><p><b>Harga entry SELL:</b> <span class="text-rose-200 font-bold">${r.scenario_sell?.entry_price != null ? safe(r.scenario_sell.entry_price) : "Belum terbaca dari chart"}</span></p><p><b>Zona entry:</b> ${r.scenario_sell?.entry_zone_low != null && r.scenario_sell?.entry_zone_high != null ? safe(r.scenario_sell.entry_zone_low)+" – "+safe(r.scenario_sell.entry_zone_high) : "Belum tersedia"}</p><p><b>Stop Loss:</b> ${r.scenario_sell?.stop_loss != null ? safe(r.scenario_sell.stop_loss) : "Belum tersedia"} · <b>TP1:</b> ${r.scenario_sell?.take_profit_1 != null ? safe(r.scenario_sell.take_profit_1) : "—"} · <b>TP2:</b> ${r.scenario_sell?.take_profit_2 != null ? safe(r.scenario_sell.take_profit_2) : "—"}</p><p><b>Risk/Reward:</b> ${r.scenario_sell?.risk_reward != null ? safe(r.scenario_sell.risk_reward) : "Belum tersedia"}</p></div>
+        <p><b>Pemicu:</b> ${safe(r.scenario_sell?.trigger || "Tunggu penolakan harga di resistance atau breakdown support.")}</p>
+        <p><b>Konfirmasi:</b> ${safe(r.scenario_sell?.confirmation || "Tunggu candle bearish rejection atau close di bawah support.")}</p>
+        <p><b>Kondisi entry:</b> ${safe(r.scenario_sell?.entry_condition || "Entry hanya setelah rejection/breakdown terkonfirmasi dan level terbaca.")}</p>
+        <p><b>Invalidasi:</b> ${safe(r.scenario_sell?.invalidation || "Batalkan jika harga close kembali di atas zona rejection atau support.")}</p>
+        <p><b>Alasan:</b> ${safe(r.scenario_sell?.rationale || "Skenario alternatif jika resistance menolak harga atau support jebol.")}</p>
+       </div>
+      </section>
+     </div>
+     <p class="muted text-[10px] mt-3">Kedua skenario adalah rencana kondisional, bukan dua order aktif. Bias arah utama ditampilkan terpisah dari kesiapan entry. Tunggu pemicu yang tertulis; jangan entry bila harga/level numerik belum terbaca.</p>
+    </div>
+    <div class="mt-5 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+     <div class="font-bold text-xs mb-3">LEVEL RENCANA TRANSAKSI</div>
+     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">ENTRY</div><b>${safe(r.entry)}</b></div>
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">STOP LOSS</div><b>${safe(r.stop_loss)}</b></div>
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">TAKE PROFIT 1</div><b>${safe(r.take_profit_1 ?? r.take_profit)}</b></div>
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">TAKE PROFIT 2</div><b>${safe(r.take_profit_2)}</b></div>
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">RISK / REWARD</div><b>${safe(r.risk_reward)}</b></div>
+      <div class="bg-slate-900 rounded-lg p-3"><div class="muted text-[9px]">KEYAKINAN BACAAN</div><b>${safe(r.confidence)}%</b><div class="muted text-[9px]">Bukan win rate</div></div>
+     </div>
+     <p class="muted text-[10px] mt-3">Level hanya ditampilkan bila memiliki dasar yang terbaca dan setup terkonfirmasi. Bukan instruksi transaksi otomatis.</p>
+    </div>
+    <div class="mt-3 text-left rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+     <div class="font-bold text-xs mb-3">VALIDASI TEKNIKAL</div>
+     <div class="grid grid-cols-2 gap-2 text-xs">
+      <div><span class="muted">Trend</span><div class="font-semibold">${safe(r.trend)}</div></div>
+      <div><span class="muted">Support / Resistance</span><div class="font-semibold">${safe(r.support_resistance)}</div></div>
+      <div><span class="muted">RSI</span><div class="font-semibold">${safe(r.rsi)}</div></div>
+      <div><span class="muted">MACD</span><div class="font-semibold">${safe(r.macd)}</div></div>
+      <div><span class="muted">Volume</span><div class="font-semibold">${safe(r.volume)}</div></div>
+      <div><span class="muted">Volatilitas</span><div class="font-semibold">${safe(r.volatility)}</div></div>
+     </div>
+     <p class="text-xs mt-3"><b>Alasan analisis:</b> ${safe(r.reasoning || r.summary)}</p>
+     <p class="text-xs mt-2"><b>Konfirmasi:</b> ${safe((r.confirmation||[]).join(' · '))}</p>
+     <p class="text-xs mt-2 text-amber-200"><b>Peringatan:</b> ${safe((r.warnings||[]).join(' · '))}</p>
+     <p class="muted text-[10px] mt-3">${safe(r.disclaimer||'Analisis berdasarkan screenshot, bukan data harga live atau jaminan hasil. Periksa kondisi pasar sebelum mengambil keputusan.')}</p>
+     ${marketIndicatorCard}
+    </div>`;
+   resultBox.insertAdjacentHTML('beforeend','<section id="setupValidityCard" class="mt-4 rounded-xl border border-cyan-800/60 bg-slate-950/60 p-4 text-left"></section>');
+   startSetupValidity(r);
+   resultBox.insertAdjacentHTML('beforeend','<section class="mt-4 rounded-xl border border-violet-800/60 bg-slate-950/60 p-4 text-left"><div class="font-bold text-xs mb-2">BACKTEST HISTORIS · 12 BULAN</div><div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-3"><div><label class="text-[10px] muted">Estimasi biaya per transaksi (% poin return)</label><input id="backtestCostPct" type="number" min="0" max="5" step="0.001" value="0" class="field"></div><p class="muted text-[10px] self-end">Masukkan estimasi round-trip sebagai pengurang return tiap trade. Nol berarti biaya tidak dihitung; bukan biaya aktual broker.</p></div><p class="muted text-[10px] mb-3">Uji strategi EMA 20/50 pada candle harian tersimpan. Hasil awal bersifat gross dan belum memasukkan spread, komisi, swap, atau slippage.</p><div class="flex flex-wrap gap-2"><button type="button" id="runHistoricalBacktest" class="btn primary text-xs">Ambil data historis &amp; jalankan backtest</button><button type="button" id="loadBacktestHistory" class="btn secondary text-xs">Riwayat backtest</button></div><div id="backtestResult" class="text-xs mt-3 muted">Belum ada backtest untuk sesi ini.</div></section>');
+   const backtestBtn=document.getElementById('runHistoricalBacktest');
+   if(backtestBtn)backtestBtn.addEventListener('click',async()=>{
+    const out=document.getElementById('backtestResult');backtestBtn.disabled=true;out.textContent='Mengambil candle harian historis...';
+    try{
+     const symbol=document.getElementById('asset').value.split(/[—–-]/)[0].trim().toUpperCase();
+     const {data:bf,error:be}=await supabaseClient.functions.invoke('market-engine',{body:{action:'backfill_daily',symbol}});
+     if(be)throw be;if(bf?.error)throw new Error(bf.error);
+     out.textContent='Data tersimpan '+safe(bf.stored)+' candle. Menghitung strategi...';
+     const {data:bt,error:te}=await supabaseClient.functions.invoke('market-engine',{body:{action:'run_backtest',symbol,estimated_cost_pct:Number(document.getElementById('backtestCostPct')?.value||0)}});
+     if(te)throw te;if(bt?.error)throw new Error(bt.error);
+     out.innerHTML='<div class="grid grid-cols-2 sm:grid-cols-3 gap-2"><div class="bg-slate-900 rounded p-2">Win rate<br><b>'+safe(bt.win_rate_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Profit factor<br><b>'+safe(bt.profit_factor)+'</b></div><div class="bg-slate-900 rounded p-2">Gross return<br><b>'+safe(bt.gross_return_pct??bt.net_return_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Net return (estimasi)<br><b>'+safe(bt.net_return_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Max drawdown<br><b>'+safe(bt.max_drawdown_pct)+'%</b></div><div class="bg-slate-900 rounded p-2">Jumlah trade<br><b>'+safe(bt.trade_count)+'</b></div><div class="bg-slate-900 rounded p-2">Candle<br><b>'+safe(bt.candle_count)+'</b></div></div><p class="muted text-[10px] mt-2">Periode: '+safe(bt.sample_start)+' – '+safe(bt.sample_end)+'</p><p class="text-amber-200 text-[10px] mt-2">'+safe(bt.warning)+'</p>';
+    }catch(e){out.textContent='Backtest gagal: '+(e?.message||String(e));}
+    finally{backtestBtn.disabled=false;}
+   });
+   const historyBtn=document.getElementById('loadBacktestHistory');
+   if(historyBtn)historyBtn.addEventListener('click',async()=>{
+    const out=document.getElementById('backtestResult');historyBtn.disabled=true;
+    try{const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'history'}});if(error)throw error;if(data?.error)throw new Error(data.error);out.textContent=data.items?.length?data.items.map(x=>x.symbol+' · '+x.created_at+' · Win rate '+(x.metrics?.win_rate_pct??'—')+'% · '+(x.metrics?.trade_count??0)+' trades').join(' | '):'Belum ada riwayat backtest.';}catch(e){out.textContent='Gagal memuat riwayat: '+(e?.message||String(e));}finally{historyBtn.disabled=false;}
+   });
+   // Sinkronkan ringkasan bawah dengan hasil AI yang sama; jangan biarkan placeholder statis "—".
+   const putSummary=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=(value===null||value===undefined||value===''?'Belum terbaca dari chart':String(value));};
+   putSummary('summaryEntry',r.entry);
+   putSummary('summaryStopLoss',r.stop_loss);
+   putSummary('summaryTakeProfit',r.take_profit_1 ?? r.take_profit);
+   putSummary('summaryTrend',r.trend);
+   putSummary('summarySR',r.support_resistance);
+   putSummary('summaryIndicators',[r.rsi,r.macd].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
+   putSummary('summaryVolatility',[r.volume,r.volatility].filter(v=>v!==null&&v!==undefined&&v!=='').join(' / ') || null);
+   updateAutoRiskCard();
+   toast('Analisis chart selesai dan tersimpan di riwayat.');
+   if(window.currentChartUploadId){await supabaseClient.from('chart_uploads').update({status:'success',completed_at:new Date().toISOString(),error_message:null}).eq('id',window.currentChartUploadId);window.currentChartUploadId=null;}
+   await refreshAnalysisQuota();
+   await loadAnalysisHistory();
+   await refreshUploadStats();
+  }catch(e){
+   console.error(e);
+   if(window.currentChartUploadId){await supabaseClient.from('chart_uploads').update({status:'failed',completed_at:new Date().toISOString(),error_message:String(e.message||'Analisis gagal').slice(0,500)}).eq('id',window.currentChartUploadId);window.currentChartUploadId=null;}
+   resultBox.innerHTML='<div class="text-amber-200 font-bold">Analisis belum berhasil</div><p class="muted text-xs mt-2">'+escapeHtml(e.message||'Periksa deployment dan secret Edge Function.')+'</p>';
+   toast('Analisis gagal. Lihat pesan pada panel hasil.');
+   await refreshUploadStats();
+  }
+ };
+ reader.readAsDataURL(file);
 }
+document.addEventListener('visibilitychange',()=>{
+ const newsTab=document.getElementById('tab-news');
+ if(!document.hidden&&newsTab&&newsTab.classList.contains('active'))loadMarketIntelligence({silent:true});
+});
+
+const NEWS_PUSH_VAPID_PUBLIC_KEY = "BFFqStWjPiRarL3JUvF8BnmM3GWBA5Go8_REDbNi11PTe5n6-0ciBtnJY10KQubNJ69Ve3TdI28ADv398LvSvo8";
 function fileToAnalysisDataUrl(file){
  return new Promise((resolve,reject)=>{
   const read=blob=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('Gagal membaca file gambar.'));reader.readAsDataURL(blob);};
