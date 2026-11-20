@@ -755,21 +755,23 @@ function renderHistoryCheckpoints(){
  if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi event HIGH IMPACT pada periode ini.</div>';return;}
  host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
 }
+const RITEL_OFFICIAL_NOV_2026=[
+ {name:'US CPI (M-o-M) · October 2026',date:'2026-11-10T20:30:00+07:00',actual:'0.4%',forecast:'0.3%',previous:'0.6%',currency:'USD',importance:'HIGH',source:'BLS + Economic Calendar · CPI October 2026'},
+ {name:'US PPI (M-o-M) · October 2026',date:'2026-11-13T20:30:00+07:00',actual:'0.3%',forecast:'0.4%',previous:'1.4%',currency:'USD',importance:'HIGH',source:'BLS + Economic Calendar · PPI October 2026'}
+];
+function ritelMergeOfficialReleases(items=[]){
+ const merged=(Array.isArray(items)?items:[]).filter(r=>{
+  const day=String(r.date||'').slice(0,10),name=String(r.name||r.category||'');
+  return !((day==='2026-11-10'&&/\bCPI\b/i.test(name))||(day==='2026-11-13'&&/\bPPI\b/i.test(name)));
+ });
+ return [...merged,...RITEL_OFFICIAL_NOV_2026];
+}
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
- const officialNovember2026=[
-  {name:'US CPI (October 2026)',date:'2026-11-10T20:30:00+07:00',actual:'0.4%',forecast:null,previous:'0.6%',currency:'USD',importance:'HIGH',source:'BLS · CPI October 2026 (rilis resmi)'},
-  {name:'US PPI (October 2026)',date:'2026-11-13T20:30:00+07:00',actual:'0.3%',forecast:null,previous:'1.4%',currency:'USD',importance:'HIGH',source:'BLS · PPI October 2026 (rilis resmi)'}
- ];
- const merged=[...(Array.isArray(items)?items:[])];
- officialNovember2026.forEach(fallback=>{
-  const day=fallback.date.slice(0,10),kind=/CPI/i.test(fallback.name)?'cpi':'ppi';
-  const exists=merged.some(r=>String(r.date||'').slice(0,10)===day&&new RegExp(kind,'i').test(String(r.name||r.category||'')));
-  if(!exists)merged.push(fallback);
- });
- const rows=merged.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'})).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+ const merged=ritelMergeOfficialReleases(items);
+ const rows=merged.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada data arsip HIGH IMPACT dari penyedia kalender pada periode ini.</p>';return;}
- host.innerHTML=rows.map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Arsip rilis HIGH IMPACT. Keputusan fundamental dihitung dari Actual vs Forecast sesuai jenis indikator bila data tersedia.'}})).join('');
+ host.innerHTML=rows.map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Data rilis dicocokkan dengan kalender ekonomi dan publikasi resmi. Actual dibandingkan dengan Forecast untuk evaluasi dampak.'}})).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
@@ -887,7 +889,7 @@ async function loadEconomicCalendar(force=false){
   if(error)throw new Error(error.message||'Layanan kalender gagal dihubungi.');
   if(data?.error)throw new Error(data.error);
   if(!Array.isArray(data?.events))throw new Error(data?.calendarError||'Format jadwal ekonomi tidak valid.');
-  ritelCalendarEvents=data.events;ritelMacroPastReleases=Array.isArray(data.pastReleases)?data.pastReleases:[];ritelCalendarLastLoad=Date.now();renderMacroReleaseArchive(ritelMacroPastReleases);if(ritelNewsCountdownTimer)clearInterval(ritelNewsCountdownTimer);ritelNewsCountdownTimer=setInterval(renderNextNewsReminder,1000);
+  ritelCalendarEvents=data.events;ritelMacroPastReleases=ritelMergeOfficialReleases(Array.isArray(data.pastReleases)?data.pastReleases:[]);ritelCalendarLastLoad=Date.now();renderMacroReleaseArchive(ritelMacroPastReleases);if(ritelNewsCountdownTimer)clearInterval(ritelNewsCountdownTimer);ritelNewsCountdownTimer=setInterval(renderNextNewsReminder,1000);
   if(status)status.textContent=(data.events.length||0)+' agenda tersedia';
   if(data.calendarError&&host){const warn=document.createElement('p');warn.className='text-[10px] text-amber-200 mb-2';warn.textContent='Feed tambahan: '+data.calendarError;host.before(warn);}
   renderEconomicCalendar();
