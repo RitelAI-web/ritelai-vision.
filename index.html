@@ -158,6 +158,24 @@ hr{border-color:var(--rv-line)}
 
 
 /* Mobile-first trading workspace refinement */
+/* Responsive market terminal and upload flow */
+#marketTradingViewFullscreen{min-height:320px;max-width:100%;width:100%}
+#marketTradingViewChart{min-width:0;min-height:320px}
+#marketQuotes{grid-template-columns:repeat(2,minmax(0,1fr))}
+#marketQuotes>*{min-width:0;overflow-wrap:anywhere}
+#marketWatchAssistant,#tab-market .glass{min-width:0}
+#analysisResult img{max-width:100%;height:auto}
+@media(max-width:640px){
+ #tab-market .glass{padding:14px!important}
+ #marketTradingViewFullscreen{height:clamp(320px,62vh,560px)!important}
+ #marketTradingViewChart{height:100%!important}
+ #marketChartSymbols,#marketChartIntervals{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+ #marketChartSymbols button,#marketChartIntervals button{min-width:0;padding:10px 6px;font-size:10px}
+ #marketQuotes{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #marketWatchAssistant .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+ #refreshMarketBtn{width:100%}
+}
+
 @media(max-width:640px){
  body{font-size:14px}
  header>div{padding:10px 12px!important;gap:8px!important}
@@ -625,6 +643,53 @@ let history=[];
 let currentRole='customer';
 let currentUser=null;
 function toggleMainNav(force){const menu=document.getElementById('mainNavMenu'),button=document.getElementById('navMenuToggle'),label=document.getElementById('navMenuToggleText');if(!menu||!button)return;const open=typeof force==='boolean'?force:menu.classList.contains('hidden');menu.classList.toggle('hidden',!open);button.setAttribute('aria-expanded',String(open));if(label)label.textContent=open?'Tutup menu':'Buka menu';const icon=button.querySelector('i');if(icon)icon.className=open?'fa-solid fa-xmark mr-2':'fa-solid fa-bars mr-2';}
+
+/* Market terminal: authenticated candle-context polling + lazy TradingView embed. */
+let ritelMarketTimer=null,ritelMarketBusy=false,ritelMarketContext=null,ritelMarketSymbol='XAUUSD',ritelMarketInterval='5',ritelMarketChartReady=false,ritelMarketChartLoading=false;
+const RITEL_TV_SYMBOLS={XAUUSD:'OANDA:XAUUSD',BTCUSD:'BINANCE:BTCUSDT',EURUSD:'FX:EURUSD',GBPUSD:'FX:GBPUSD',USDJPY:'FX:USDJPY',US30:'FOREXCOM:DJI'};
+function ritelMarketValue(v){return v==null||v===''?'—':Number.isFinite(Number(v))?Number(v).toLocaleString('en-US',{maximumFractionDigits:5}):String(v)}
+function ritelMarketStatus(message,good=false){const el=document.getElementById('marketConnectionStatus');if(el){el.textContent=message;el.className='pill '+(good?'text-emerald-200':'text-amber-200')}}
+function ritelUpdateMarketWatch(c){
+ const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v??'—'};
+ set('watchTrend',c.trend||'—');set('watchVolatility',c.volatility||'—');set('watchPrice',ritelMarketValue(c.last_price));
+ const z=v=>v?ritelMarketValue(v.low)+' – '+ritelMarketValue(v.high):'Belum terdeteksi';
+ set('watchDemand',z(c.demand||c.support));set('watchSupply',z(c.supply||c.resistance));set('watchAtr',ritelMarketValue(c.atr));
+ set('marketWatchStatus',c.readiness==='READY'?'Data candle tersedia':'Menunggu konfirmasi data');
+ set('watchGuidance',(c.disclaimer||'Data berasal dari candle tertutup BiQuote; bukan kuotasi bid/ask streaming broker.')+' Terakhir: '+(c.last_closed_bar_at?new Date(c.last_closed_bar_at).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}):'—'));
+ set('watchLastUpdate',new Date().toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB');
+ const updated=document.getElementById('marketUpdated');if(updated)updated.textContent='Data candle diperbarui '+new Date().toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB · '+(c.source||'BiQuote OHLC');
+ const alerts=document.getElementById('marketWatchAlerts');if(alerts){const near=[];if(c.near_demand)near.push('Harga mendekati demand/support. Tunggu konfirmasi candle.');if(c.near_supply)near.push('Harga mendekati supply/resistance. Tunggu rejection/breakout.');alerts.innerHTML=near.length?near.map(x=>'<p class="rounded-lg bg-amber-950/30 border border-amber-800/40 p-2 text-[10px] text-amber-100">'+x+'</p>').join(''):'<p class="muted text-[10px]">Belum ada peringatan zona. Pemantauan memakai candle tertutup.</p>'}
+}
+async function loadMarketIntelligence(options={}){
+ if(!supabaseClient||ritelMarketBusy)return;
+ ritelMarketBusy=true;const btn=document.getElementById('refreshMarketBtn');if(btn&&!options.silent){btn.disabled=true;btn.dataset.old=btn.innerHTML;btn.textContent='Memuat data...'}
+ ritelMarketStatus('Mengambil candle...',false);
+ try{
+  const asset=document.getElementById('asset')?.value||ritelMarketSymbol;
+  const timeframe=document.getElementById('timeframe')?.value||'M15';
+  ritelMarketSymbol=String(asset).split(/[—–-]/)[0].trim().toUpperCase();
+  const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'watch_context',symbol:ritelMarketSymbol,timeframe}});
+  if(error)throw new Error(data?.error||error.message||'Market feed belum merespons.');
+  if(data?.error)throw new Error(data.error);
+  ritelMarketContext=data;ritelUpdateMarketWatch(data);ritelMarketStatus('Data candle aktif · '+(data.source||'BiQuote'),true);
+  const quotes=document.getElementById('marketQuotes');if(quotes)quotes.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/60 p-3"><div class="muted text-[10px]">'+ritelMarketSymbol+' · LAST CLOSED</div><b class="text-lg">'+ritelMarketValue(data.last_price)+'</b><div class="muted text-[10px] mt-1">Bukan Bid/Ask streaming</div></div><div class="rounded-xl border border-slate-700 bg-slate-950/60 p-3"><div class="muted text-[10px]">TREND · '+String(data.timeframe||timeframe).toUpperCase()+'</div><b class="text-sm">'+(data.trend||'UNCLEAR')+'</b><div class="muted text-[10px] mt-1">Candle tertutup · '+(data.candle_count||0)+' bar</div></div>';
+ }catch(e){ritelMarketStatus('Data belum tersedia',false);const warn=document.getElementById('marketWarnings');if(warn){warn.textContent=e.message||'Feed market belum tersedia.';warn.classList.remove('hidden')}const watch=document.getElementById('marketWatchStatus');if(watch)watch.textContent='Menunggu data';}
+ finally{ritelMarketBusy=false;if(btn){btn.disabled=false;btn.innerHTML=btn.dataset.old||'<i class="fa-solid fa-rotate mr-1"></i>Perbarui harga'}}
+}
+function startMarketAutoRefresh(){if(ritelMarketTimer)clearInterval(ritelMarketTimer);ritelMarketTimer=setInterval(()=>{if(document.visibilityState==='visible'&&document.getElementById('tab-analyze')?.classList.contains('active'))loadMarketIntelligence({silent:true})},60000)}
+function startMarketWatch(){if(!ritelMarketContext)loadMarketIntelligence({silent:true});startMarketAutoRefresh()}
+function setMarketChartSymbol(symbol){ritelMarketSymbol=symbol;document.querySelectorAll('#marketChartSymbols [data-symbol]').forEach(b=>b.classList.toggle('active',b.dataset.symbol===symbol));loadMarketTradingViewChart();loadMarketIntelligence({silent:true})}
+function setMarketChartInterval(interval){ritelMarketInterval=interval;document.querySelectorAll('#marketChartIntervals [data-interval]').forEach(b=>b.classList.toggle('active',b.dataset.interval===interval));loadMarketTradingViewChart()}
+function loadMarketTradingViewChart(){
+ const host=document.getElementById('marketTradingViewChart');if(!host)return;
+ const symbol=RITEL_TV_SYMBOLS[ritelMarketSymbol]||RITEL_TV_SYMBOLS.XAUUSD;
+ const draw=()=>{if(!window.TradingView?.widget){host.innerHTML='<div class="h-full flex items-center justify-center muted text-xs">Chart belum tersedia. Periksa koneksi TradingView.</div>';ritelMarketChartLoading=false;return}
+  host.innerHTML='';new TradingView.widget({autosize:true,symbol,interval:ritelMarketInterval,timezone:'Asia/Jakarta',theme:'dark',style:'1',locale:'id',enable_publishing:false,allow_symbol_change:false,hide_top_toolbar:false,hide_legend:false,save_image:false,container_id:'marketTradingViewChart',studies:['MASimple@tv-basicstudies','RSI@tv-basicstudies']});ritelMarketChartReady=true;ritelMarketChartLoading=false;};
+ if(window.TradingView?.widget){draw();return}if(ritelMarketChartLoading)return;ritelMarketChartLoading=true;
+ let script=document.getElementById('ritelTradingViewScript');if(!script){script=document.createElement('script');script.id='ritelTradingViewScript';script.src='https://s3.tradingview.com/tv.js';script.async=true;script.onload=draw;script.onerror=()=>{ritelMarketChartLoading=false;host.innerHTML='<div class="h-full flex items-center justify-center muted text-xs">TradingView gagal dimuat. Coba muat ulang.</div>'};document.head.appendChild(script)}else{script.addEventListener('load',draw,{once:true})}
+}
+function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
+
 async function showTab(name,btn){
  if(name==='market')name='analyze';
  if(name==='news'||name==='history'){
@@ -806,14 +871,13 @@ function fileToAnalysisDataUrl(file){
  return new Promise((resolve,reject)=>{
   const read=blob=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('Gagal membaca file gambar.'));reader.readAsDataURL(blob);};
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)){reject(new Error('Format gambar harus JPG, PNG, atau WEBP. Jika dari iPhone, simpan ulang sebagai JPG.'));return;}
-  if(file.size<=5*1024*1024){read(file);return;}
-  if(typeof createImageBitmap!=='function'){reject(new Error('Ukuran gambar terlalu besar. Maksimal 5 MB pada perangkat ini.'));return;}
+  if(typeof createImageBitmap!=='function'){if(file.size<=2*1024*1024){read(file);return}reject(new Error('Browser tidak mendukung kompresi gambar. Gunakan gambar di bawah 2 MB.'));return}
   createImageBitmap(file).then(bitmap=>{
-   const scale=Math.min(1,1800/Math.max(bitmap.width,bitmap.height));
+   const maxSide=1500,scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
    const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
-   const ctx=canvas.getContext('2d');if(!ctx){bitmap.close?.();reject(new Error('Browser tidak dapat memproses gambar.'));return;}
+   const ctx=canvas.getContext('2d',{alpha:false});if(!ctx){bitmap.close?.();reject(new Error('Browser tidak dapat memproses gambar.'));return}
    ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);bitmap.close?.();
-   canvas.toBlob(blob=>{if(!blob){reject(new Error('Gagal mengompres gambar.'));return;}read(blob);},'image/jpeg',0.88);
+   canvas.toBlob(blob=>{if(!blob){reject(new Error('Gagal mengompres gambar.'));return}if(blob.size>4*1024*1024){reject(new Error('Gambar setelah kompresi masih di atas 4 MB. Potong area chart lalu unggah kembali.'));return}read(blob)},'image/jpeg',0.82);
   }).catch(()=>reject(new Error('Gambar tidak dapat dibaca. Coba screenshot ulang dalam format JPG/PNG.')));
  });
 }
@@ -930,7 +994,7 @@ if(chartFileInput)chartFileInput.addEventListener('change',()=>{
  const file=chartFileInput.files?.[0],preview=document.getElementById('preview'),img=document.getElementById('previewImage');
  if(!file){preview?.classList.add('hidden');return;}
  if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast('Gunakan file JPG, PNG, atau WEBP.');chartFileInput.value='';preview?.classList.add('hidden');return;}
- if(img)img.src=URL.createObjectURL(file);
+ if(img){if(img.dataset.objectUrl)URL.revokeObjectURL(img.dataset.objectUrl);const objectUrl=URL.createObjectURL(file);img.src=objectUrl;img.dataset.objectUrl=objectUrl;}
  preview?.classList.remove('hidden');
 });
 document.addEventListener('visibilitychange',()=>{
