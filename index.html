@@ -782,7 +782,7 @@ async function showTab(name,btn){
   startMarketWatch();
   if(!marketHasLoaded)loadMarketIntelligence({silent:true});
  }
- if(name==='history')loadAnalysisHistory();
+ if(name==='history'){loadAnalysisHistory();loadNewsHistory();}
  if(name==='journal')loadTradeJournal();
  if(name==='mt5')refreshMT5Access();
  if(name==='news'){loadEconomicCalendar(true);}
