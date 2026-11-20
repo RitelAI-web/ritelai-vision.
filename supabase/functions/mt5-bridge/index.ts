@@ -128,7 +128,7 @@ Deno.serve(async req=>{
     if(action==="queue_signal"){
       const deviceId=clean(body.device_id,64), symbol=clean(body.symbol,"12").toUpperCase();
       if(symbol!=="XAUUSD") return reply({error:"Tahap pertama hanya mengizinkan XAUUSD."},400);
-      const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",body.is_demo===true).maybeSingle();
+      const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop,is_demo").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",body.is_demo===true).maybeSingle();
       if(!device) return reply({error:"Terminal aktif untuk mode akun ini tidak ditemukan."},403);
       if(device.emergency_stop) return reply({error:"Emergency Stop aktif. Sinyal baru diblokir."},423);
       const signal=clean(body.signal_type,20).toUpperCase();
