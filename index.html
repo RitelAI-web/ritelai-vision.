@@ -696,13 +696,13 @@ function loadMarketTradingViewChart(){
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
 
-let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='2026-11',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderCalendarMonthTabs(){
  const host=document.getElementById('calendarMonthTabs');if(!host)return;
  const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
  const buttons=Array.from({length:14},(_,i)=>{const n=10+i,year=2026+Math.floor(n/12),month=n%12;return{value:year+'-'+String(month+1).padStart(2,'0'),label:months[month]+' '+year};});
- host.innerHTML=buttons.map(x=>'<button type="button" class="calendar-month-btn'+(ritelCalendarMonth===x.value?' active':'')+'" data-month="'+x.value+'" aria-pressed="'+String(ritelCalendarMonth===x.value)+'" onclick="setCalendarMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
+ host.innerHTML='<button type="button" class="calendar-month-btn'+(ritelCalendarMonth==='all'?' active':'')+'" data-month="all" aria-pressed="'+String(ritelCalendarMonth==='all')+'" onclick="setCalendarMonth(\'all\')">Semua bulan</button>'+buttons.map(x=>'<button type="button" class="calendar-month-btn'+(ritelCalendarMonth===x.value?' active':'')+'" data-month="'+x.value+'" aria-pressed="'+String(ritelCalendarMonth===x.value)+'" onclick="setCalendarMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
 }
 renderCalendarMonthTabs();
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
