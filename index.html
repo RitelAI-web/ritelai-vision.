@@ -424,8 +424,8 @@ hr{border-color:var(--rv-line)}
    <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-sm">History News · Hasil rilis penting</h2><p class="muted text-xs mt-1">Arsip per akun untuk Pro dan ELITE. Sinyal AI dipisahkan dari simulasi dan transaksi EA.</p></div><button class="btn primary" onclick="loadNewsHistory()">Muat ulang</button></div>
    <div class="text-[10px] muted mt-3">Checkpoint 1, 2, 5, 15, dan 30 menit setelah rilis. Pengambilan otomatis memerlukan halaman tetap terbuka dan koneksi aktif; data yang tidak tersedia ditandai belum tervalidasi.</div>
    <div id="newsHistoryStatus" class="pill mt-3 inline-block">Memeriksa akses...</div>
-   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">FILTER TAHUN & BULAN · ARSIP HIGH IMPACT</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div><div class="mt-4"><div class="text-[10px] font-bold muted mb-2">TANGGAL NEWS · 1–31</div><div id="historyDayTabs"></div></div></div>
-   <div class="mt-4"><h3 class="font-bold text-xs text-cyan-200">History HIGH IMPACT · NFP / FOMC / CPI / PPI</h3><p class="muted text-[10px] mt-1">Arsip HIGH IMPACT disusun berdasarkan tanggal rilis. Setiap kartu menampilkan tanggal dan jam WIB.</p><div id="macroReleaseArchive" class="space-y-2 mt-3"><p class="muted text-xs">Arsip akan dimuat bersama kalender.</p></div></div>
+   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">FILTER TAHUN, BULAN & TANGGAL · ARSIP HIGH IMPACT</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div><div class="mt-4"><div class="text-[10px] font-bold muted mb-2">TANGGAL NEWS · 1–31</div><div id="historyDayTabs"></div></div></div>
+   <div class="mt-4"><h3 class="font-bold text-xs text-cyan-200">History · Semua rilis HIGH IMPACT</h3><p class="muted text-[10px] mt-1">Arsip HIGH IMPACT disusun berdasarkan tanggal rilis. Setiap kartu menampilkan tanggal dan jam WIB.</p><div id="macroReleaseArchive" class="space-y-2 mt-3"><p class="muted text-xs">Arsip akan dimuat bersama kalender.</p></div></div>
    <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
   </div>
   <div class="glass rounded-2xl p-5"><h2 class="font-bold text-sm">Riwayat analisis chart</h2><p id="emptyHistory" class="muted text-xs text-center py-8">Belum ada analisis yang tersimpan.</p><div id="historyItems" class="space-y-2"></div></div>
@@ -733,7 +733,7 @@ function renderHistoryMonthTabs(){
  const heading=document.getElementById('historyMonthHeading');if(heading){const m=months[Number(ritelHistoryMonth)]||'Semua bulan';heading.textContent=(ritelHistoryMonth==='all'?'Semua bulan':m)+' · '+(ritelHistoryYear==='all'?'2026–2027':ritelHistoryYear);}
  const dayHost=document.getElementById('historyDayTabs');
  if(dayHost){
-  if(ritelHistoryYear==='all'||ritelHistoryMonth==='all'){dayHost.innerHTML='<p class="muted text-[10px]">Pilih tahun dan bulan untuk melihat tanggal 1–31 yang memiliki rilis news.</p>';}
+  if(ritelHistoryYear==='all'||ritelHistoryMonth==='all'){dayHost.innerHTML='<p class="muted text-[10px]">Pilih tahun dan bulan untuk membuka kalender tanggal 1–31.</p>';}
   else{
    const daysInMonth=new Date(Number(ritelHistoryYear),Number(ritelHistoryMonth),0).getDate(),counts=ritelHistoryDayCounts();
    dayHost.innerHTML='<div class="grid grid-cols-7 gap-1">'+Array.from({length:daysInMonth},(_,i)=>{const day=String(i+1).padStart(2,'0'),count=counts[day]||0,active=ritelHistoryDay===day;return '<button type="button" class="calendar-month-btn'+(active?' active':'')+(count?' border border-cyan-400/60 text-cyan-200':' opacity-60')+'" data-history-day="'+day+'" aria-pressed="'+String(active)+'" onclick="setHistoryDay(\\''+day+'\\')"><span class="block text-xs">'+(i+1)+'</span>'+(count?'<span class="block text-[9px]">'+count+' news</span>':'<span class="block text-[9px]">—</span>')+'</button>';}).join('')+'</div><div class="muted text-[10px] mt-2">Angka dengan jumlah news menandakan tanggal yang memiliki arsip HIGH IMPACT. Pilih tanggal untuk menyaring hasil.</div>';
@@ -752,13 +752,13 @@ function renderHistoryCheckpoints(){
  const latestByEvent=new Map();
  eligible.forEach(item=>{const e=item.event_snapshot||{},key=[String(e.name||e.title||e.category||'').toLowerCase(),String(e.time||e.event_time||'')].join('|');const old=latestByEvent.get(key);if(!old||Number(item.checkpoint_minutes||0)>Number(old.checkpoint_minutes||0))latestByEvent.set(key,item);});
  const items=[...latestByEvent.values()].sort((a,b)=>Date.parse(a.event_snapshot?.time||a.event_snapshot?.event_time||0)-Date.parse(b.event_snapshot?.time||b.event_snapshot?.event_time||0));
- if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi NFP, FOMC, CPI, atau PPI HIGH IMPACT pada periode ini.</div>';return;}
+ if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi event HIGH IMPACT pada periode ini.</div>';return;}
  host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
 }
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
  const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'})).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
- if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada arsip NFP, FOMC, CPI, atau PPI HIGH IMPACT pada periode ini.</p>';return;}
+ if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada data arsip HIGH IMPACT dari penyedia kalender pada periode ini.</p>';return;}
  host.innerHTML=rows.slice(0,300).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Arsip rilis HIGH IMPACT. Keputusan fundamental dihitung dari Actual vs Forecast sesuai jenis indikator bila data tersedia.'}})).join('');
 }
 async function loadNewsHistory(){
