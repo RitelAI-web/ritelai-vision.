@@ -759,7 +759,7 @@ function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
  const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'})).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada data arsip HIGH IMPACT dari penyedia kalender pada periode ini.</p>';return;}
- host.innerHTML=rows.slice(0,300).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Arsip rilis HIGH IMPACT. Keputusan fundamental dihitung dari Actual vs Forecast sesuai jenis indikator bila data tersedia.'}})).join('');
+ host.innerHTML=rows.map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Arsip rilis HIGH IMPACT. Keputusan fundamental dihitung dari Actual vs Forecast sesuai jenis indikator bila data tersedia.'}})).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
