@@ -38,9 +38,9 @@ jobs:
           python3 - <<'PY'
           import re
           html = open('site/index.html', encoding='utf-8').read()
-          blocks = re.findall(r'<script(?![^>]*\\bsrc=)[^>]*>([\\s\\S]*?)</script>', html, re.I)
+          blocks = re.findall(r'<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)</script>', html, re.I)
           with open('/tmp/ritelai-inline.js', 'w', encoding='utf-8') as f:
-              f.write('\\n;\\n'.join(blocks))
+              f.write('\n;\n'.join(blocks))
           print(f'Checking {len(blocks)} inline script blocks')
           PY
           node --check /tmp/ritelai-inline.js
