@@ -35,7 +35,7 @@ Deno.serve(async(req)=>{
   const body=await req.json(),symbol=String(body.symbol||"XAUUSD").split(/[—–-]/)[0].trim().toUpperCase();
   if(!["XAUUSD","BTCUSD","EURUSD","GBPUSD","USDJPY","US30","ETHUSD","SOLUSD"].includes(symbol))return reply({error:"Unsupported symbol"},400);
   if(body.action==="watch_context"){
-   const tfMap:Record<string,string>={M5:"5m",M15:"15m",M30:"30m",H1:"1h",H4:"4h",D1:"1d"};
+   const tfMap:Record<string,string>={M1:"1m",M5:"5m",M15:"15m",M30:"30m",H1:"1h",H4:"4h",D1:"1d"};
    const interval=tfMap[String(body.timeframe||"M15").toUpperCase()]||"15m";
    const u=new URL("https://biquote.io/api/"+encodeURIComponent(symbol)+"/ohlc");
    u.searchParams.set("interval",interval);u.searchParams.set("limit","240");
@@ -44,7 +44,7 @@ Deno.serve(async(req)=>{
    const payload=await res.json(),raw=Array.isArray(payload?.bars)?payload.bars:Array.isArray(payload)?payload:[];
    const bars=(raw as Bar[]).filter(b=>!b.isOpen&&Number.isFinite(Date.parse(b.openTime))&&[b.open,b.high,b.low,b.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).sort((a,b)=>Date.parse(a.openTime)-Date.parse(b.openTime));
    if(bars.length<60)return reply({error:"Candle tertutup belum cukup untuk membaca struktur pasar.",candle_count:bars.length},422);
-   const last=bars[bars.length-1],age=Date.now()-Date.parse(last.openTime),duration:Record<string,number>={"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
+   const last=bars[bars.length-1],age=Date.now()-Date.parse(last.openTime),duration:Record<string,number>={"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
    if(!Number.isFinite(age)||age<0||age>duration[interval]*3)return reply({error:"Data candle terakhir sudah stale. Menunggu data pasar terbaru."},422);
    const recent=bars.slice(-160),ranges=recent.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-recent[i].close),Math.abs(b.low-recent[i].close)));
    const atr=ranges.length>=14?ranges.slice(-14).reduce((a,b)=>a+b,0)/14:null;
