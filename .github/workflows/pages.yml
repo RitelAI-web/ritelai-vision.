@@ -1,4 +1,4 @@
-name: Publish RitelAI Chart Vision (fresh run)
+name: Publish RitelAI Chart Vision (archive repair deployment)
 on:
   push:
     branches: [main]
