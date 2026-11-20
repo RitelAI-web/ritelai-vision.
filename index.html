@@ -409,7 +409,7 @@ hr{border-color:var(--rv-line)}
       <span class="calendar-month-btn active" data-impact="high" aria-pressed="true">HIGH IMPACT TERPILIH</span>
      </div>
      <div class="text-[10px] font-bold muted mb-2">PILIH BULAN AGENDA</div>
-     <div id="calendarMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan kalender">
+     <div id="calendarMonthTabs" class="w-full" role="group" aria-label="Pilih tahun dan bulan kalender"></div><div class="mt-3"><div class="text-[10px] font-bold muted mb-2">PILIH TANGGAL · 1–31</div><div id="calendarDayTabs"></div></div>
        <button type="button" class="calendar-month-btn active" data-month="all" onclick="setCalendarMonth('all')">Semua bulan</button>
       </div>
     </div>
@@ -696,17 +696,23 @@ function loadMarketTradingViewChart(){
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
 
-let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryDay='all',ritelHistoryCheckpoints=[];
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarYear='2026',ritelCalendarDay='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryDay='all',ritelHistoryCheckpoints=[];
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderCalendarMonthTabs(){
  const host=document.getElementById('calendarMonthTabs');if(!host)return;
- const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
- const buttons=Array.from({length:14},(_,i)=>{const n=10+i,year=2026+Math.floor(n/12),month=n%12;return{value:year+'-'+String(month+1).padStart(2,'0'),label:months[month]+' '+year};});
- host.innerHTML='<button type="button" class="calendar-month-btn'+(ritelCalendarMonth==='all'?' active':'')+'" data-month="all" aria-pressed="'+String(ritelCalendarMonth==='all')+'" onclick="setCalendarMonth(\'all\')">Semua bulan</button>'+buttons.map(x=>'<button type="button" class="calendar-month-btn'+(ritelCalendarMonth===x.value?' active':'')+'" data-month="'+x.value+'" aria-pressed="'+String(ritelCalendarMonth===x.value)+'" onclick="setCalendarMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
+ const months=['Semua bulan','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ host.innerHTML='<div class="grid grid-cols-2 gap-2 w-full"><label class="text-[10px] muted">TAHUN<select id="calendarYearSelect" class="field w-full mt-1" onchange="setCalendarPeriod(this.value,document.getElementById(\\'calendarMonthSelect\\')?.value||\\'all\\')"><option value="2026" '+(ritelCalendarYear==='2026'?'selected':'')+'>2026</option><option value="2027" '+(ritelCalendarYear==='2027'?'selected':'')+'>2027</option></select></label><label class="text-[10px] muted">BULAN<select id="calendarMonthSelect" class="field w-full mt-1" onchange="setCalendarPeriod(document.getElementById(\\'calendarYearSelect\\')?.value||\\'2026\\',this.value)">'+months.map((m,i)=>'<option value="'+(i===0?'all':String(i).padStart(2,'0'))+'" '+(ritelCalendarMonth===(i===0?'all':String(i).padStart(2,'0'))?'selected':'')+'>'+m+'</option>').join('')+'</select></label></div>';
+ const dayHost=document.getElementById('calendarDayTabs');
+ if(dayHost){
+  if(ritelCalendarMonth==='all')dayHost.innerHTML='<p class="muted text-[10px]">Pilih bulan untuk menampilkan tanggal 1–31.</p>';
+  else{const count=new Date(Number(ritelCalendarYear),Number(ritelCalendarMonth),0).getDate();dayHost.innerHTML='<div class="grid grid-cols-7 gap-1">'+Array.from({length:count},(_,i)=>{const day=String(i+1).padStart(2,'0'),active=ritelCalendarDay===day;return '<button type="button" class="calendar-month-btn'+(active?' active':'')+'" data-calendar-day="'+day+'" aria-pressed="'+String(active)+'" onclick="setCalendarDay(\\''+day+'\\')"><span class="block text-xs">'+(i+1)+'</span></button>';}).join('')+'</div><div class="muted text-[10px] mt-2">Pilih tanggal untuk melihat agenda HIGH IMPACT hari tersebut.</div>';}
+ }
 }
 renderCalendarMonthTabs();
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
-function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
+function setCalendarPeriod(year,month){ritelCalendarYear=year;ritelCalendarMonth=month;ritelCalendarDay='all';renderCalendarMonthTabs();renderEconomicCalendar();}
+function setCalendarMonth(value){setCalendarPeriod(ritelCalendarYear,value);}
+function setCalendarDay(day){ritelCalendarDay=day;renderCalendarMonthTabs();renderEconomicCalendar();}
 function ritelHistoryDateParts(value){
  const t=Date.parse(value||'');if(!Number.isFinite(t))return null;
  const d=new Date(t),fmt=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'});
@@ -843,21 +849,19 @@ function renderNextNewsReminder(){
  rem.innerHTML='<div class="flex flex-wrap justify-between gap-2"><b class="text-xs text-amber-200">🔔 PENGINGAT NEWS BERIKUTNYA · '+ritelEscape(String(next.importance||'HIGH').toUpperCase())+'</b><span class="text-[10px] muted">'+ritelEscape(next.currency||'USD')+'</span></div><h3 class="font-bold text-base mt-3">'+ritelEscape(next.name)+'</h3><p class="muted text-xs mt-2">'+new Date(t).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB</p><div class="inline-block rounded-xl border border-amber-700/50 bg-slate-950 px-4 py-3 mt-3"><span class="muted text-[10px] block">HITUNG MUNDUR</span><b class="text-2xl tracking-widest text-amber-200 tabular-nums">'+countdown+'</b></div>'+ritelNewsValues(next)+'<div class="mt-3"><b class="text-xs">KEPUTUSAN AI & REASON</b>'+ritelNewsImpactRows(next.ai||{})+'</div><p class="muted text-[10px] mt-3">Pengingat perangkat dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis. Aktifkan izin notifikasi pada perangkat.</p>';
 }
 function ritelIsPriorityHighImpact(e){
- const name=String(e?.name||e?.title||e?.category||'').toLowerCase();
- const high=String(e?.importance||e?.impact||'').toLowerCase()==='high';
- const core=/(\bnfp\b|non.?farm|payroll|fomc|federal reserve|fed rate|interest rate decision|consumer price|\bcpi\b|producer price|\bppi\b)/i.test(name);
- return high&&core;
+ const raw=String(e?.importance||e?.impact||e?.importanceLevel||'').toLowerCase().trim();
+ return ['high','high impact','3','3.0','tinggi','red'].includes(raw)||Number(raw)===3;
 }
 function renderEconomicCalendar(){
  const host=document.getElementById('economicCalendar');if(!host)return;
  const now=Date.now(),rows=ritelCalendarEvents.filter(e=>{
   const t=Date.parse(e.time||'');if(!Number.isFinite(t)||t<=now||!ritelIsPriorityHighImpact(e))return false;
-  const month=new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7);
-  return ritelCalendarMonth==='all'||month===ritelCalendarMonth;
+  const p=ritelHistoryDateParts(e.time);
+  return p&&p.year===ritelCalendarYear&&(ritelCalendarMonth==='all'||p.month===ritelCalendarMonth)&&(ritelCalendarDay==='all'||p.day===ritelCalendarDay);
  }).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time)).slice(0,5);
- const status=document.getElementById('calendarStatus');if(status)status.textContent=rows.length+' agenda HIGH IMPACT berikutnya · maksimal 5';
+ const status=document.getElementById('calendarStatus');if(status)status.textContent=rows.length+' agenda HIGH IMPACT · maksimal 5';
  renderNextNewsReminder();
- if(!rows.length){host.innerHTML='<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs muted">Belum ada agenda NFP, FOMC, CPI, atau PPI HIGH IMPACT berikutnya pada periode yang dipilih.</div>';return;}
+ if(!rows.length){host.innerHTML='<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs muted">Tidak ada agenda HIGH IMPACT mendatang pada tanggal/periode yang dipilih.</div>';return;}
  host.innerHTML=rows.map(e=>ritelNewsCard(e,{status:'News berikutnya'})).join('');
 }
 async function loadEconomicCalendar(force=false){
