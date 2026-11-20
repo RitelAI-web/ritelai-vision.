@@ -710,9 +710,11 @@ function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelector
 function renderHistoryMonthTabs(){
  const host=document.getElementById('historyMonthTabs');if(!host)return;
  const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
- const options=[{value:'all',label:'Semua'},...Array.from({length:16},(_,i)=>{const n=8+i,y=2026+Math.floor(n/12),m=n%12;return{value:y+'-'+String(m+1).padStart(2,'0'),label:months[m]+' '+y};})];
- host.innerHTML=options.map(x=>'<button type="button" class="calendar-month-btn'+(ritelHistoryMonth===x.value?' active':'')+'" data-history-month="'+x.value+'" onclick="setHistoryMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
- const heading=document.getElementById('historyMonthHeading');if(heading)heading.textContent=ritelHistoryMonth==='all'?'Semua bulan · November 2026 — Desember 2027':(options.find(x=>x.value===ritelHistoryMonth)?.label||ritelHistoryMonth);
+ const options=Array.from({length:24},(_,i)=>{const y=2026+Math.floor(i/12),m=i%12;return{value:y+'-'+String(m+1).padStart(2,'0'),label:months[m],year:y};});
+ const allButton='<button type="button" class="calendar-month-btn'+(ritelHistoryMonth==='all'?' active':'')+'" data-history-month="all" onclick="setHistoryMonth(\'all\')">Semua periode</button>';
+ const yearGroups=[2026,2027].map(y=>'<div class="w-full mt-2 mb-1"><div class="text-[10px] font-extrabold tracking-widest muted mb-2">'+y+'</div><div class="flex flex-wrap gap-2">'+options.filter(x=>x.year===y).map(x=>'<button type="button" class="calendar-month-btn'+(ritelHistoryMonth===x.value?' active':'')+'" data-history-month="'+x.value+'" onclick="setHistoryMonth(\''+x.value+'\')">'+x.label+'</button>').join('')+'</div></div>').join('');
+ host.innerHTML=allButton+yearGroups;
+ const heading=document.getElementById('historyMonthHeading');if(heading)heading.textContent=ritelHistoryMonth==='all'?'Semua bulan · Januari 2026 — Desember 2027':(options.find(x=>x.value===ritelHistoryMonth)?.label+' '+ritelHistoryMonth.slice(0,4)||ritelHistoryMonth);
 }
 function historyMonthMatch(value){if(ritelHistoryMonth==='all')return true;const t=Date.parse(value||'');return Number.isFinite(t)&&new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)===ritelHistoryMonth;}
 function setHistoryMonth(value){ritelHistoryMonth=value;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
