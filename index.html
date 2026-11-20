@@ -999,6 +999,7 @@ async function loadPlans(){
    if(proofStatus)proofStatus.textContent=selectedRitelPlan&&Number(selectedRitelPlan.price_idr)>0?'Paket dipilih. '+(ritelPlanAmount(selectedRitelPlan).discount?'Nominal promo sudah diterapkan. ':'')+'Lakukan pembayaran QRIS sesuai total yang tampil, lalu unggah bukti transaksi asli.':'Paket Gratis tidak memerlukan bukti pembayaran.';
    host.querySelectorAll('[data-plan-id]').forEach(b=>{b.textContent=b===button?'Dipilih':'Pilih';b.classList.toggle('border',b!==button);});
   }));
+  if(appliedRitelAIPromo==='RITELAI30')renderRitelSelectedPlan();
  }catch(error){
   console.error('loadPlans:',error);
   host.innerHTML='<div class="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3"><p class="text-xs text-rose-200">Daftar paket gagal dimuat.</p><p class="muted text-[10px] mt-1">'+ritelEscape(error?.message||'Periksa koneksi Supabase dan kebijakan akses paket.')+'</p><button type="button" class="btn border border-slate-600 mt-2" id="retryLoadPlans">Coba lagi</button></div>';
@@ -1055,9 +1056,9 @@ async function applyRitelAIPromo(){
  try{
   const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();if(sessionError)throw sessionError;
   if(!session?.user){fail('Login terlebih dahulu untuk memeriksa promo pelanggan baru.');openModal('accountModal');return;}
-  const {data:proofs,error:proofError}=await supabaseClient.from('payment_proofs').select('id').eq('user_id',session.user.id).eq('promo_code','RITELAI30').in('status',['pending','approved']).limit(1);if(proofError)throw proofError;
+  const {data:proofs,error:proofError}=await supabaseClient.from('payment_proofs').select('id').eq('user_id',session.user.id).eq('promo_code','RITELAI30').limit(1);if(proofError)throw proofError;
   if(proofs?.length){fail('Promo RITELAI30 sudah pernah digunakan atau sedang menunggu verifikasi pada akun ini.');return;}
-  const {data:subs,error:subError}=await supabaseClient.from('subscriptions').select('plan_id').eq('user_id',session.user.id).eq('status','active');if(subError)throw subError;
+  const {data:subs,error:subError}=await supabaseClient.from('subscriptions').select('plan_id').eq('user_id',session.user.id);if(subError)throw subError;
   const paidIds=(subs||[]).map(x=>x.plan_id).filter(Boolean);
   if(paidIds.length){const {data:paidPlans,error:plansError}=await supabaseClient.from('plans').select('id,code').in('id',paidIds);if(plansError)throw plansError;if((paidPlans||[]).some(x=>!['free','gratis'].includes(String(x.code||'').toLowerCase()))){fail('Promo khusus pelanggan baru yang belum pernah memiliki paket berbayar.');return;}}
   appliedRitelAIPromo='RITELAI30';renderRitelSelectedPlan();const price=ritelPlanAmount(selectedRitelPlan);
