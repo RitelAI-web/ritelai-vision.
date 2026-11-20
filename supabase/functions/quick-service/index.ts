@@ -145,7 +145,7 @@ async function getCalendar() {
     if (/housing|building permits|home sales|house starts/.test(n)) return "HOUSING";
     if (/trade balance|exports|imports/.test(n)) return "TRADE";
     if (/inventory|inventories|stockpile/.test(n)) return "INVENTORY";
-    return "OTHER";
+    return n ? "OTHER:"+n.replace(/[^a-z0-9]+/g," ").trim().slice(0,80) : "OTHER";
   };
   const historyByCategory = new Map<string, AnyRecord[]>();
   for (const old of historicalRows) {
