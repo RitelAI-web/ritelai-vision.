@@ -424,6 +424,7 @@ hr{border-color:var(--rv-line)}
    <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-sm">News History · Evaluasi rilis ekonomi</h2><p class="muted text-xs mt-1">Arsip per akun untuk Pro dan ELITE. Sinyal AI dipisahkan dari simulasi dan transaksi EA.</p></div><button class="btn primary" onclick="loadNewsHistory()">Muat ulang</button></div>
    <div class="text-[10px] muted mt-3">Checkpoint 1, 2, 5, 15, dan 30 menit setelah rilis. Pengambilan otomatis memerlukan halaman tetap terbuka dan koneksi aktif; data yang tidak tersedia ditandai belum tervalidasi.</div>
    <div id="newsHistoryStatus" class="pill mt-3 inline-block">Memeriksa akses...</div>
+   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">PERIODE ARSIP EKONOMI</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · November 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div></div>
    <div class="mt-4"><h3 class="font-bold text-xs text-cyan-200">Arsip rilis ekonomi sebelumnya · NFP / FOMC / CPI / PPI</h3><p class="muted text-[10px] mt-1">Rilis yang sudah lewat dipindahkan dari kalender ke arsip untuk membandingkan Actual, Forecast, dan Previous.</p><div id="macroReleaseArchive" class="space-y-2 mt-3"><p class="muted text-xs">Arsip akan dimuat bersama kalender.</p></div></div>
    <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
   </div>
@@ -695,21 +696,31 @@ function loadMarketTradingViewChart(){
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
 
-let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0;
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='2026-11',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderCalendarMonthTabs(){
  const host=document.getElementById('calendarMonthTabs');if(!host)return;
  const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
- const buttons=[{value:'all',label:'Semua bulan'},...Array.from({length:24},(_,i)=>{const year=2026+Math.floor(i/12),month=i%12;return{value:year+'-'+String(month+1).padStart(2,'0'),label:months[month]+' '+year};})];
+ const buttons=Array.from({length:14},(_,i)=>{const n=10+i,year=2026+Math.floor(n/12),month=n%12;return{value:year+'-'+String(month+1).padStart(2,'0'),label:months[month]+' '+year};});
  host.innerHTML=buttons.map(x=>'<button type="button" class="calendar-month-btn'+(ritelCalendarMonth===x.value?' active':'')+'" data-month="'+x.value+'" aria-pressed="'+String(ritelCalendarMonth===x.value)+'" onclick="setCalendarMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
 }
 renderCalendarMonthTabs();
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
 function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
+function renderHistoryMonthTabs(){
+ const host=document.getElementById('historyMonthTabs');if(!host)return;
+ const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ const options=[{value:'all',label:'Semua'},...Array.from({length:14},(_,i)=>{const n=10+i,y=2026+Math.floor(n/12),m=n%12;return{value:y+'-'+String(m+1).padStart(2,'0'),label:months[m]+' '+y};})];
+ host.innerHTML=options.map(x=>'<button type="button" class="calendar-month-btn'+(ritelHistoryMonth===x.value?' active':'')+'" data-history-month="'+x.value+'" onclick="setHistoryMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
+ const heading=document.getElementById('historyMonthHeading');if(heading)heading.textContent=ritelHistoryMonth==='all'?'Semua bulan · November 2026 — Desember 2027':(options.find(x=>x.value===ritelHistoryMonth)?.label||ritelHistoryMonth);
+}
+function historyMonthMatch(value){if(ritelHistoryMonth==='all')return true;const t=Date.parse(value||'');return Number.isFinite(t)&&new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)===ritelHistoryMonth;}
+function setHistoryMonth(value){ritelHistoryMonth=value;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
+function renderHistoryCheckpoints(){const host=document.getElementById('newsHistoryItems');if(!host)return;const items=ritelHistoryCheckpoints.filter(x=>historyMonthMatch(x.event_snapshot?.time||x.event_snapshot?.event_time));if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada checkpoint evaluasi untuk periode ini.</div>';return;}host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');}
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
- const rows=Array.isArray(items)?items.slice().sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)):[];
- if(!rows.length){host.innerHTML='<p class="muted text-xs">Arsip rilis aktual belum tersedia dari penyedia data.</p>';return;}
+ const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)).slice().sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
+ if(!rows.length){host.innerHTML='<p class="muted text-xs">Tidak ada arsip rilis pada periode yang dipilih.</p>';return;}
  host.innerHTML=rows.slice(0,100).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Data arsip aktual dari penyedia kalender. Evaluasi AI historis tidak tersedia pada rekaman ini.'}})).join('');
 }
 async function loadNewsHistory(){
@@ -717,6 +728,7 @@ async function loadNewsHistory(){
  if(!host||!supabaseClient)return;
  if(status)status.textContent='Memuat arsip rilis dan evaluasi akun...';
  try{
+  renderHistoryMonthTabs();
   if(!ritelCalendarEvents.length)await loadEconomicCalendar(true);
   renderMacroReleaseArchive(ritelMacroPastReleases);
   const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
@@ -725,16 +737,7 @@ async function loadNewsHistory(){
   const {data,error}=await supabaseClient.functions.invoke('news-history',{body:{action:'list'}});
   if(error)throw new Error(error.message||'Layanan News History gagal dihubungi.');
   if(data?.error)throw new Error(data.error);
-  const items=Array.isArray(data?.items)?data.items:[];
-  if(!items.length){
-   host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada checkpoint evaluasi untuk akun ini. Checkpoint otomatis akan tercatat ketika agenda dipantau setelah waktu rilis.</div>';
-   if(status)status.textContent='Arsip rilis dimuat · belum ada checkpoint akun';
-   return;
-  }
-  host.innerHTML=items.map(item=>{
-   const e=item.event_snapshot||{},ai=item.ai_snapshot||{};
-   return ritelNewsCard(e,{ai,checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'});
-  }).join('');
+  const items=Array.isArray(data?.items)?data.items:[];ritelHistoryCheckpoints=items;renderHistoryMonthTabs();renderHistoryCheckpoints();
   if(status)status.textContent=items.length+' checkpoint tersimpan · akun aktif';
  }catch(e){
   host.innerHTML='<p class="text-xs text-amber-200">News History gagal dimuat: '+ritelEscape(e.message||'Kesalahan tidak diketahui')+'</p>';
