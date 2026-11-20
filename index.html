@@ -707,7 +707,7 @@ function renderMacroReleaseArchive(items=[]){
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Arsip rilis aktual belum tersedia dari penyedia data.</p>';return;}
  host.innerHTML=rows.slice(0,100).map(r=>'<article class="rounded-lg border border-slate-700 bg-slate-950/50 p-3"><div class="flex flex-wrap justify-between gap-2"><b class="text-xs">'+ritelEscape(r.category||'Makro')+' · '+ritelEscape(r.name||'Rilis ekonomi')+'</b><span class="muted text-[10px]">'+(r.date?new Date(r.date).toLocaleString('id-ID',{timeZone:'Asia/Jakarta'}):'Waktu tidak tersedia')+' WIB</span></div><div class="grid grid-cols-3 gap-2 mt-2 text-[10px]"><div><span class="muted">Actual</span><b class="block">'+ritelEscape(r.actual??'—')+'</b></div><div><span class="muted">Forecast</span><b class="block">'+ritelEscape(r.forecast??'—')+'</b></div><div><span class="muted">Previous</span><b class="block">'+ritelEscape(r.previous??'—')+'</b></div></div><p class="muted text-[9px] mt-2">Sumber: '+ritelEscape(r.source||'Kalender ekonomi')+'</p></article>').join('');
 }
-async async function loadNewsHistory(){
+async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
  if(!host||!supabaseClient)return;
  if(status)status.textContent='Memuat arsip rilis dan evaluasi akun...';
