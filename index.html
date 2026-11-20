@@ -27,7 +27,7 @@
 button,a,input,select,textarea,label,[role="button"]{-webkit-tap-highlight-color:transparent;touch-action:manipulation;pointer-events:auto}
 button:not(:disabled),a,[role="button"]{cursor:pointer}
 button:disabled{cursor:not-allowed;opacity:.6}
-.nav-menu,.nav-menu.hidden{display:none!important}
+.nav-menu.hidden{display:none!important}
 .navbtn{position:relative;z-index:2}
 .navbtn{min-height:44px}
 .btn{min-height:42px;touch-action:manipulation}
@@ -692,22 +692,31 @@ function toggleMarketChartFullscreen(){const el=document.getElementById('marketT
 
 async function showTab(name,btn){
  if(name==='market')name='analyze';
- if(name==='news'||name==='history'){
-  if(!supabaseClient){toast('Koneksi akun belum siap.');openModal('accountModal');return}
+ const target=document.getElementById('tab-'+name);
+ if(!target){console.warn('Workspace tab not found:',name);toast('Bagian menu belum tersedia.');return;}
+ if(name==='news'){
+  if(!supabaseClient){toast('Koneksi akun belum siap.');openModal('accountModal');return;}
   const {data:{session}}=await supabaseClient.auth.getSession();
-  if(!session){toast('Silakan login untuk membuka News History.');openModal('accountModal');return}
-  const {data:access,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'check_news_access'}});
-  if(error||!access?.allowed){toast('Fitur ini tersedia untuk paket Pro atau Elite aktif.');openModal('plansModal');return}
-  if(name==='history'){renderMacroReleaseArchive(window.ritelaiPastReleases||[]);await loadNewsHistory();}
+  if(!session){toast('Silakan login untuk membuka News & Kalender.');openModal('accountModal');return;}
+  try{
+   const {data:access,error}=await supabaseClient.functions.invoke('quick-service',{body:{action:'check_news_access'}});
+   if(error||!access?.allowed){toast('News & Kalender tersedia untuk paket Pro atau Elite aktif.');openModal('plansModal');return;}
+  }catch(e){toast('Akses News belum dapat diperiksa. Coba lagi.');return;}
  }
  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
- const target=document.getElementById('tab-'+name);if(!target)return;target.classList.add('active');
- document.querySelectorAll('.navbtn').forEach(x=>x.classList.remove('active'));if(btn)btn.classList.add('active');
- if((name==='news'||name==='history'||name==='analyze')&&!marketHasLoaded)await loadMarketIntelligence({silent:true});
- if(name==='analyze'){loadMarketTradingViewChart();startMarketWatch();}
- if(name==='history')renderMacroReleaseArchive(window.ritelaiPastReleases||[]);
+ target.classList.add('active');
+ document.querySelectorAll('.navbtn').forEach(x=>x.classList.toggle('active',x.dataset.tab===name));
+ if(btn)btn.classList.add('active');
+ toggleMainNav(false);
+ if(name==='analyze'){
+  loadMarketTradingViewChart();
+  startMarketWatch();
+  if(!marketHasLoaded)loadMarketIntelligence({silent:true});
+ }
+ if(name==='history')loadAnalysisHistory();
  if(name==='journal')loadTradeJournal();
  if(name==='mt5')refreshMT5Access();
+ if(name==='news'){loadMarketIntelligence({silent:true});}
 }
 function updateMT5ProfileOptions(){
  const profile=document.getElementById('mt5Profile');
@@ -792,6 +801,69 @@ function openModal(id){let m=document.getElementById(id);m.classList.remove('hid
 function closeModal(id){let m=document.getElementById(id);m.classList.add('hidden');m.classList.remove('flex')}
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500)}
 function authMessage(msg,isError=false){const el=document.getElementById('authMessage');el.textContent=msg;el.style.color=isError?'#fca5a5':'#91a3b9'}
+async function refreshAuth(){
+ if(!supabaseClient)return;
+ try{
+  const {data:{session},error}=await supabaseClient.auth.getSession();
+  if(error)throw error;
+  if(!session?.user){setAuthUI(null,'customer');return null;}
+  const {data:profile,error:profileError}=await supabaseClient.from('profiles').select('role,display_name,username').eq('id',session.user.id).maybeSingle();
+  if(profileError)console.warn('profile role lookup:',profileError.message);
+  const role=String(profile?.role||'customer').trim().toLowerCase();
+  setAuthUI(session.user,role);
+  await Promise.allSettled([refreshUploadStats(),refreshAnalysisQuota()]);
+  return session.user;
+ }catch(e){
+  console.error('refreshAuth',e);
+  authMessage('Sesi akun gagal diperiksa: '+(e?.message||'silakan coba lagi'),true);
+  return null;
+ }
+}
+async function signIn(){
+ if(!supabaseClient){authMessage('Koneksi akun belum siap. Muat ulang halaman.',true);return;}
+ const email=document.getElementById('authEmail')?.value?.trim();
+ const password=document.getElementById('authPassword')?.value||'';
+ if(!email||!password){authMessage('Masukkan email dan password.',true);return;}
+ const buttons=document.querySelectorAll('#authSignedOut button');
+ buttons.forEach(b=>b.disabled=true);authMessage('Memeriksa akun...');
+ try{
+  const {data,error}=await supabaseClient.auth.signInWithPassword({email,password});
+  if(error)throw error;
+  await refreshAuth();
+  authMessage('Berhasil masuk sebagai '+(currentRole==='owner'?'Owner':currentRole==='admin'?'Admin':'Customer')+'.');
+  closeModal('accountModal');
+  if(currentRole==='owner'||currentRole==='admin'){toast('Login berhasil. Hak akses '+currentRole.toUpperCase()+' aktif.');}
+ }catch(e){authMessage(e?.message||'Login gagal. Periksa email dan password.',true);}
+ finally{buttons.forEach(b=>b.disabled=false);}
+}
+async function signUp(){
+ if(!supabaseClient){authMessage('Koneksi akun belum siap. Muat ulang halaman.',true);return;}
+ const email=document.getElementById('authEmail')?.value?.trim();
+ const password=document.getElementById('authPassword')?.value||'';
+ if(!email||!password){authMessage('Masukkan email dan password.',true);return;}
+ if(password.length<8){authMessage('Password minimal 8 karakter.',true);return;}
+ const buttons=document.querySelectorAll('#authSignedOut button');buttons.forEach(b=>b.disabled=true);
+ authMessage('Membuat akun...');
+ try{
+  const {data,error}=await supabaseClient.auth.signUp({email,password});
+  if(error)throw error;
+  if(data.session){await refreshAuth();closeModal('accountModal');authMessage('Pendaftaran berhasil.');}
+  else authMessage('Pendaftaran diterima. Periksa email untuk verifikasi sebelum login.');
+ }catch(e){authMessage(e?.message||'Pendaftaran gagal.',true);}
+ finally{buttons.forEach(b=>b.disabled=false);}
+}
+async function signOut(){
+ if(!supabaseClient)return;
+ try{const {error}=await supabaseClient.auth.signOut();if(error)throw error;setAuthUI(null,'customer');toast('Kamu sudah keluar.');closeModal('accountModal');}
+ catch(e){authMessage(e?.message||'Gagal keluar.',true);}
+}
+async function resetPassword(){
+ if(!supabaseClient){authMessage('Koneksi akun belum siap.',true);return;}
+ const email=document.getElementById('authEmail')?.value?.trim();
+ if(!email){authMessage('Masukkan email akun terlebih dahulu.',true);return;}
+ try{const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});if(error)throw error;authMessage('Tautan reset password dikirim jika email terdaftar. Periksa inbox dan spam.');}
+ catch(e){authMessage(e?.message||'Permintaan reset password gagal.',true);}
+}
 function setAuthUI(user, role='customer'){
  currentUser=user||null; currentRole=role||'customer';
  document.getElementById('adminTopBtn').classList.toggle('hidden',!user||!['owner','super_admin'].includes(currentRole));
