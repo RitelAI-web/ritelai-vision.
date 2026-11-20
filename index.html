@@ -621,7 +621,7 @@ async function refreshMT5Access(){
   btn.disabled=true;
  }
 }
-async async function createMT5Pairing(){
+async function createMT5Pairing(){
  const out=document.getElementById('mt5PairResult'),btn=document.getElementById('mt5PairBtn');
  if(!supabaseClient){out.textContent='Layanan belum siap. Muat ulang halaman.';return}
  const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
