@@ -109,13 +109,18 @@ async function getCalendar() {
     futureCursor = next;
   }
   const fetched = await Promise.all(ranges.map(async range => {
-    const url = new URL("https://biquote.io/api/calendar");
-    url.searchParams.set("from", new Date(range.from).toISOString());
-    url.searchParams.set("to", new Date(range.to).toISOString());
-    url.searchParams.set("limit", "500");
-    const result = await fetchJson(url.toString(), 8000);
-    if (!Array.isArray(result)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
-    return result as AnyRecord[];
+    try {
+      const url = new URL("https://biquote.io/api/calendar");
+      url.searchParams.set("from", new Date(range.from).toISOString());
+      url.searchParams.set("to", new Date(range.to).toISOString());
+      url.searchParams.set("limit", "500");
+      const result = await fetchJson(url.toString(), 8000);
+      if (!Array.isArray(result)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
+      return result as AnyRecord[];
+    } catch (error) {
+      console.warn("Calendar month unavailable", new Date(range.from).toISOString(), messageOf(error));
+      return [];
+    }
   }));
   const unique = new Map<string, AnyRecord>();
   for (const batch of fetched) for (const event of batch) {
