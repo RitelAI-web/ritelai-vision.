@@ -410,10 +410,8 @@ hr{border-color:var(--rv-line)}
      </div>
      <div class="text-[10px] font-bold muted mb-2">PILIH BULAN AGENDA</div>
      <div id="calendarMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan kalender">
-      <button type="button" class="calendar-month-btn active" data-month="all" onclick="setCalendarMonth('all')">Semua bulan</button>
-      <button type="button" class="calendar-month-btn" data-month="2026-11" onclick="setCalendarMonth('2026-11')">November 2026</button>
-      <button type="button" class="calendar-month-btn" data-month="2026-12" onclick="setCalendarMonth('2026-12')">Desember 2026</button>
-     </div>
+       <button type="button" class="calendar-month-btn active" data-month="all" onclick="setCalendarMonth('all')">Semua bulan</button>
+      </div>
     </div>
     <div id="nextNewsReminder" class="mt-4 rounded-xl border border-amber-700/50 bg-amber-950/20 p-4" aria-live="polite"><p class="text-xs muted">Menyiapkan pengingat rilis ekonomi...</p></div>
     <div id="economicCalendar" class="space-y-3 mt-4"><p class="muted text-xs">Mengambil jadwal ekonomi...</p></div>
@@ -699,6 +697,13 @@ function toggleMarketChartFullscreen(){const el=document.getElementById('marketT
 
 let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0;
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function renderCalendarMonthTabs(){
+ const host=document.getElementById('calendarMonthTabs');if(!host)return;
+ const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ const buttons=[{value:'all',label:'Semua bulan'},...Array.from({length:24},(_,i)=>{const year=2026+Math.floor(i/12),month=i%12;return{value:year+'-'+String(month+1).padStart(2,'0'),label:months[month]+' '+year};})];
+ host.innerHTML=buttons.map(x=>'<button type="button" class="calendar-month-btn'+(ritelCalendarMonth===x.value?' active':'')+'" data-month="'+x.value+'" aria-pressed="'+String(ritelCalendarMonth===x.value)+'" onclick="setCalendarMonth(\''+x.value+'\')">'+x.label+'</button>').join('');
+}
+renderCalendarMonthTabs();
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
 function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
 function renderMacroReleaseArchive(items=[]){
