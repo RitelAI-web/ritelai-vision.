@@ -106,8 +106,8 @@ Deno.serve(async req=>{
       const patch={execution_mode:mode,emergency_stop:body.emergency_stop!==false,max_risk_pct:risk,
         max_daily_loss_pct:daily,max_spread_points:spread,max_open_positions:positions};
       const {data:updated,error:updateErr}=await admin.from("mt5_devices").update(patch)
-        .eq("id",deviceId).eq("user_id",userId).eq("is_demo",true).select("id,execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions").maybeSingle();
-      if(updateErr||!updated) return reply({error:"Gagal memperbarui kontrol atau terminal demo tidak ditemukan."},500);
+        .eq("id",deviceId).eq("user_id",userId).select("id,execution_mode,emergency_stop,max_risk_pct,max_daily_loss_pct,max_spread_points,max_open_positions,is_demo").maybeSingle();
+      if(updateErr||!updated) return reply({error:"Gagal memperbarui kontrol atau terminal tidak ditemukan."},500);
       return reply({status:"ok",controls:updated});
     }
     if(action==="create_pairing_code"){
@@ -128,8 +128,8 @@ Deno.serve(async req=>{
     if(action==="queue_signal"){
       const deviceId=clean(body.device_id,64), symbol=clean(body.symbol,"12").toUpperCase();
       if(symbol!=="XAUUSD") return reply({error:"Tahap pertama hanya mengizinkan XAUUSD."},400);
-      const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",true).maybeSingle();
-      if(!device) return reply({error:"Terminal demo aktif tidak ditemukan."},403);
+      const {data:device}=await admin.from("mt5_devices").select("id,emergency_stop").eq("id",deviceId).eq("user_id",userId).eq("enabled",true).eq("is_demo",body.is_demo===true).maybeSingle();
+      if(!device) return reply({error:"Terminal aktif untuk mode akun ini tidak ditemukan."},403);
       if(device.emergency_stop) return reply({error:"Emergency Stop aktif. Sinyal baru diblokir."},423);
       const signal=clean(body.signal_type,20).toUpperCase();
       if(!["BUY","SELL","BUY_LIMIT","SELL_LIMIT","CANCEL"].includes(signal)) return reply({error:"Jenis sinyal tidak valid."},400);
@@ -140,7 +140,7 @@ Deno.serve(async req=>{
       }
       const {data:row,error:queueErr}=await admin.from("mt5_signal_queue").insert({user_id:userId,device_id:deviceId,symbol,signal_type:signal,payload,expires_at:new Date(Date.now()+60*1000).toISOString()}).select("id,expires_at").single();
       if(queueErr) return reply({error:"Gagal memasukkan sinyal ke antrean."},500);
-      return reply({status:"ok",queued:true,signal_id:row.id,expires_at:row.expires_at,mode:"DEMO_ONLY"});
+      return reply({status:"ok",queued:true,signal_id:row.id,expires_at:row.expires_at,mode:device.is_demo?"DEMO_ONLY":"REAL"});
     }
   }
 
@@ -208,10 +208,10 @@ Deno.serve(async req=>{
       .eq("id",device.id).single();
     if(controlErr || !controls) return reply({error:"Kontrol perangkat tidak dapat diverifikasi; polling dihentikan."},503);
     if(controls.enabled!==true) return reply({error:"Terminal tidak aktif; polling dihentikan."},403);
-    if(device.is_demo!==true) return reply({status:"real_linked_safe_mode",signals:[],controls:{...controls,emergency_stop:true},device_id:device.id,mode:"REAL_MONITOR_ONLY",execution_enabled:false,message:"Akun REAL berhasil terhubung untuk pemantauan. Pengambilan sinyal eksekusi dan auto trade REAL tetap dikunci sampai validasi keamanan selesai."},200);
-    // Fail closed: never claim signals while the emergency stop is active.
+    // REAL and DEMO use identical strict risk checks. REAL remains paused until
+    // the authenticated account owner explicitly selects FULL_AUTO and disables Emergency Stop.
     if(controls.emergency_stop===true)
-      return reply({status:"paused",signals:[],controls,device_id:device.id,mode:"DEMO_ONLY",
+      return reply({status:"paused",signals:[],controls,device_id:device.id,mode:device.is_demo?"DEMO_ONLY":"REAL",
         message:"Emergency Stop aktif. Sinyal tetap di antrean dan tidak diklaim."},200);
     if(!["SEMI_AUTO","FULL_AUTO"].includes(String(controls.execution_mode||"")))
       return reply({error:"Mode eksekusi tidak valid; polling dihentikan."},409);
@@ -222,7 +222,7 @@ Deno.serve(async req=>{
       return reply({error:"Kontrol risiko perangkat di luar batas DEMO yang diizinkan; polling dihentikan."},409);
     const {data:rows,error:pollErr}=await admin.rpc("claim_mt5_signals",{p_device_id:device.id});
     if(pollErr) return reply({error:"Gagal mengunci antrean sinyal.",detail:pollErr.message},500);
-    return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:"DEMO_ONLY",execution_enabled:true});
+    return reply({status:"ok",signals:rows||[],controls,device_id:device.id,mode:device.is_demo?"DEMO_ONLY":"REAL",execution_enabled:true});
   }
   if(action==="receipt"){
     const id=clean(body.signal_id,64), status=clean(body.status,20).toUpperCase();
