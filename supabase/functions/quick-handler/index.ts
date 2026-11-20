@@ -197,8 +197,23 @@ FIELD JSON WAJIB:
 signal (BUY/SELL/WAIT), decision_type (DIRECTIONAL_BIAS/ENTRY_READY), directional_bias (BUY/SELL/NEUTRAL), buy_score_pct, sell_score_pct, wait_score_pct (jumlah tepat 100; skor skenario bukan probabilitas profit), entry_readiness (READY/WAIT_CONFIRMATION/NOT_READY), summary (2-4 kalimat, sebut struktur dan kondisi), trend (UPTREND/DOWNTREND/SIDEWAYS/UNCLEAR), market_structure, swing_points (array objek {type, price, evidence}; maksimal 8), support_resistance (objek {support_primary, support_secondary, resistance_nearest, resistance_secondary, method}), setup_type (BREAKOUT/RETEST/REJECTION/PULLBACK/REVERSAL/NONE), entry, entry_zone, entry_trigger, stop_loss, take_profit_1, take_profit_2, risk_reward, invalidation, confidence, supporting_evidence (array), opposing_evidence (array), confirmation (array), warnings (array), scenario_buy dan scenario_sell (masing-masing objek {trigger, confirmation, entry_condition, invalidation, rationale, entry_price, entry_zone_low, entry_zone_high, stop_loss, take_profit_1, take_profit_2, risk_reward}). Isi harga entry, SL dan TP hanya bila level dapat dibaca/dihitung wajar dari struktur chart; selain itu null. entry_price adalah level entry rencana berdasarkan snapshot chart, BUKAN harga market live. Skenario BUY memakai pemicu breakout/retest; SELL memakai rejection/breakdown. Harga entry SELL wajib ditampilkan sama seperti BUY bila terbaca; jangan menyalin harga BUY ke SELL., pending_orders (objek {buy_limit, sell_limit, no_trade_reason}), chart_annotations (objek sesuai skema CHART ANNOTATIONS WAJIB), chart_price_status, chart_timestamp, indicator_signals (array {name,status,signal,reading,reason}), indicator_consensus ({buy_count,sell_count,wait_count,available_count,overall,reason}), rsi, macd, volume, volatility, reasoning, disclaimer.
 Semua angka harga harus bersumber dari screenshot. Untuk level yang tidak terbaca gunakan null. chart_price_status harus snapshot_only. Jangan berikan janji profit.`;;
 
-   const res=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify({model:"gpt-4.1-mini",input:[{role:"user",content:[{type:"input_text",text:prompt},{type:"input_image",image_url:image,detail:"high"}]}],text:{format:{type:"json_object"}},max_output_tokens:7000})});
-  const raw=await res.json();if(!res.ok){const apiMessage=raw?.error?.message||`OpenAI HTTP ${res.status}`;throw new Error(`OpenAI HTTP ${res.status}: ${apiMessage}`);}
+   // Retry one time for transient OpenAI connection resets or upstream 5xx.
+   const openAIPayload={model:"gpt-4.1-mini",input:[{role:"user",content:[{type:"input_text",text:prompt},{type:"input_image",image_url:image,detail:"high"}]}],text:{format:{type:"json_object"}},max_output_tokens:10000};
+   let res:Response|null=null;
+   let lastTransportError:unknown=null;
+   for(let attempt=0;attempt<2;attempt++){
+    try{
+     res=await fetch("https://api.openai.com/v1/responses",{method:"POST",headers:{Authorization:`Bearer ${key}`,"Content-Type":"application/json"},body:JSON.stringify(openAIPayload),signal:AbortSignal.timeout(55000)});
+     if(res.status>=500&&attempt===0){await res.body?.cancel();res=null;await new Promise(resolve=>setTimeout(resolve,800));continue;}
+     break;
+    }catch(fetchError){
+     lastTransportError=fetchError;
+     if(attempt===1)throw new Error("Koneksi ke layanan AI terputus setelah 2 percobaan: "+(fetchError instanceof Error?fetchError.message:String(fetchError)));
+     await new Promise(resolve=>setTimeout(resolve,800));
+    }
+   }
+   if(!res)throw new Error(lastTransportError instanceof Error?lastTransportError.message:"Layanan AI tidak mengembalikan respons.");
+   const raw=await res.json();if(!res.ok){const apiMessage=raw?.error?.message||`OpenAI HTTP ${res.status}`;throw new Error(`OpenAI HTTP ${res.status}: ${apiMessage}`);}
   if(raw.status==="incomplete")throw new Error(`OpenAI incomplete response: ${raw.incomplete_details?.reason||"output limit"}`);
   const txt=String(raw.output_text||(raw.output||[]).flatMap((o:any)=>o.content||[]).filter((c:any)=>c.type==="output_text").map((c:any)=>c.text).join("\n")).replace(/^\x60\x60\x60(?:json)?\s*/i,"").replace(/\s*\x60\x60\x60$/,"").trim();
   if(!txt)throw new Error("OpenAI returned an empty analysis response.");
