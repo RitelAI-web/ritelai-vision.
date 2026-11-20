@@ -896,6 +896,9 @@ async function createMT5Pairing(){
 function showAdmin(){if(!['owner','super_admin'].includes(currentRole)){toast('Akses admin tidak diizinkan.');return}showTab('admin',null);loadAdminData()}
 
 let selectedRitelPlan = null;
+let appliedRitelAIPromo = null;
+function ritelPlanAmount(plan){const original=Number(plan?.price_idr||0),eligible=appliedRitelAIPromo==='RITELAI30'&&['pro','elite'].includes(String(plan?.code||'').toLowerCase());return{original,discount:eligible?Math.round(original*.30):0,total:eligible?Math.round(original*.70):original};}
+function renderRitelSelectedPlan(){const plan=selectedRitelPlan,info=document.getElementById('selectedPlanInfo');if(!plan||!info)return;const price=ritelPlanAmount(plan);info.classList.remove('hidden');info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>';const button=[...document.querySelectorAll('[data-plan-id]')].find(x=>x.dataset.planId===String(plan.id));const node=button?.closest('article')?.querySelector('[data-plan-price]');if(node)node.innerHTML=price.discount?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(price.original)+'</span><br><b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="muted">/ '+Number(plan.duration_days||30)+' hari</span>':ritelMoney(price.original)+' <span class="muted">/ '+Number(plan.duration_days||30)+' hari</span>';}
 function ritelEscape(value){
  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
@@ -922,11 +925,8 @@ async function loadPlans(){
    selectedRitelPlan=plans.find(p=>p.id===button.dataset.planId)||null;
    const info=document.getElementById('selectedPlanInfo');
    const proofStatus=document.getElementById('proofUploadStatus');
-   if(info&&selectedRitelPlan){
-    info.classList.remove('hidden');
-    info.innerHTML='<b>Paket dipilih: '+ritelEscape(selectedRitelPlan.name)+'</b><p class="muted text-xs mt-1">Total pembayaran: '+ritelMoney(selectedRitelPlan.price_idr)+' · '+Number(selectedRitelPlan.duration_days||30)+' hari.</p>';
-   }
-   if(proofStatus)proofStatus.textContent=selectedRitelPlan&&Number(selectedRitelPlan.price_idr)>0?'Paket dipilih. Lakukan pembayaran QRIS, lalu unggah bukti transaksi asli.':'Paket Gratis tidak memerlukan bukti pembayaran.';
+   if(info&&selectedRitelPlan)renderRitelSelectedPlan();
+   if(proofStatus)proofStatus.textContent=selectedRitelPlan&&Number(selectedRitelPlan.price_idr)>0?'Paket dipilih. '+(ritelPlanAmount(selectedRitelPlan).discount?'Nominal promo sudah diterapkan. ':'')+'Lakukan pembayaran QRIS sesuai total yang tampil, lalu unggah bukti transaksi asli.':'Paket Gratis tidak memerlukan bukti pembayaran.';
    host.querySelectorAll('[data-plan-id]').forEach(b=>{b.textContent=b===button?'Dipilih':'Pilih';b.classList.toggle('border',b!==button);});
   }));
  }catch(error){
@@ -956,7 +956,9 @@ async function submitPaymentProof(){
   const {error:uploadError}=await supabaseClient.storage.from('payment-proofs').upload(objectPath,file,{contentType:file.type,upsert:false});
   if(uploadError)throw uploadError;
   const {error:insertError}=await supabaseClient.from('payment_proofs').insert({
-   user_id:session.user.id,plan_id:selectedRitelPlan.id,amount_idr:Number(selectedRitelPlan.price_idr),
+   user_id:session.user.id,plan_id:selectedRitelPlan.id,amount_idr:ritelPlanAmount(selectedRitelPlan).total,
+   original_amount_idr:ritelPlanAmount(selectedRitelPlan).original,discount_amount_idr:ritelPlanAmount(selectedRitelPlan).discount,
+   promo_code:ritelPlanAmount(selectedRitelPlan).discount?'RITELAI30':null,
    storage_path:objectPath,payer_name:payer,reference_note:reference||null,status:'pending'
   });
   if(insertError){
@@ -973,14 +975,25 @@ async function submitPaymentProof(){
   setStatus('Gagal mengirim bukti: '+(error?.message||'kesalahan tidak diketahui'),true);
  }finally{button.disabled=false;button.textContent='Kirim bukti untuk diverifikasi';}
 }
-function applyRitelAIPromo(){
- const code=(document.getElementById('promoCodeInput')?.value||'').trim().toUpperCase();
- const status=document.getElementById('promoCodeStatus');
- if(!status)return;
- if(code!=='RITELAI30'){status.textContent='Kode promo tidak dikenali. Periksa kembali penulisannya.';status.style.color='#fca5a5';return;}
- if(!selectedRitelPlan||!['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())){status.textContent='Pilih paket Pro atau Elite terlebih dahulu untuk mengajukan promo.';status.style.color='#fcd34d';return;}
- status.textContent='Kode RITELAI30 dikenali. Diskon 30% perlu divalidasi saat pemeriksaan bukti oleh admin; nominal pembayaran jangan dikurangi sebelum total terkonfirmasi.';
- status.style.color='#fcd34d';
+async function applyRitelAIPromo(){
+ const code=(document.getElementById('promoCodeInput')?.value||'').trim().toUpperCase(),status=document.getElementById('promoCodeStatus');if(!status)return;
+ const fail=message=>{status.textContent=message;status.style.color='#fca5a5';appliedRitelAIPromo=null;if(selectedRitelPlan)renderRitelSelectedPlan();};
+ if(code!=='RITELAI30'){fail('Kode promo tidak dikenali. Periksa kembali penulisannya.');return;}
+ if(!selectedRitelPlan||!['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())){fail('Pilih paket Pro atau Elite terlebih dahulu.');return;}
+ if(!supabaseClient){fail('Koneksi belum siap. Muat ulang halaman lalu coba lagi.');return;}
+ status.textContent='Memeriksa kelayakan promo...';status.style.color='#fcd34d';
+ try{
+  const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();if(sessionError)throw sessionError;
+  if(!session?.user){fail('Login terlebih dahulu untuk memeriksa promo pelanggan baru.');openModal('accountModal');return;}
+  const {data:proofs,error:proofError}=await supabaseClient.from('payment_proofs').select('id').eq('user_id',session.user.id).eq('promo_code','RITELAI30').in('status',['pending','approved']).limit(1);if(proofError)throw proofError;
+  if(proofs?.length){fail('Promo RITELAI30 sudah pernah digunakan atau sedang menunggu verifikasi pada akun ini.');return;}
+  const {data:subs,error:subError}=await supabaseClient.from('subscriptions').select('plan_id').eq('user_id',session.user.id).eq('status','active');if(subError)throw subError;
+  const paidIds=(subs||[]).map(x=>x.plan_id).filter(Boolean);
+  if(paidIds.length){const {data:paidPlans,error:plansError}=await supabaseClient.from('plans').select('id,code').in('id',paidIds);if(plansError)throw plansError;if((paidPlans||[]).some(x=>!['free','gratis'].includes(String(x.code||'').toLowerCase()))){fail('Promo khusus pelanggan baru yang belum pernah memiliki paket berbayar.');return;}}
+  appliedRitelAIPromo='RITELAI30';renderRitelSelectedPlan();const price=ritelPlanAmount(selectedRitelPlan);
+  status.textContent='Promo berhasil diterapkan: hemat 30%. Bayar '+ritelMoney(price.total)+' (harga normal '+ritelMoney(price.original)+'). Promo dikunci saat bukti pembayaran dikirim dan diverifikasi admin.';status.style.color='#86efac';
+  const proofStatus=document.getElementById('proofUploadStatus');if(proofStatus)proofStatus.textContent='Promo 30% aktif. Pastikan nominal QRIS sesuai '+ritelMoney(price.total)+' sebelum mengunggah bukti.';
+ }catch(error){console.error('applyRitelAIPromo:',error);fail('Promo belum dapat diverifikasi: '+(error?.message||'coba lagi nanti.'));}
 }
 
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
