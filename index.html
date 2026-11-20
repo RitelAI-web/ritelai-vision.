@@ -714,11 +714,11 @@ function ritelHistoryDateParts(value){
  return {year:p.year,month:p.month,day:p.day};
 }
 function ritelHistoryDayCounts(){
- const counts={};
- const add=value=>{const p=ritelHistoryDateParts(value);if(!p||ritelHistoryYear==='all'||ritelHistoryMonth==='all'||p.year!==ritelHistoryYear||p.month!==ritelHistoryMonth)return;counts[p.day]=(counts[p.day]||0)+1;};
- (Array.isArray(ritelMacroPastReleases)?ritelMacroPastReleases:[]).forEach(r=>{if(ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'}))add(r.date);});
- ritelHistoryCheckpoints.forEach(x=>{const e=x.event_snapshot||{};if(ritelIsPriorityHighImpact(e))add(e.time||e.event_time);});
- return counts;
+ const byDay={};
+ const add=(value,eventName)=>{const p=ritelHistoryDateParts(value);if(!p||ritelHistoryYear==='all'||ritelHistoryMonth==='all'||p.year!==ritelHistoryYear||p.month!==ritelHistoryMonth)return;const key=String(eventName||'News').toLowerCase();(byDay[p.day]??=new Set()).add(key);};
+ (Array.isArray(ritelMacroPastReleases)?ritelMacroPastReleases:[]).forEach(r=>{if(ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'}))add(r.date,r.name||r.category);});
+ ritelHistoryCheckpoints.forEach(x=>{const e=x.event_snapshot||{};if(ritelIsPriorityHighImpact(e))add(e.time||e.event_time,e.name||e.title||e.category);});
+ return Object.fromEntries(Object.entries(byDay).map(([day,events])=>[day,events.size]));
 }
 function renderHistoryMonthTabs(){
  const host=document.getElementById('historyMonthTabs');if(!host)return;
