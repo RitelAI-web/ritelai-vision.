@@ -424,7 +424,7 @@ hr{border-color:var(--rv-line)}
    <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-sm">History News · Hasil rilis penting</h2><p class="muted text-xs mt-1">Arsip per akun untuk Pro dan ELITE. Sinyal AI dipisahkan dari simulasi dan transaksi EA.</p></div><button class="btn primary" onclick="loadNewsHistory()">Muat ulang</button></div>
    <div class="text-[10px] muted mt-3">Checkpoint 1, 2, 5, 15, dan 30 menit setelah rilis. Pengambilan otomatis memerlukan halaman tetap terbuka dan koneksi aktif; data yang tidak tersedia ditandai belum tervalidasi.</div>
    <div id="newsHistoryStatus" class="pill mt-3 inline-block">Memeriksa akses...</div>
-   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">FILTER TAHUN & BULAN · ARSIP HIGH IMPACT</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div></div>
+   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">FILTER TAHUN & BULAN · ARSIP HIGH IMPACT</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div><div class="mt-4"><div class="text-[10px] font-bold muted mb-2">TANGGAL NEWS · 1–31</div><div id="historyDayTabs"></div></div></div>
    <div class="mt-4"><h3 class="font-bold text-xs text-cyan-200">History HIGH IMPACT · NFP / FOMC / CPI / PPI</h3><p class="muted text-[10px] mt-1">Arsip HIGH IMPACT disusun berdasarkan tanggal rilis. Setiap kartu menampilkan tanggal dan jam WIB.</p><div id="macroReleaseArchive" class="space-y-2 mt-3"><p class="muted text-xs">Arsip akan dimuat bersama kalender.</p></div></div>
    <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
   </div>
@@ -696,7 +696,7 @@ function loadMarketTradingViewChart(){
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
 
-let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='all',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryDay='all',ritelHistoryCheckpoints=[];
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderCalendarMonthTabs(){
  const host=document.getElementById('calendarMonthTabs');if(!host)return;
@@ -707,14 +707,39 @@ function renderCalendarMonthTabs(){
 renderCalendarMonthTabs();
 function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelectorAll('#calendarImpactTabs [data-impact]').forEach(b=>{const on=b.dataset.impact===value;b.classList.toggle('active',on);b.setAttribute('aria-pressed',String(on));});renderEconomicCalendar();}
 function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
+function ritelHistoryDateParts(value){
+ const t=Date.parse(value||'');if(!Number.isFinite(t))return null;
+ const d=new Date(t),fmt=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',year:'numeric',month:'2-digit',day:'2-digit'});
+ const p=Object.fromEntries(fmt.formatToParts(d).map(x=>[x.type,x.value]));
+ return {year:p.year,month:p.month,day:p.day};
+}
+function ritelHistoryDayCounts(){
+ const counts={};
+ const add=value=>{const p=ritelHistoryDateParts(value);if(!p||ritelHistoryYear==='all'||ritelHistoryMonth==='all'||p.year!==ritelHistoryYear||p.month!==ritelHistoryMonth)return;counts[p.day]=(counts[p.day]||0)+1;};
+ (Array.isArray(ritelMacroPastReleases)?ritelMacroPastReleases:[]).forEach(r=>{if(ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'}))add(r.date);});
+ ritelHistoryCheckpoints.forEach(x=>{const e=x.event_snapshot||{};if(ritelIsPriorityHighImpact(e))add(e.time||e.event_time);});
+ return counts;
+}
 function renderHistoryMonthTabs(){
  const host=document.getElementById('historyMonthTabs');if(!host)return;
  const months=['Semua bulan','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
- host.innerHTML='<div class="grid grid-cols-2 gap-2 w-full"><label class="text-[10px] muted">TAHUN<select id="historyYearSelect" class="field w-full mt-1" onchange="setHistoryPeriod(this.value,document.getElementById(\'historyMonthSelect\')?.value||\'all\')"><option value="all" '+(ritelHistoryYear==='all'?'selected':'')+'>Semua tahun</option><option value="2026" '+(ritelHistoryYear==='2026'?'selected':'')+'>2026</option><option value="2027" '+(ritelHistoryYear==='2027'?'selected':'')+'>2027</option></select></label><label class="text-[10px] muted">BULAN<select id="historyMonthSelect" class="field w-full mt-1" onchange="setHistoryPeriod(document.getElementById(\'historyYearSelect\')?.value||\'all\',this.value)">'+months.map((m,i)=>'<option value="'+(i===0?'all':String(i).padStart(2,'0'))+'" '+(ritelHistoryMonth===(i===0?'all':String(i).padStart(2,'0'))?'selected':'')+'>'+m+'</option>').join('')+'</select></label></div>';
+ host.innerHTML='<div class="grid grid-cols-2 gap-2 w-full"><label class="text-[10px] muted">TAHUN<select id="historyYearSelect" class="field w-full mt-1" onchange="setHistoryPeriod(this.value,document.getElementById(\\'historyMonthSelect\\')?.value||\\'all\\')"><option value="all" '+(ritelHistoryYear==='all'?'selected':'')+'>Semua tahun</option><option value="2026" '+(ritelHistoryYear==='2026'?'selected':'')+'>2026</option><option value="2027" '+(ritelHistoryYear==='2027'?'selected':'')+'>2027</option></select></label><label class="text-[10px] muted">BULAN<select id="historyMonthSelect" class="field w-full mt-1" onchange="setHistoryPeriod(document.getElementById(\\'historyYearSelect\\')?.value||\\'all\\',this.value)">'+months.map((m,i)=>'<option value="'+(i===0?'all':String(i).padStart(2,'0'))+'" '+(ritelHistoryMonth===(i===0?'all':String(i).padStart(2,'0'))?'selected':'')+'>'+m+'</option>').join('')+'</select></label></div>';
  const heading=document.getElementById('historyMonthHeading');if(heading){const m=months[Number(ritelHistoryMonth)]||'Semua bulan';heading.textContent=(ritelHistoryMonth==='all'?'Semua bulan':m)+' · '+(ritelHistoryYear==='all'?'2026–2027':ritelHistoryYear);}
+ const dayHost=document.getElementById('historyDayTabs');
+ if(dayHost){
+  if(ritelHistoryYear==='all'||ritelHistoryMonth==='all'){dayHost.innerHTML='<p class="muted text-[10px]">Pilih tahun dan bulan untuk melihat tanggal 1–31 yang memiliki rilis news.</p>';}
+  else{
+   const daysInMonth=new Date(Number(ritelHistoryYear),Number(ritelHistoryMonth),0).getDate(),counts=ritelHistoryDayCounts();
+   dayHost.innerHTML='<div class="grid grid-cols-7 gap-1">'+Array.from({length:daysInMonth},(_,i)=>{const day=String(i+1).padStart(2,'0'),count=counts[day]||0,active=ritelHistoryDay===day;return '<button type="button" class="calendar-month-btn'+(active?' active':'')+(count?' border border-cyan-400/60 text-cyan-200':' opacity-60')+'" data-history-day="'+day+'" aria-pressed="'+String(active)+'" onclick="setHistoryDay(\\''+day+'\\')"><span class="block text-xs">'+(i+1)+'</span>'+(count?'<span class="block text-[9px]">'+count+' news</span>':'<span class="block text-[9px]">—</span>')+'</button>';}).join('')+'</div><div class="muted text-[10px] mt-2">Angka dengan jumlah news menandakan tanggal yang memiliki arsip HIGH IMPACT. Pilih tanggal untuk menyaring hasil.</div>';
+  }
+ }
 }
-function historyMonthMatch(value){const t=Date.parse(value||'');if(!Number.isFinite(t))return ritelHistoryYear==='all'&&ritelHistoryMonth==='all';const d=new Date(t);const y=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',year:'numeric'}).format(d),m=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',month:'2-digit'}).format(d);return (ritelHistoryYear==='all'||y===ritelHistoryYear)&&(ritelHistoryMonth==='all'||m===ritelHistoryMonth);}
-function setHistoryPeriod(year,month){ritelHistoryYear=year;ritelHistoryMonth=month;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
+function historyMonthMatch(value){
+ const p=ritelHistoryDateParts(value);if(!p)return ritelHistoryYear==='all'&&ritelHistoryMonth==='all'&&ritelHistoryDay==='all';
+ return (ritelHistoryYear==='all'||p.year===ritelHistoryYear)&&(ritelHistoryMonth==='all'||p.month===ritelHistoryMonth)&&(ritelHistoryDay==='all'||p.day===ritelHistoryDay);
+}
+function setHistoryPeriod(year,month){ritelHistoryYear=year;ritelHistoryMonth=month;ritelHistoryDay='all';renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
+function setHistoryDay(day){ritelHistoryDay=day;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
 function renderHistoryCheckpoints(){
  const host=document.getElementById('newsHistoryItems');if(!host)return;
  const eligible=ritelHistoryCheckpoints.filter(x=>{const e=x.event_snapshot||{};return historyMonthMatch(e.time||e.event_time)&&ritelIsPriorityHighImpact(e);});
