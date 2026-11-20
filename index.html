@@ -401,14 +401,12 @@ hr{border-color:var(--rv-line)}
   <div class="glass rounded-2xl p-5">
    <div class="rounded-xl border border-cyan-800/50 bg-cyan-950/20 p-4 mt-4 mb-4"><div class="flex flex-wrap items-center justify-between gap-3"><div><div class="font-bold text-sm"><i class="fa-solid fa-bell text-cyan-300 mr-2"></i>Notifikasi News ke HP</div><p class="muted text-[11px] mt-1">Aktifkan agar peringatan berita tetap masuk saat RitelAI tidak dibuka. HIGH diprioritaskan; MEDIUM dan LOW standar.</p><p id="pushStatus" class="text-[10px] muted mt-2">Memeriksa dukungan perangkat...</p></div><button type="button" id="enablePushBtn" class="btn primary w-full sm:w-auto" aria-describedby="pushStatus">Aktifkan notifikasi</button></div></div>
     <div class="flex flex-wrap justify-between gap-3 items-center"><div><h2 class="font-bold text-sm">News & Market Intelligence AI</h2><p class="muted text-xs mt-1">Berita dan agenda ekonomi penting disajikan sebagai kartu analisis dampak untuk instrumen trading.</p></div><button id="refreshMarketBtn" class="btn primary" onclick="loadMarketIntelligence()"><i class="fa-solid fa-rotate mr-1"></i>Perbarui data</button></div>
-   <div class="border-t border-slate-800 mt-5 pt-4"><div class="flex flex-wrap justify-between items-center gap-2"><div><h3 class="font-bold text-sm">Smart News Trading Signal · Semua News</h3><p class="muted text-[10px] mt-1">Prioritas berita berdampak tinggi: NFP, FOMC, CPI, dan PPI. Agenda lampau dipindahkan ke News History untuk perbandingan rilis sebelumnya.</p></div><span id="calendarStatus" class="pill">Memuat jadwal...</span></div>
+   <div class="border-t border-slate-800 mt-5 pt-4"><div class="flex flex-wrap justify-between items-center gap-2"><div><h3 class="font-bold text-sm">Smart News Trading Signal · Semua News</h3><p class="muted text-[10px] mt-1">Hanya NFP, FOMC, CPI, dan PPI berdampak tinggi. Maksimal 5 agenda terdekat; berita yang sudah rilis otomatis masuk News History.</p></div><span id="calendarStatus" class="pill">Memuat jadwal...</span></div>
     <div class="flex flex-wrap gap-2 mt-3 text-[10px]"><span class="pill">Waktu Asia/Jakarta (WIB)</span><span class="pill">Semua tingkat dampak · HIGH diprioritaskan</span><span class="pill">Otomatis diperbarui</span></div>
     <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
      <div class="text-[10px] font-bold muted mb-2">FILTER TINGKAT DAMPAK BERITA</div>
      <div id="calendarImpactTabs" class="flex flex-wrap gap-2 mb-4" role="group" aria-label="Filter tingkat dampak berita">
-      <button type="button" class="calendar-month-btn active" data-impact="high" aria-pressed="true" onclick="setCalendarImpact('high')">HIGH IMPACT</button>
-      <button type="button" class="calendar-month-btn" data-impact="medium" aria-pressed="false" onclick="setCalendarImpact('medium')">MEDIUM</button>
-      <button type="button" class="calendar-month-btn" data-impact="low" aria-pressed="false" onclick="setCalendarImpact('low')">LOW</button>
+      <span class="calendar-month-btn active" data-impact="high" aria-pressed="true">HIGH IMPACT TERPILIH</span>
      </div>
      <div class="text-[10px] font-bold muted mb-2">PILIH BULAN AGENDA</div>
      <div id="calendarMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan kalender">
@@ -426,7 +424,7 @@ hr{border-color:var(--rv-line)}
    <div class="flex flex-wrap justify-between items-center gap-2"><div><h2 class="font-bold text-sm">News History · Evaluasi rilis ekonomi</h2><p class="muted text-xs mt-1">Arsip per akun untuk Pro dan ELITE. Sinyal AI dipisahkan dari simulasi dan transaksi EA.</p></div><button class="btn primary" onclick="loadNewsHistory()">Muat ulang</button></div>
    <div class="text-[10px] muted mt-3">Checkpoint 1, 2, 5, 15, dan 30 menit setelah rilis. Pengambilan otomatis memerlukan halaman tetap terbuka dan koneksi aktif; data yang tidak tersedia ditandai belum tervalidasi.</div>
    <div id="newsHistoryStatus" class="pill mt-3 inline-block">Memeriksa akses...</div>
-   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">PERIODE ARSIP EKONOMI</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div></div>
+   <div class="mt-4 rounded-xl border border-slate-800 bg-slate-950/50 p-3"><div class="text-[10px] font-bold muted mb-2">FILTER TAHUN & BULAN · ARSIP HIGH IMPACT</div><div id="historyMonthHeading" class="font-bold text-sm mb-3">Semua bulan · September 2026 — Desember 2027</div><div id="historyMonthTabs" class="flex flex-wrap gap-2" role="group" aria-label="Pilih bulan News History"></div></div>
    <div class="mt-4"><h3 class="font-bold text-xs text-cyan-200">Arsip rilis ekonomi sebelumnya · NFP / FOMC / CPI / PPI</h3><p class="muted text-[10px] mt-1">Rilis yang sudah lewat dipindahkan dari kalender ke arsip untuk membandingkan Actual, Forecast, dan Previous.</p><div id="macroReleaseArchive" class="space-y-2 mt-3"><p class="muted text-xs">Arsip akan dimuat bersama kalender.</p></div></div>
    <div id="newsHistoryItems" class="space-y-3 mt-4"><p class="muted text-xs">Riwayat akan dimuat setelah login.</p></div>
   </div>
@@ -719,15 +717,18 @@ function historyMonthMatch(value){const t=Date.parse(value||'');if(!Number.isFin
 function setHistoryPeriod(year,month){ritelHistoryYear=year;ritelHistoryMonth=month;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
 function renderHistoryCheckpoints(){
  const host=document.getElementById('newsHistoryItems');if(!host)return;
- const items=ritelHistoryCheckpoints.filter(x=>historyMonthMatch(x.event_snapshot?.time||x.event_snapshot?.event_time));
- if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada checkpoint evaluasi untuk periode ini.</div>';return;}
+ const eligible=ritelHistoryCheckpoints.filter(x=>{const e=x.event_snapshot||{};return historyMonthMatch(e.time||e.event_time)&&ritelIsPriorityHighImpact(e);});
+ const latestByEvent=new Map();
+ eligible.forEach(item=>{const e=item.event_snapshot||{},key=[String(e.name||e.title||e.category||'').toLowerCase(),String(e.time||e.event_time||'')].join('|');const old=latestByEvent.get(key);if(!old||Number(item.checkpoint_minutes||0)>Number(old.checkpoint_minutes||0))latestByEvent.set(key,item);});
+ const items=[...latestByEvent.values()].sort((a,b)=>Date.parse(a.event_snapshot?.time||a.event_snapshot?.event_time||0)-Date.parse(b.event_snapshot?.time||b.event_snapshot?.event_time||0));
+ if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi NFP, FOMC, CPI, atau PPI HIGH IMPACT pada periode ini.</div>';return;}
  host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
 }
 function renderMacroReleaseArchive(items=[]){
  const host=document.getElementById('macroReleaseArchive');if(!host)return;
- const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)).slice().sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
- if(!rows.length){host.innerHTML='<p class="muted text-xs">Tidak ada arsip rilis pada periode yang dipilih.</p>';return;}
- host.innerHTML=rows.slice(0,2000).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Data arsip aktual dari penyedia kalender. Keputusan fundamental dihitung dari Actual vs Forecast bila jenis indikator dan kedua nilai tersedia; evaluasi AI historis terpisah tidak tersedia pada rekaman ini.'}})).join('');
+ const rows=(Array.isArray(items)?items:[]).filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact({name:r.name||r.category,importance:r.importance||'HIGH'})).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
+ if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada arsip NFP, FOMC, CPI, atau PPI HIGH IMPACT pada periode ini.</p>';return;}
+ host.innerHTML=rows.slice(0,300).map(r=>ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source},{status:'Arsip rilis',ai:{reason:'Arsip rilis HIGH IMPACT. Keputusan fundamental dihitung dari Actual vs Forecast sesuai jenis indikator bila data tersedia.'}})).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
@@ -807,23 +808,29 @@ function ritelNewsCard(e,opts={}){
 }
 function renderNextNewsReminder(){
  const rem=document.getElementById('nextNewsReminder');if(!rem)return;
- const next=ritelCalendarEvents.filter(e=>Number.isFinite(Date.parse(e.time||''))&&Date.parse(e.time)>Date.now()).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))[0];
+ const next=ritelCalendarEvents.filter(e=>Number.isFinite(Date.parse(e.time||''))&&Date.parse(e.time)>Date.now()&&ritelIsPriorityHighImpact(e)).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time))[0];
  if(!next){rem.innerHTML='<p class="text-xs muted">Belum ada agenda mendatang pada kalender.</p>';return;}
  const t=Date.parse(next.time),diff=Math.max(0,t-Date.now()),days=Math.floor(diff/86400000),hours=Math.floor(diff%86400000/3600000),mins=Math.floor(diff%3600000/60000),secs=Math.floor(diff%60000/1000);
  const countdown=(days?days+'h ':'')+String(hours).padStart(2,'0')+':'+String(mins).padStart(2,'0')+':'+String(secs).padStart(2,'0');
  rem.innerHTML='<div class="flex flex-wrap justify-between gap-2"><b class="text-xs text-amber-200">🔔 PENGINGAT NEWS BERIKUTNYA · '+ritelEscape(String(next.importance||'HIGH').toUpperCase())+'</b><span class="text-[10px] muted">'+ritelEscape(next.currency||'USD')+'</span></div><h3 class="font-bold text-base mt-3">'+ritelEscape(next.name)+'</h3><p class="muted text-xs mt-2">'+new Date(t).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',dateStyle:'full',timeStyle:'short'})+' WIB</p><div class="inline-block rounded-xl border border-amber-700/50 bg-slate-950 px-4 py-3 mt-3"><span class="muted text-[10px] block">HITUNG MUNDUR</span><b class="text-2xl tracking-widest text-amber-200 tabular-nums">'+countdown+'</b></div>'+ritelNewsValues(next)+'<div class="mt-3"><b class="text-xs">KEPUTUSAN AI & REASON</b>'+ritelNewsImpactRows(next.ai||{})+'</div><p class="muted text-[10px] mt-3">Pengingat perangkat dijadwalkan 1 jam, 15 menit, dan 5 menit sebelum rilis. Aktifkan izin notifikasi pada perangkat.</p>';
 }
+function ritelIsPriorityHighImpact(e){
+ const name=String(e?.name||e?.title||e?.category||'').toLowerCase();
+ const high=String(e?.importance||e?.impact||'').toLowerCase()==='high';
+ const core=/(\bnfp\b|non.?farm|payroll|fomc|federal reserve|fed rate|interest rate decision|consumer price|\bcpi\b|producer price|\bppi\b)/i.test(name);
+ return high&&core;
+}
 function renderEconomicCalendar(){
  const host=document.getElementById('economicCalendar');if(!host)return;
  const now=Date.now(),rows=ritelCalendarEvents.filter(e=>{
-  const t=Date.parse(e.time||'');if(!Number.isFinite(t))return false;
+  const t=Date.parse(e.time||'');if(!Number.isFinite(t)||t<=now||!ritelIsPriorityHighImpact(e))return false;
   const month=new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7);
-  return (ritelCalendarImpact==='all'||String(e.importance||'unknown').toLowerCase()===ritelCalendarImpact)&&(ritelCalendarMonth==='all'||month===ritelCalendarMonth);
- }).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time));
- const status=document.getElementById('calendarStatus');if(status)status.textContent=rows.length+' agenda · '+(ritelCalendarLastLoad?new Date(ritelCalendarLastLoad).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'})+' WIB':'');
+  return ritelCalendarMonth==='all'||month===ritelCalendarMonth;
+ }).sort((a,b)=>Date.parse(a.time)-Date.parse(b.time)).slice(0,5);
+ const status=document.getElementById('calendarStatus');if(status)status.textContent=rows.length+' agenda HIGH IMPACT berikutnya · maksimal 5';
  renderNextNewsReminder();
- if(!rows.length){host.innerHTML='<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs muted">Tidak ada agenda untuk filter ini. Coba Semua bulan atau tingkat dampak lain.</div>';return;}
- host.innerHTML=rows.map(e=>ritelNewsCard(e,{status:Date.parse(e.time)<now?'Sudah rilis':'Mendatang'})).join('');
+ if(!rows.length){host.innerHTML='<div class="rounded-xl border border-slate-800 bg-slate-950/50 p-4 text-xs muted">Belum ada agenda NFP, FOMC, CPI, atau PPI HIGH IMPACT berikutnya pada periode yang dipilih.</div>';return;}
+ host.innerHTML=rows.map(e=>ritelNewsCard(e,{status:'News berikutnya'})).join('');
 }
 async function loadEconomicCalendar(force=false){
  const host=document.getElementById('economicCalendar');if(!host||ritelCalendarLoading)return;
