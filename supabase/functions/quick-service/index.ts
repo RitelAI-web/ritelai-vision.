@@ -89,21 +89,25 @@ function eventTimestamp(value: unknown): number {
 
 async function getCalendar() {
   const now = Date.now();
-  // Kalender dinamis: sertakan rilis yang baru lewat (untuk evaluasi pascarilis)
-  // dan agenda 180 hari ke depan. Semua waktu API tetap ISO UTC.
+  // Arsip dimulai 1 Januari 2026 dan kalender direntangkan sampai 31 Desember 2027.
+  // Ambil per bulan agar batas provider 500 item tidak memotong satu rentang panjang.
   const start = new Date('2026-01-01T00:00:00.000Z').getTime();
-  const end = now + 180 * 24 * 60 * 60 * 1000;
-  // Ambil arsip per bulan agar batas 500 item tidak memotong rilis awal tahun.
-  // Rentang mendatang diminta terpisah agar kalender tetap terisi.
+  const end = new Date('2027-12-31T23:59:59.999Z').getTime();
   const ranges: Array<{from:number;to:number}> = [];
   let cursor = start;
-  while (cursor < now) {
+  while (cursor < Math.min(now,end)) {
     const d = new Date(cursor);
     const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 1);
-    ranges.push({from:cursor,to:Math.min(next-1,now)});
+    ranges.push({from:cursor,to:Math.min(next-1,now,end)});
     cursor = next;
   }
-  ranges.push({from:now,to:end});
+  let futureCursor = Math.max(now,start);
+  while (futureCursor < end) {
+    const d = new Date(futureCursor);
+    const next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth()+1, 1);
+    ranges.push({from:futureCursor,to:Math.min(next-1,end)});
+    futureCursor = next;
+  }
   const fetched = await Promise.all(ranges.map(async range => {
     const url = new URL("https://biquote.io/api/calendar");
     url.searchParams.set("from", new Date(range.from).toISOString());
@@ -122,8 +126,7 @@ async function getCalendar() {
   }
   const rows = [...unique.values()];
   if (!rows.length) throw new Error("Penyedia kalender tidak mengembalikan data");
-  // Gunakan satu feed rentang 30 hari ke belakang hingga 180 hari ke depan.
-  // Dengan begitu rilis kemarin/hari ini tidak hilang akibat endpoint arsip terpisah.
+  // Gabungkan seluruh rilis lampau dan agenda mendatang dalam periode yang diminta.
   const historicalRows: AnyRecord[] = rows.filter((event: AnyRecord) => {
     const stamp=eventTimestamp(event?.time??event?.timestamp??event?.datetime??event?.date);
     return Number.isFinite(stamp) && stamp < now;
@@ -133,27 +136,34 @@ async function getCalendar() {
     if (/non.?farm|payroll|unemployment|employment situation|average hourly earnings|jobless claims|initial claims|continuing claims/.test(n)) return "NFP";
     if (/consumer price|consumer inflation|cpi|core inflation/.test(n)) return "CPI";
     if (/producer price|producer inflation|ppi/.test(n)) return "PPI";
+    if (/pce|personal consumption expenditure/.test(n)) return "PCE";
     if (/gdp|gross domestic product/.test(n)) return "GDP";
-    if (/fomc|federal reserve|fed funds|interest rate decision|policy rate|federal funds rate|monetary policy statement|fed chair/.test(n)) return "FOMC";
+    if (/fomc|federal reserve|fed funds|interest rate decision|policy rate|federal funds rate|monetary policy statement|fed chair|central bank|interest rate/.test(n)) return "CENTRAL_BANK";
     if (/crude oil|oil inventories|petroleum|opec|brent|wti/.test(n)) return "OIL";
-    return "";
+    if (/retail sales|consumer spending/.test(n)) return "RETAIL";
+    if (/pmi|purchasing managers|ism manufacturing|ism services/.test(n)) return "PMI";
+    if (/housing|building permits|home sales|house starts/.test(n)) return "HOUSING";
+    if (/trade balance|exports|imports/.test(n)) return "TRADE";
+    if (/inventory|inventories|stockpile/.test(n)) return "INVENTORY";
+    return "OTHER";
   };
   const historyByCategory = new Map<string, AnyRecord[]>();
   for (const old of historicalRows) {
     const category=categoryOf(old?.name??old?.title??old?.event);
     const rawTime=old?.time??old?.timestamp??old?.datetime??old?.date;
     const stamp=eventTimestamp(rawTime);
-    if (!category || !Number.isFinite(stamp)) continue;
+    if (!Number.isFinite(stamp)) continue;
     const bucket=historyByCategory.get(category)||[];
     bucket.push({date:new Date(stamp).toISOString(),name:old.name??old.title??old.event??category,
       actual:old.actual??old.actualValue??old.actual_value??null,
       forecast:old.forecast??old.consensus??old.estimate??old.forecastValue??old.forecast_value??null,
       previous:old.previous??old.previousValue??old.previous_value??null,
-      unit:old.unit??old.measureUnit??old.measure_unit??"",source:old.source??old.provider??"BiQuote"});
+      revisedPrevious:old.revisedPrevious??old.revised_previous??old.revisedFrom??old.revised_from??null,
+      unit:old.unit??old.measureUnit??old.measure_unit??"",importance:old.importance??old.impact??"unknown",source:old.source??old.provider??"BiQuote"});
     historyByCategory.set(category,bucket);
   }
   for (const bucket of historyByCategory.values()) bucket.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
-  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,120);
+  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,2000);
 
   // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
   // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
