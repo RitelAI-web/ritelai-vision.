@@ -604,7 +604,7 @@ hr{border-color:var(--rv-line)}
 <div id="authSignedOut" class="mt-4"><p class="muted text-xs mb-3">Masuk atau buat akun menggunakan email. Verifikasi email mungkin diperlukan sesuai pengaturan Supabase.</p>
 <label class="text-[11px] muted block mb-1">Email</label><input id="authEmail" type="email" class="field mb-3" placeholder="nama@email.com" autocomplete="email">
 <label class="text-[11px] muted block mb-1">Password</label><input id="authPassword" type="password" class="field mb-3" placeholder="Minimal 8 karakter" autocomplete="current-password">
-<div class="grid grid-cols-2 gap-2"><button class="btn primary" onclick="signIn()">Masuk</button><button class="btn border border-slate-700" onclick="signUp()">Daftar</button></div>
+<div class="grid grid-cols-2 gap-2"><button id="authSignInBtn" type="button" class="btn primary">Masuk</button><button class="btn border border-slate-700" onclick="signUp()">Daftar</button></div>
 <button class="text-xs text-cyan-300 mt-3" onclick="resetPassword()">Lupa password?</button></div>
 <div id="authSignedIn" class="hidden mt-4"><div class="text-xs muted">Akun aktif</div><div id="signedInEmail" class="font-bold mt-1 break-all"></div><div id="signedInRole" class="text-xs cyan mt-1">Customer</div><button class="btn border border-slate-700 w-full mt-4" onclick="signOut()">Keluar</button></div>
 <div id="authMessage" class="text-xs muted mt-3" role="status"></div>
@@ -1133,6 +1133,8 @@ window.addEventListener('DOMContentLoaded',async()=>{
  try{
   if(!window.supabase?.createClient){toast('Library Supabase gagal dimuat. Periksa koneksi internet.');return}
   supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
+  const signInButton=document.getElementById('authSignInBtn');
+  if(signInButton&&!signInButton.dataset.bound){signInButton.dataset.bound='1';signInButton.addEventListener('click',()=>{void signIn();});}
   await refreshAuth();await loadPlans();
   supabaseClient.auth.onAuthStateChange(()=>setTimeout(refreshAuth,0));
   await loadMarketIntelligence({silent:true});
