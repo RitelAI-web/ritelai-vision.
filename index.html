@@ -924,6 +924,37 @@ function renderAnalysisResult(r,imageUrl){
  };
  box.innerHTML='<div class="text-[10px] tracking-widest muted">HASIL PEMBACAAN CHART</div>'+imageMarkup+'<div class="text-3xl font-extrabold '+tone+' mt-3">'+esc(signal)+'</div><p class="text-sm mt-2">'+fmt(r.summary)+'</p>'+matrixHtml+'<div class="mt-3 rounded-lg border border-slate-700 bg-slate-950/60 p-3 text-left"><div class="flex flex-wrap justify-between gap-2 text-xs"><b>BIAS ARAH PASAR: '+fmt(r.directional_bias||signal)+'</b><b>'+fmt(r.trend)+'</b></div><div class="grid grid-cols-3 gap-2 mt-3 text-center text-xs"><div class="rounded bg-emerald-950/50 p-2"><b class="text-emerald-300">'+fmt(r.buy_score_pct)+'%</b><div>BUY</div></div><div class="rounded bg-rose-950/50 p-2"><b class="text-rose-300">'+fmt(r.sell_score_pct)+'%</b><div>SELL</div></div><div class="rounded bg-amber-950/50 p-2"><b class="text-amber-300">'+fmt(r.wait_score_pct)+'%</b><div>WAIT</div></div></div><p class="muted text-[10px] mt-2">Bobot skenario teknikal, bukan probabilitas profit atau win rate.</p><p class="text-xs mt-2"><b>Kesiapan entry:</b> '+fmt(r.entry_readiness)+'</p></div><div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-4 text-left">'+scenario('BUY · RENCANA BERSYARAT',sb,'text-emerald-200')+scenario('SELL · RENCANA BERSYARAT',ss,'text-rose-200')+'</div>'+cautionHtml+'<div class="mt-4 text-left"><div class="text-xs tracking-wide muted mb-3">PENDING ORDER · BUY LIMIT / SELL LIMIT</div><div class="grid grid-cols-1 md:grid-cols-2 gap-3">'+pendingCard('BUY LIMIT',buy,'bg-emerald-400')+pendingCard('SELL LIMIT',sell,'bg-rose-400')+'</div><p class="muted text-[10px] mt-3">'+fmt(pending.no_trade_reason)+'</p></div><div class="mt-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-left"><b class="text-xs">ANALISIS TEKNIKAL</b><div class="grid grid-cols-2 gap-3 mt-3 text-xs"><div><span class="muted">Support / Resistance</span><b class="block">'+fmt(r.support_resistance)+'</b></div><div><span class="muted">RSI</span><b class="block">'+fmt(r.rsi)+'</b></div><div><span class="muted">MACD</span><b class="block">'+fmt(r.macd)+'</b></div><div><span class="muted">Volume / Volatilitas</span><b class="block">'+fmt(r.volume)+' / '+fmt(r.volatility)+'</b></div><div><span class="muted">Skor kualitas setup</span><b class="block">'+fmt(r.setup_quality_score)+'/100 · '+fmt(r.setup_quality_label)+'</b></div><div><span class="muted">Confidence pembacaan</span><b class="block">'+fmt(r.confidence)+'%</b></div></div><div class="mt-3"><b class="text-xs">ZONA BUY / SELL · DEMAND / SUPPLY · SUPPORT / RESISTANCE</b>'+zoneHtml+'</div><div class="mt-3"><b class="text-xs">LEVEL ENTRY / STOP LOSS / TAKE PROFIT</b>'+levelHtml+'</div><p class="text-xs mt-3"><b>Alasan analisis:</b> '+fmt(r.reasoning||r.summary)+'</p><p class="muted text-[10px] mt-3">'+fmt(r.disclaimer)+'</p></div>';
  window.latestRiskSetup={entry:signal==='SELL'?(ss.entry_price??sell.entry_price):(sb.entry_price??buy.entry_price),sl:signal==='SELL'?(ss.stop_loss??sell.stop_loss):(sb.stop_loss??buy.stop_loss),tp1:signal==='SELL'?(ss.take_profit_1??sell.take_profit_1):(sb.take_profit_1??buy.take_profit_1),tp2:signal==='SELL'?(ss.take_profit_2??sell.take_profit_2):(sb.take_profit_2??buy.take_profit_2)};
+ const summarySet=(id,value)=>{
+  const el=document.getElementById(id);if(!el)return;
+  const clean=value===null||value===undefined||value===''?'Belum tersedia':String(value);
+  el.textContent=clean;
+ };
+ const displayValue=v=>{
+  if(v===null||v===undefined||v==='')return 'Belum tersedia';
+  if(typeof v==='object'){
+   if(v.low!=null||v.high!=null)return (v.low??'—')+' – '+(v.high??'—');
+   if(v.value!=null)return String(v.value)+(v.signal?' · '+v.signal:'');
+   if(v.line!=null)return String(v.line)+(v.signal?' · '+v.signal:'');
+   return Object.entries(v).filter(([k,x])=>x!=null&&x!=='').slice(0,3).map(([k,x])=>k.replace(/_/g,' ')+': '+(typeof x==='object'?JSON.stringify(x):x)).join(' · ')||'Belum tersedia';
+  }
+  return String(v);
+ };
+ const chosen=signal==='SELL'?ss:sb;
+ const chosenOrder=signal==='SELL'?sell:buy;
+ const entrySummary=chosen.entry_price??chosenOrder.entry_price??r.entry??null;
+ const slSummary=chosen.stop_loss??chosenOrder.stop_loss??r.stop_loss??null;
+ const tpSummary=chosen.take_profit_1??chosenOrder.take_profit_1??r.take_profit_1??r.take_profit??null;
+ const tp2Summary=chosen.take_profit_2??chosenOrder.take_profit_2??r.take_profit_2??null;
+ summarySet('summaryEntry',entrySummary==null?'Belum tersedia':displayValue(entrySummary));
+ summarySet('summaryStopLoss',slSummary==null?'Belum tersedia':displayValue(slSummary));
+ summarySet('summaryTakeProfit',tpSummary==null?'Belum tersedia':displayValue(tpSummary)+(tp2Summary!=null?' / '+displayValue(tp2Summary):''));
+ const srDetail=r.support_resistance_detail??r.support_resistance??null;
+ summarySet('summaryTrend',r.trend??r.directional_bias??'Belum tersedia');
+ summarySet('summarySR',displayValue(srDetail));
+ summarySet('summaryIndicators','RSI '+displayValue(r.rsi_detail??r.rsi)+' · MACD '+displayValue(r.macd_detail??r.macd));
+ summarySet('summaryVolatility','Volume '+displayValue(r.volume_detail??r.volume)+' · Volatilitas '+displayValue(r.volatility_detail??r.volatility));
+ const resultPill=box.parentElement?.querySelector('.flex.justify-between.items-center.mb-4 .pill');
+ if(resultPill)resultPill.textContent='Analisis selesai · '+(r.entry_readiness||'WAIT_CONFIRMATION');
  if(typeof updateAutoRiskCard==='function')updateAutoRiskCard();
 }
 function previewChartFile(input){
