@@ -698,7 +698,7 @@ function loadMarketTradingViewChart(){
 function toggleMarketChartFullscreen(){const el=document.getElementById('marketTradingViewFullscreen');if(!el)return;if(!document.fullscreenElement){el.requestFullscreen?.().then(()=>setTimeout(()=>loadMarketTradingViewChart(),150)).catch(()=>{});}else document.exitFullscreen?.()}
 
 
-let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='2026-11',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
+let ritelCalendarEvents=[],ritelCalendarImpact='high',ritelCalendarMonth='2026-11',ritelCalendarLoading=false,ritelCalendarLastLoad=0,ritelHistoryYear='all',ritelHistoryMonth='all',ritelHistoryCheckpoints=[];
 function ritelEscape(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function renderCalendarMonthTabs(){
  const host=document.getElementById('calendarMonthTabs');if(!host)return;
@@ -711,15 +711,12 @@ function setCalendarImpact(value){ritelCalendarImpact=value;document.querySelect
 function setCalendarMonth(value){ritelCalendarMonth=value;document.querySelectorAll('#calendarMonthTabs [data-month]').forEach(b=>b.classList.toggle('active',b.dataset.month===value));renderEconomicCalendar();}
 function renderHistoryMonthTabs(){
  const host=document.getElementById('historyMonthTabs');if(!host)return;
- const months=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
- const options=Array.from({length:24},(_,i)=>{const y=2026+Math.floor(i/12),m=i%12;return{value:y+'-'+String(m+1).padStart(2,'0'),label:months[m],year:y};});
- const allButton='<button type="button" class="calendar-month-btn'+(ritelHistoryMonth==='all'?' active':'')+'" data-history-month="all" onclick="setHistoryMonth(\'all\')">Semua periode</button>';
- const yearGroups=[2026,2027].map(y=>'<div class="w-full mt-2 mb-1"><div class="text-[10px] font-extrabold tracking-widest muted mb-2">'+y+'</div><div class="flex flex-wrap gap-2">'+options.filter(x=>x.year===y).map(x=>'<button type="button" class="calendar-month-btn'+(ritelHistoryMonth===x.value?' active':'')+'" data-history-month="'+x.value+'" onclick="setHistoryMonth(\''+x.value+'\')">'+x.label+'</button>').join('')+'</div></div>').join('');
- host.innerHTML=allButton+yearGroups;
- const heading=document.getElementById('historyMonthHeading');if(heading)heading.textContent=ritelHistoryMonth==='all'?'Semua bulan · Januari 2026 — Desember 2027':(options.find(x=>x.value===ritelHistoryMonth)?.label+' '+ritelHistoryMonth.slice(0,4)||ritelHistoryMonth);
+ const months=['Semua bulan','Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+ host.innerHTML='<div class="grid grid-cols-2 gap-2 w-full"><label class="text-[10px] muted">TAHUN<select id="historyYearSelect" class="field w-full mt-1" onchange="setHistoryPeriod(this.value,document.getElementById(\'historyMonthSelect\')?.value||\'all\')"><option value="all" '+(ritelHistoryYear==='all'?'selected':'')+'>Semua tahun</option><option value="2026" '+(ritelHistoryYear==='2026'?'selected':'')+'>2026</option><option value="2027" '+(ritelHistoryYear==='2027'?'selected':'')+'>2027</option></select></label><label class="text-[10px] muted">BULAN<select id="historyMonthSelect" class="field w-full mt-1" onchange="setHistoryPeriod(document.getElementById(\'historyYearSelect\')?.value||\'all\',this.value)">'+months.map((m,i)=>'<option value="'+(i===0?'all':String(i).padStart(2,'0'))+'" '+(ritelHistoryMonth===(i===0?'all':String(i).padStart(2,'0'))?'selected':'')+'>'+m+'</option>').join('')+'</select></label></div>';
+ const heading=document.getElementById('historyMonthHeading');if(heading){const m=months[Number(ritelHistoryMonth)]||'Semua bulan';heading.textContent=(ritelHistoryMonth==='all'?'Semua bulan':m)+' · '+(ritelHistoryYear==='all'?'2026–2027':ritelHistoryYear);}
 }
-function historyMonthMatch(value){if(ritelHistoryMonth==='all')return true;const t=Date.parse(value||'');return Number.isFinite(t)&&new Date(t).toLocaleDateString('en-CA',{timeZone:'Asia/Jakarta'}).slice(0,7)===ritelHistoryMonth;}
-function setHistoryMonth(value){ritelHistoryMonth=value;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
+function historyMonthMatch(value){const t=Date.parse(value||'');if(!Number.isFinite(t))return ritelHistoryYear==='all'&&ritelHistoryMonth==='all';const d=new Date(t);const y=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',year:'numeric'}).format(d),m=new Intl.DateTimeFormat('en',{timeZone:'Asia/Jakarta',month:'2-digit'}).format(d);return (ritelHistoryYear==='all'||y===ritelHistoryYear)&&(ritelHistoryMonth==='all'||m===ritelHistoryMonth);}
+function setHistoryPeriod(year,month){ritelHistoryYear=year;ritelHistoryMonth=month;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
 function renderHistoryCheckpoints(){
  const host=document.getElementById('newsHistoryItems');if(!host)return;
  const items=ritelHistoryCheckpoints.filter(x=>historyMonthMatch(x.event_snapshot?.time||x.event_snapshot?.event_time));
