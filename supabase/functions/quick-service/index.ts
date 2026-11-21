@@ -160,7 +160,9 @@ async function getFinanceCalendarHistoryEvents(supabaseUrl:string,serviceKey:str
     if(!stateResponse.ok)return{events:[],attempted:false,error:"Status sinkronisasi histori tidak dapat dibaca: HTTP "+stateResponse.status};
     const stateRows=await stateResponse.json();
     const lastSync=Date.parse(stateRows?.[0]?.last_history_sync_at||"");
-    if(Number.isFinite(lastSync)&&Date.now()-lastSync<24*60*60*1000)return{events:[],attempted:false,error:stateRows?.[0]?.last_error||null};
+    const lastError=String(stateRows?.[0]?.last_error||"");
+    const cooldown=lastError?60*60*1000:24*60*60*1000;
+    if(Number.isFinite(lastSync)&&Date.now()-lastSync<cooldown)return{events:[],attempted:false,error:lastError||null};
 
     const specs=[
       {series:"us-nfp",defaultName:"US Nonfarm Payrolls"},
