@@ -748,12 +748,16 @@ function setHistoryPeriod(year,month){ritelHistoryYear=year;ritelHistoryMonth=mo
 function setHistoryDay(day){ritelHistoryDay=day;renderHistoryMonthTabs();renderMacroReleaseArchive(ritelMacroPastReleases);renderHistoryCheckpoints();}
 function renderHistoryCheckpoints(){
  const host=document.getElementById('newsHistoryItems');if(!host)return;
+ const releases=ritelMergeOfficialReleases(ritelMacroPastReleases).filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
  const eligible=ritelHistoryCheckpoints.filter(x=>{const e=x.event_snapshot||{};return historyMonthMatch(e.time||e.event_time)&&ritelIsPriorityHighImpact(e);});
  const latestByEvent=new Map();
  eligible.forEach(item=>{const e=item.event_snapshot||{},key=[String(e.name||e.title||e.category||'').toLowerCase(),String(e.time||e.event_time||'')].join('|');const old=latestByEvent.get(key);if(!old||Number(item.checkpoint_minutes||0)>Number(old.checkpoint_minutes||0))latestByEvent.set(key,item);});
- const items=[...latestByEvent.values()].sort((a,b)=>Date.parse(a.event_snapshot?.time||a.event_snapshot?.event_time||0)-Date.parse(b.event_snapshot?.time||b.event_snapshot?.event_time||0));
- if(!items.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada evaluasi event HIGH IMPACT pada periode ini.</div>';return;}
- host.innerHTML=items.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi rilis'})).join('');
+ const checkpoints=[...latestByEvent.values()].sort((a,b)=>Date.parse(a.event_snapshot?.time||a.event_snapshot?.event_time||0)-Date.parse(b.event_snapshot?.time||b.event_snapshot?.event_time||0));
+ const releaseCards=releases.map(r=>{const upcoming=Date.parse(r.date)>Date.now();return ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source||r.eventSource,sourceUrl:r.sourceUrl||r.source_url,source_url:r.source_url},{status:upcoming?'Agenda mendatang':'Ritel News · Arsip',ai:{reason:r.raw_event?.reason||r.reason||''}});});
+ const checkpointCards=checkpoints.map(item=>ritelNewsCard(item.event_snapshot||{},{ai:item.ai_snapshot||{},checkpoint:item.checkpoint_minutes,validation:item.validation_status,status:'Evaluasi AI tersimpan'}));
+ const cards=[...releaseCards,...checkpointCards];
+ if(!cards.length){host.innerHTML='<div class="rounded-xl border border-slate-700 bg-slate-950/50 p-3 text-xs muted">Belum ada Ritel News atau evaluasi HIGH IMPACT pada periode ini. Coba pilih Semua bulan atau muat ulang kalender.</div>';return;}
+ host.innerHTML=cards.join('');
 }
 function ritelMergeOfficialReleases(items=[]){
  if(!Array.isArray(items))return[];
@@ -805,7 +809,7 @@ async function loadNewsHistory(){
   if(error)throw new Error(error.message||'Layanan News History gagal dihubungi.');
   if(data?.error)throw new Error(data.error);
   const items=Array.isArray(data?.items)?data.items:[];ritelHistoryCheckpoints=items;renderHistoryMonthTabs();renderHistoryCheckpoints();
-  if(status)status.textContent=items.length+' checkpoint tersimpan · akun aktif';
+  if(status)status.textContent=ritelMacroPastReleases.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).length+' rilis Ritel News · '+items.length+' checkpoint evaluasi AI';
  }catch(e){
   host.innerHTML='<p class="text-xs text-amber-200">News History gagal dimuat: '+ritelEscape(e.message||'Kesalahan tidak diketahui')+'</p>';
   if(status)status.textContent='Gagal memuat riwayat';
