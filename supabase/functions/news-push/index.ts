@@ -55,7 +55,7 @@ Deno.serve(async(req)=>{
   if(subsError)throw subsError;
   for(const e of events){
    const minutes=(Date.parse(e.time)-now)/60000;
-   const stage=stages.find(s=>minutes<=s.max&&minutes>s.min);
+   const stage=stages.find(s=>minutes<=s.max&&minutes>=s.min);
    if(!stage)continue;
    const eventKey=String(e.id||e.name)+":"+String(e.time);
    const key=eventKey+":"+stage.name;
