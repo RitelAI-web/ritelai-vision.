@@ -153,7 +153,7 @@ function calendarHistoryReleaseTime(value: unknown, series: string): string | nu
 
 async function getFinanceCalendarHistoryEvents(supabaseUrl:string,serviceKey:string):Promise<{events:AnyRecord[];attempted:boolean;error:string|null}> {
   const apiKey=Deno.env.get("FINANCE_CALENDAR_API_KEY");
-  if(!apiKey)return{events:[],attempted:false,error:null};
+  if(!apiKey)return{events:[],attempted:false,error:"FINANCE_CALENDAR_API_KEY belum diatur. Forecast historis konsensus belum dapat diambil; Actual resmi tetap ditampilkan."};
   try{
     const stateUrl=supabaseUrl+"/rest/v1/calendar_sync_state?id=eq.finance-calendar-history&select=last_history_sync_at,last_error";
     const stateResponse=await fetch(stateUrl,{headers:{apikey:serviceKey,Authorization:"Bearer "+serviceKey,Accept:"application/json"},signal:AbortSignal.timeout(8000)});
