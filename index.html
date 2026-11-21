@@ -804,15 +804,16 @@ async function loadNewsHistory(){
   renderMacroReleaseArchive(ritelMacroPastReleases);
   const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();
   if(sessionError)throw sessionError;
-  if(!session){host.innerHTML='<p class="muted text-xs">Login untuk melihat News History akun.</p>';if(status)status.textContent='Login diperlukan';return;}
+  if(!session){renderHistoryCheckpoints();if(status)status.textContent='Arsip Ritel News ditampilkan · login diperlukan untuk checkpoint akun';return;}
   const {data,error}=await supabaseClient.functions.invoke('news-history',{body:{action:'list'}});
   if(error)throw new Error(error.message||'Layanan News History gagal dihubungi.');
   if(data?.error)throw new Error(data.error);
   const items=Array.isArray(data?.items)?data.items:[];ritelHistoryCheckpoints=items;renderHistoryMonthTabs();renderHistoryCheckpoints();
   if(status)status.textContent=ritelMacroPastReleases.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).length+' rilis Ritel News · '+items.length+' checkpoint evaluasi AI';
  }catch(e){
-  host.innerHTML='<p class="text-xs text-amber-200">News History gagal dimuat: '+ritelEscape(e.message||'Kesalahan tidak diketahui')+'</p>';
-  if(status)status.textContent='Gagal memuat riwayat';
+  renderHistoryCheckpoints();
+  const message=ritelEscape(e.message||'Kesalahan tidak diketahui');
+  if(status)status.textContent='Arsip Ritel News ditampilkan · checkpoint akun: '+message;
  }
 }
 let ritelMacroPastReleases=[];
