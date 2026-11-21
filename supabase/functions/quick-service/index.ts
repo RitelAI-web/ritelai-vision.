@@ -810,12 +810,12 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
           });
           if (!save.ok) throw new Error("Penyimpanan arsip kalender gagal: HTTP " + save.status);
         }
-        const historyUrl = supabaseUrl + "/rest/v1/economic_calendar_releases?select=event_id,event_time,event_name,country_code,currency,impact,actual,forecast,previous,revised_previous,unit,source,category&event_time=gte.2026-01-01T00:00:00Z&event_time=lt." + encodeURIComponent(new Date().toISOString()) + "&order=event_time.desc&limit=10000";
+        const historyUrl = supabaseUrl + "/rest/v1/economic_calendar_releases?select=event_id,event_time,event_name,country_code,currency,impact,actual,forecast,previous,revised_previous,unit,source,source_url,raw_event,category&event_time=gte.2026-01-01T00:00:00Z&event_time=lt." + encodeURIComponent(new Date().toISOString()) + "&order=event_time.desc&limit=10000";
         const historyResponse = await fetch(historyUrl, { headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
         if (!historyResponse.ok) throw new Error("Pembacaan arsip kalender gagal: HTTP " + historyResponse.status);
         const stored = await historyResponse.json();
         if (Array.isArray(stored) && stored.length) {
-          (providerEvents as any).pastReleases = stored.map((row: AnyRecord) => ({ date: row.event_time, name: row.event_name, actual: row.actual, forecast: row.forecast, previous: row.previous, revisedPrevious: row.revised_previous, unit: row.unit, importance: row.impact, source: row.source, category: row.category, countryCode: row.country_code, currency: row.currency }));
+          (providerEvents as any).pastReleases = stored.map((row: AnyRecord) => ({ date: row.event_time, name: row.event_name, actual: row.actual, forecast: row.forecast, previous: row.previous, revisedPrevious: row.revised_previous, unit: row.unit, importance: row.impact, source: row.source, sourceUrl: row.source_url, source_url: row.source_url, raw_event: row.raw_event, reason: row.raw_event?.reason || '', category: row.category, countryCode: row.country_code, currency: row.currency }));
         }
       }
     } catch (error) { calendarError = messageOf(error); }
