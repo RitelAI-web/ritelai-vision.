@@ -131,6 +131,109 @@ async function getFinanceCalendarEvents(): Promise<AnyRecord[]> {
   });
 }
 
+function calendarHistoryReleaseTime(value: unknown, series: string): string | null {
+  const raw=String(value??"").trim();
+  if(/^\d{4}-\d{2}-\d{2}$/.test(raw)){
+    const [year,month,day]=raw.split("-").map(Number);
+    const nthSunday=(monthIndex:number,nth:number)=>{
+      const firstDay=new Date(Date.UTC(year,monthIndex,1)).getUTCDay();
+      return 1+((7-firstDay)%7)+((nth-1)*7);
+    };
+    const dstStart=`${year}-03-${String(nthSunday(2,2)).padStart(2,"0")}`;
+    const dstEnd=`${year}-11-${String(nthSunday(10,1)).padStart(2,"0")}`;
+    const isDst=raw>=dstStart&&raw<dstEnd;
+    const offset=isDst?4:5;
+    const hour=series==="fomc"?14:8;
+    const minute=series==="fomc"?0:30;
+    return new Date(Date.UTC(year,month-1,day,hour+offset,minute)).toISOString();
+  }
+  const stamp=eventTimestamp(value);
+  return Number.isFinite(stamp)?new Date(stamp).toISOString():null;
+}
+
+async function getFinanceCalendarHistoryEvents(supabaseUrl:string,serviceKey:string):Promise<{events:AnyRecord[];attempted:boolean;error:string|null}> {
+  const apiKey=Deno.env.get("FINANCE_CALENDAR_API_KEY");
+  if(!apiKey)return{events:[],attempted:false,error:null};
+  try{
+    const stateUrl=supabaseUrl+"/rest/v1/calendar_sync_state?id=eq.finance-calendar-history&select=last_history_sync_at,last_error";
+    const stateResponse=await fetch(stateUrl,{headers:{apikey:serviceKey,Authorization:"Bearer "+serviceKey,Accept:"application/json"},signal:AbortSignal.timeout(8000)});
+    if(!stateResponse.ok)return{events:[],attempted:false,error:"Status sinkronisasi histori tidak dapat dibaca: HTTP "+stateResponse.status};
+    const stateRows=await stateResponse.json();
+    const lastSync=Date.parse(stateRows?.[0]?.last_history_sync_at||"");
+    if(Number.isFinite(lastSync)&&Date.now()-lastSync<24*60*60*1000)return{events:[],attempted:false,error:stateRows?.[0]?.last_error||null};
+
+    const specs=[
+      {series:"us-nfp",defaultName:"US Nonfarm Payrolls"},
+      {series:"us-cpi",defaultName:"US CPI"},
+      {series:"us-ppi",defaultName:"US PPI"},
+      {series:"us-pce",defaultName:"US PCE Price Index"},
+      {series:"fomc",defaultName:"US Federal Reserve FOMC Rate Decision"},
+      {series:"us-retail-sales",defaultName:"US Retail Sales"},
+      {series:"us-ism-manufacturing",defaultName:"US ISM Manufacturing PMI"},
+      {series:"us-ism-services",defaultName:"US ISM Services PMI"}
+    ];
+    const releasePeriods:Record<string,string>={
+      "2026-01-09":"December 2025","2026-01-13":"December 2025","2026-01-14":"November 2025",
+      "2026-02-11":"January 2026","2026-02-13":"January 2026","2026-02-27":"January 2026",
+      "2026-03-06":"February 2026","2026-03-11":"February 2026","2026-03-18":"February 2026",
+      "2026-04-03":"March 2026","2026-04-10":"March 2026","2026-04-14":"March 2026",
+      "2026-05-08":"April 2026","2026-05-12":"April 2026","2026-05-13":"April 2026",
+      "2026-06-05":"May 2026","2026-06-10":"May 2026","2026-06-11":"May 2026",
+      "2026-07-02":"June 2026","2026-07-14":"June 2026","2026-07-15":"June 2026",
+      "2026-02-20":"December 2025","2026-03-13":"January 2026","2026-04-09":"February 2026",
+      "2026-04-30":"March 2026","2026-05-28":"April 2026","2026-06-25":"May 2026","2026-07-30":"June 2026"
+    };
+    const settled=await Promise.allSettled(specs.map(async spec=>{
+      const url=new URL("https://www.financecalendar.com/wp-json/fc/v1/history");
+      url.searchParams.set("series",spec.series);
+      url.searchParams.set("from","2026-01-01");
+      url.searchParams.set("to","2026-07-31");
+      url.searchParams.set("limit","500");
+      url.searchParams.set("tz","Asia/Jakarta");
+      const response=await fetch(url,{headers:{"X-API-Key":apiKey,Accept:"application/json"},signal:AbortSignal.timeout(15000)});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(spec.series+" HTTP "+response.status+": "+String(payload?.error||payload?.message||"request gagal"));
+      const list=Array.isArray(payload?.events)?payload.events:Array.isArray(payload?.releases)?payload.releases:Array.isArray(payload?.data?.events)?payload.data.events:[];
+      return list.map((e:AnyRecord)=>{
+        const rawTime=e.release_at_utc??e.release_at??e.datetime??e.time??e.date??e.release_date;
+        const time=calendarHistoryReleaseTime(rawTime,spec.series);
+        if(!time||Date.parse(time)>=Date.now())return null;
+        const releaseDate=time.slice(0,10);
+        const period=String(e.reference_period??e.referencePeriod??e.period??releasePeriods[releaseDate]??"").trim();
+        const rawName=String(e.title??e.name??e.series_name??spec.defaultName).trim();
+        const isCore=/core|excluding food and energy/i.test(rawName);
+        let name=rawName||spec.defaultName;
+        if(spec.series==="us-nfp"&&period)name="US Nonfarm Payrolls — "+period;
+        if(spec.series==="us-cpi"&&period)name=(isCore?"US Core CPI — ":"US CPI — ")+period;
+        if(spec.series==="us-ppi"&&period)name=(isCore?"US Core PPI — ":"US PPI — ")+period;
+        if(spec.series==="us-pce"&&period)name=(isCore?"US Core PCE Price Index — ":"US PCE Price Index — ")+period;
+        if(spec.series==="fomc"){
+          const d=new Date(time);
+          const month=d.toLocaleString("en-US",{month:"long",timeZone:"UTC"});
+          name="US Federal Reserve FOMC Rate Decision — "+month+" "+d.getUTCFullYear();
+        }
+        const id=String(e.id??e.event_id??("fc-history-"+spec.series+"-"+releaseDate+"-"+(isCore?"core":"main")));
+        return{
+          ...e,id,name,time,
+          actual:e.actual??e.actual_value??e.actualValue??null,
+          forecast:e.consensus??e.forecast??e.estimate??e.forecast_value??null,
+          previous:e.prior??e.previous??e.previous_value??null,
+          revisedPrevious:e.revised_previous??e.revisedPrevious??null,
+          currency:e.currency||"USD",countryCode:e.country_code||e.countryCode||"US",
+          importance:"high",eventSource:"Finance Calendar",source:"Finance Calendar",
+          sourceUrl:e.source_url||e.sourceUrl||null,unit:e.unit??e.measure_unit??"",
+          referencePeriod:period,raw_event:{...e,finance_calendar_series:spec.series,reference_period:period||null}
+        } as AnyRecord;
+      }).filter((e:AnyRecord|null):e is AnyRecord=>Boolean(e));
+    }));
+    const events=settled.flatMap(result=>result.status==="fulfilled"?result.value:[]);
+    const errors=settled.filter((result):result is PromiseRejectedResult=>result.status==="rejected").map(result=>messageOf(result.reason));
+    return{events,attempted:true,error:errors.length?errors.join(" | "):null};
+  }catch(error){
+    return{events:[],attempted:false,error:"Sinkronisasi histori Finance Calendar gagal: "+messageOf(error)};
+  }
+}
+
 async function getCalendar() {
   const now = Date.now();
   // Arsip dimulai 1 Januari 2026 dan kalender direntangkan sampai 31 Desember 2027.
@@ -184,12 +287,24 @@ async function getCalendar() {
     if (!Number.isFinite(stamp) || !name) continue;
     unique.set(String(event?.id??event?.eventId??name+"|"+stamp), event);
   }
+  let historySync: {events:AnyRecord[];attempted:boolean;error:string|null} = {events:[],attempted:false,error:null};
   try {
     const financeRows = await getFinanceCalendarEvents();
     for (const event of financeRows) {
       const stamp = eventTimestamp(event?.time);
       const name = String(event?.name || "").trim().toLowerCase();
       if (Number.isFinite(stamp) && name) unique.set(String(event.id), event);
+    }
+    const supabaseUrl=Deno.env.get("SUPABASE_URL");
+    const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if(supabaseUrl&&serviceKey){
+      historySync=await getFinanceCalendarHistoryEvents(supabaseUrl,serviceKey);
+      for(const event of historySync.events){
+        const stamp=eventTimestamp(event?.time);
+        const name=String(event?.name||"").trim().toLowerCase();
+        if(Number.isFinite(stamp)&&name)unique.set(String(event.id),event);
+      }
+      if(historySync.error)failedMonths.push("Finance Calendar history: "+historySync.error);
     }
   } catch (error) {
     console.warn("Finance Calendar fallback unavailable", messageOf(error));
@@ -303,7 +418,7 @@ async function getCalendar() {
       raw_event: event, synced_at: new Date().toISOString(),
     };
   }).filter((row: AnyRecord) => Number.isFinite(Date.parse(row.event_time)));
-  return Object.assign(events, { pastReleases, calendarWarnings: [...failedMonths, ...emptyMonths], archiveRows });
+  return Object.assign(events, { pastReleases, calendarWarnings: [...failedMonths, ...emptyMonths], archiveRows, historySync });
 }
 function getOfficialScheduledEvents(): AnyRecord[] {
   // Jadwal yang sudah diumumkan oleh BLS, Federal Reserve, dan BEA.
@@ -809,6 +924,17 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
             body: JSON.stringify(archiveRows), signal: AbortSignal.timeout(12000),
           });
           if (!save.ok) throw new Error("Penyimpanan arsip kalender gagal: HTTP " + save.status);
+        }
+        const historySync=(providerEvents as any).historySync;
+        if(historySync?.attempted){
+          const syncAt=new Date().toISOString();
+          const syncSave=await fetch(supabaseUrl+"/rest/v1/calendar_sync_state?on_conflict=id",{
+            method:"POST",
+            headers:{apikey:serviceKey,Authorization:"Bearer "+serviceKey,"Content-Type":"application/json",Prefer:"resolution=merge-duplicates,return=minimal"},
+            body:JSON.stringify({id:"finance-calendar-history",last_history_sync_at:syncAt,last_error:historySync.error,updated_at:syncAt}),
+            signal:AbortSignal.timeout(8000),
+          });
+          if(!syncSave.ok)console.warn("Calendar history sync state save failed",syncSave.status);
         }
         const historyUrl = supabaseUrl + "/rest/v1/economic_calendar_releases?select=event_id,event_time,event_name,country_code,currency,impact,actual,forecast,previous,revised_previous,unit,source,source_url,raw_event,category&event_time=gte.2026-01-01T00:00:00Z&event_time=lt." + encodeURIComponent(new Date().toISOString()) + "&order=event_time.desc&limit=10000";
         const historyResponse = await fetch(historyUrl, { headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
