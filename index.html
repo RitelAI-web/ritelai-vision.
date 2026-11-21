@@ -774,7 +774,7 @@ function renderMacroReleaseArchive(items=[]){
  const merged=ritelMergeOfficialReleases(items);
  const rows=merged.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada data arsip HIGH IMPACT dari penyedia kalender pada periode ini.</p>';return;}
- host.innerHTML=rows.map(r=>{const upcoming=Date.parse(r.date)>Date.now();return ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source||r.eventSource,sourceUrl:r.sourceUrl||r.source_url},{status:upcoming?'Agenda mendatang':'Arsip rilis',ai:{}})}).join('');
+ host.innerHTML=rows.map(r=>{const upcoming=Date.parse(r.date)>Date.now();return ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source||r.eventSource,sourceUrl:r.sourceUrl||r.source_url,source_url:r.source_url},{status:upcoming?'Agenda mendatang':'Arsip rilis',ai:{reason:r.raw_event?.reason||r.reason||''}})}).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
