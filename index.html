@@ -774,7 +774,7 @@ function renderMacroReleaseArchive(items=[]){
  const merged=ritelMergeOfficialReleases(items);
  const rows=merged.filter(r=>historyMonthMatch(r.date)&&ritelIsPriorityHighImpact(r)).slice().sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
  if(!rows.length){host.innerHTML='<p class="muted text-xs">Belum ada data arsip HIGH IMPACT dari penyedia kalender pada periode ini.</p>';return;}
- host.innerHTML=rows.map(r=>{const upcoming=Date.parse(r.date)>Date.now();return ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source||r.eventSource},{status:upcoming?'Agenda mendatang':'Arsip rilis',ai:{reason:upcoming?'Agenda mendatang. Forecast dan Previous ditampilkan sebagai acuan; Actual dan keputusan final menunggu rilis resmi.':'Data rilis historis dari penyedia kalender. Actual dibandingkan dengan Forecast jika keduanya tersedia; nilai yang kosong tetap ditandai belum tersedia.'}})}).join('');
+ host.innerHTML=rows.map(r=>{const upcoming=Date.parse(r.date)>Date.now();return ritelNewsCard({name:r.name||r.category||'Rilis ekonomi',time:r.date,actual:r.actual,forecast:r.forecast,previous:r.previous,revisedPrevious:r.revisedPrevious,currency:r.currency||'USD',importance:r.importance||'HIGH',source:r.source||r.eventSource},{status:upcoming?'Agenda mendatang':'Arsip rilis',ai:{}})}).join('');
 }
 async function loadNewsHistory(){
  const host=document.getElementById('newsHistoryItems'),status=document.getElementById('newsHistoryStatus');
@@ -1077,13 +1077,14 @@ function renderRitelSelectedPlan(){
  const promoActive=appliedRitelAIPromo==='RITELAI30';
  document.querySelectorAll('[data-plan-price]').forEach(node=>{
   const original=Number(node.dataset.originalPrice||0),duration=Number(node.dataset.planDuration||30),code=String(node.dataset.planCode||'').toLowerCase();
-  const eligible=promoActive&&['pro','elite'].includes(code);
-  node.innerHTML=eligible?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(original)+'</span><br><b class="text-emerald-300">'+ritelMoney(Math.round(original*.70))+'</b> <span class="muted">/ '+duration+' hari</span>':ritelMoney(original)+' <span class="muted">/ '+duration+' hari</span>';
+  const promoOffer=['pro','elite'].includes(code),discounted=Math.round(original*.70);
+  node.innerHTML=promoOffer?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(original)+'</span><br><b class="text-emerald-300">'+ritelMoney(discounted)+'</b> <span class="muted">/ '+duration+' hari · '+(promoActive?'PROMO AKTIF':'PROMO 30%*')+'</span>':ritelMoney(original)+' <span class="muted">/ '+duration+' hari</span>';
  });
  const plan=selectedRitelPlan,info=document.getElementById('selectedPlanInfo');
  if(!plan||!info)return;
  const price=ritelPlanAmount(plan);info.classList.remove('hidden');
- info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>';
+ const promoPending=!price.discount&&['pro','elite'].includes(String(plan.code||'').toLowerCase());
+ info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>'+(promoPending?'<p class="text-amber-200 text-[10px] mt-1">Harga promo 30% khusus pelanggan baru akan diterapkan setelah verifikasi kode RITELAI30.</p>':'');
 }
 function ritelEscape(value){
  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1107,12 +1108,14 @@ async function loadPlans(){
    const quota=Number(p.analysis_quota||0)>0?Number(p.analysis_quota).toLocaleString('id-ID')+' analisis':'Akses sesuai ketentuan paket';
    return '<article class="rounded-xl border border-slate-700 bg-slate-950/50 p-3"><div class="flex items-start justify-between gap-3"><div><b class="text-sm">'+ritelEscape(p.name)+'</b><p class="text-xs cyan mt-1" data-plan-price data-plan-code="'+ritelEscape(p.code)+'" data-original-price="'+Number(p.price_idr)+'" data-plan-duration="'+Number(p.duration_days||30)+'">'+ritelMoney(p.price_idr)+' <span class="muted">/ '+Number(p.duration_days||30)+' hari</span></p><p class="muted text-[10px] mt-1">'+quota+'</p></div><button type="button" class="btn primary shrink-0" data-plan-id="'+ritelEscape(p.id)+'">Pilih</button></div>'+(featureHtml?'<ul class="mt-2 space-y-1">'+featureHtml+'</ul>':'')+'</article>';
   }).join('');
+  renderRitelSelectedPlan();
   host.querySelectorAll('[data-plan-id]').forEach(button=>button.addEventListener('click',()=>{
    selectedRitelPlan=plans.find(p=>p.id===button.dataset.planId)||null;
    const info=document.getElementById('selectedPlanInfo');
    const proofStatus=document.getElementById('proofUploadStatus');
    if(info&&selectedRitelPlan)renderRitelSelectedPlan();
    if(proofStatus)proofStatus.textContent=selectedRitelPlan&&Number(selectedRitelPlan.price_idr)>0?'Paket dipilih. '+(ritelPlanAmount(selectedRitelPlan).discount?'Nominal promo sudah diterapkan. ':'')+'Lakukan pembayaran QRIS sesuai total yang tampil, lalu unggah bukti transaksi asli.':'Paket Gratis tidak memerlukan bukti pembayaran.';
+   if(selectedRitelPlan&&['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())){const promoInput=document.getElementById('promoCodeInput');if(promoInput)promoInput.value='RITELAI30';void applyRitelAIPromo();}
    host.querySelectorAll('[data-plan-id]').forEach(b=>{b.textContent=b===button?'Dipilih':'Pilih';b.classList.toggle('border',b!==button);});
   }));
   if(appliedRitelAIPromo==='RITELAI30')renderRitelSelectedPlan();
@@ -1198,6 +1201,7 @@ async function refreshAuth(){
   const role=String(profile?.role||'customer').trim().toLowerCase();
   setAuthUI(session.user,role);
   await Promise.allSettled([refreshUploadStats(),refreshAnalysisQuota()]);
+  if(selectedRitelPlan&&['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())&&!appliedRitelAIPromo&&document.getElementById('promoCodeInput')?.value.trim().toUpperCase()==='RITELAI30')await applyRitelAIPromo();
   return session.user;
  }catch(e){
   console.error('refreshAuth',e);
