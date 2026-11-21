@@ -183,13 +183,15 @@ async function getFinanceCalendarHistoryEvents(supabaseUrl:string,serviceKey:str
       "2026-06-05":"May 2026","2026-06-10":"May 2026","2026-06-11":"May 2026",
       "2026-07-02":"June 2026","2026-07-14":"June 2026","2026-07-15":"June 2026",
       "2026-02-20":"December 2025","2026-03-13":"January 2026","2026-04-09":"February 2026",
-      "2026-04-30":"March 2026","2026-05-28":"April 2026","2026-06-25":"May 2026","2026-07-30":"June 2026"
+      "2026-04-30":"March 2026","2026-05-28":"April 2026","2026-06-25":"May 2026","2026-07-30":"June 2026",
+      "2026-10-02":"September 2026","2026-10-14":"September 2026","2026-10-15":"September 2026",
+      "2026-10-28":"October 2026","2026-11-06":"October 2026","2026-11-10":"October 2026","2026-11-13":"October 2026","2026-11-18":"October 2026"
     };
     const settled=await Promise.allSettled(specs.map(async spec=>{
       const url=new URL("https://www.financecalendar.com/wp-json/fc/v1/history");
       url.searchParams.set("series",spec.series);
       url.searchParams.set("from","2026-01-01");
-      url.searchParams.set("to","2026-07-31");
+      url.searchParams.set("to",new Date().toISOString().slice(0,10));
       url.searchParams.set("limit","500");
       url.searchParams.set("tz","Asia/Jakarta");
       const response=await fetch(url,{headers:{"X-API-Key":apiKey,Accept:"application/json"},signal:AbortSignal.timeout(15000)});
