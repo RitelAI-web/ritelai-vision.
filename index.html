@@ -1583,19 +1583,33 @@ window.addEventListener('DOMContentLoaded',async()=>{
  try{
   if(!window.supabase?.createClient){toast('Library Supabase gagal dimuat. Periksa koneksi internet.');return}
   supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY);
-  // Register recovery listener immediately so the PASSWORD_RECOVERY event cannot be missed
-  // while the initial profile and plan requests are still loading.
+  // Recovery UI is opened immediately when Supabase confirms a recovery session.
+  function showPasswordRecovery(message='Tautan valid. Silakan buat password baru.'){
+   const panel=document.getElementById('authRecoveryPanel');
+   if(!panel)return;
+   panel.classList.remove('hidden');
+   document.getElementById('authSignedOut')?.classList.add('hidden');
+   document.getElementById('authSignedIn')?.classList.add('hidden');
+   openModal('accountModal');
+   authMessage(message);
+   document.getElementById('recoveryPassword')?.focus();
+  }
   supabaseClient.auth.onAuthStateChange((event,session)=>{
-   if(event==='PASSWORD_RECOVERY'){
-    const panel=document.getElementById('authRecoveryPanel');
-    panel?.classList.remove('hidden');
-    document.getElementById('authSignedOut')?.classList.add('hidden');
-    document.getElementById('authSignedIn')?.classList.add('hidden');
-    openModal('accountModal');
-    authMessage('Tautan valid. Silakan buat password baru.');
-   }
+   if(event==='PASSWORD_RECOVERY')showPasswordRecovery();
    if(event!=='INITIAL_SESSION')setTimeout(()=>refreshAuth(),0);
   });
+  // Fallback for browsers where the recovery event arrives before UI listeners finish binding.
+  const recoveryHash=new URLSearchParams(window.location.hash.replace(/^#/,''));
+  if(recoveryHash.get('type')==='recovery'){
+   const {data:{session:recoverySession}}=await supabaseClient.auth.getSession();
+   if(recoverySession?.user)showPasswordRecovery();
+   else authMessage('Tautan pemulihan terdeteksi. Jika formulir tidak muncul, minta tautan reset terbaru dan pastikan Redirect URL Supabase mengarah ke website ini.',true);
+  }
+  const recoveryError=new URLSearchParams(window.location.hash.replace(/^#/,'')).get('error_code');
+  if(recoveryError){
+   openModal('accountModal');
+   authMessage(recoveryError==='otp_expired'?'Tautan pemulihan sudah kedaluwarsa atau pernah digunakan. Minta email reset yang baru.':'Tautan pemulihan tidak valid ('+recoveryError+'). Minta email reset yang baru.',true);
+  }
   const signInButton=document.getElementById('authSignInBtn');
   if(signInButton&&!signInButton.dataset.bound){signInButton.dataset.bound='1';signInButton.addEventListener('click',()=>{void signIn();});}
   await refreshAuth();await loadPlans();
