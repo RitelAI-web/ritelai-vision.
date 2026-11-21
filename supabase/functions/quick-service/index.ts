@@ -76,6 +76,15 @@ async function getTick(symbol: SymbolKey) {
   };
 }
 
+function isHighImpactCalendarEvent(event: AnyRecord): boolean {
+  const rawValue = event?.importance ?? event?.impact ?? event?.importanceLevel ?? event?.impactLevel ?? event?.impact_level ?? "";
+  const raw = String(typeof rawValue === "object" ? (rawValue?.label ?? rawValue?.name ?? rawValue?.value ?? rawValue?.level ?? "") : rawValue).trim().toLowerCase();
+  if (["high", "high impact", "3", "3.0", "tinggi", "red", "3 stars", "3-star", "three stars"].includes(raw) || Number(raw) === 3) return true;
+  if (["medium", "med", "medium impact", "2", "2.0", "moderate", "orange", "kuning", "low", "low impact", "1", "1.0", "rendah", "yellow"].includes(raw) || Number(raw) === 1 || Number(raw) === 2) return false;
+  const name = String(event?.name ?? event?.title ?? event?.event ?? event?.category ?? "").toLowerCase();
+  return /consumer price index|\bcpi\b|producer price index|\bppi\b|non.?farm payroll|\bnfp\b|employment situation|fomc|interest rate decision|fed funds rate|federal funds rate|policy rate decision|gross domestic product|\bgdp\b|personal consumption expenditures|\bpce\b|core inflation|unemployment rate/.test(name);
+}
+
 function eventTimestamp(value: unknown): number {
   if (typeof value === "number" && Number.isFinite(value)) return value < 1e12 ? value * 1000 : value;
   if (value == null || value === "") return NaN;
@@ -85,6 +94,41 @@ function eventTimestamp(value: unknown): number {
     return raw.length <= 10 ? number * 1000 : number;
   }
   return Date.parse(raw);
+}
+
+async function getFinanceCalendarEvents(): Promise<AnyRecord[]> {
+  const apiKey = Deno.env.get("FINANCE_CALENDAR_API_KEY");
+  if (!apiKey) return [];
+  const now = new Date();
+  const url = new URL("https://www.financecalendar.com/wp-json/fc/v1/calendar");
+  url.searchParams.set("from", now.toISOString().slice(0, 10));
+  url.searchParams.set("to", new Date(now.getTime() + 45 * 86400000).toISOString().slice(0, 10));
+  url.searchParams.set("impact", "high");
+  url.searchParams.set("category", "economic-indicators,central-banks-monetary-policy");
+  url.searchParams.set("tz", "Asia/Jakarta");
+  url.searchParams.set("limit", "500");
+  const response = await fetch(url, { headers: { "X-API-Key": apiKey, Accept: "application/json" }, signal: AbortSignal.timeout(15000) });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error("Finance Calendar HTTP " + response.status + ": " + String(payload?.error || payload?.message || "request gagal"));
+  const rows = Array.isArray(payload?.events) ? payload.events : [];
+  return rows.filter((e: AnyRecord) => String(e.impact || "").toLowerCase() === "high").map((e: AnyRecord) => {
+    const releaseTime = e.release_at_utc || e.date || e.datetime || e.time;
+    return {
+      ...e,
+      id: String(e.id || e.series_code || (e.title || e.name || "event") + "|" + releaseTime),
+      name: e.title || e.name || e.series_name || "Rilis ekonomi",
+      time: releaseTime,
+      actual: e.actual ?? null,
+      forecast: e.consensus ?? e.forecast ?? null,
+      previous: e.prior ?? e.previous ?? null,
+      revisedPrevious: e.revised_previous ?? e.revisedPrevious ?? null,
+      currency: e.currency || e.country_currency || "",
+      countryCode: e.country_code || e.countryCode || e.country || "",
+      importance: "high",
+      eventSource: "Finance Calendar",
+      sourceUrl: e.source_url || e.url || "https://www.financecalendar.com",
+    };
+  });
 }
 
 async function getCalendar() {
@@ -108,26 +152,48 @@ async function getCalendar() {
     ranges.push({from:futureCursor,to:Math.min(next-1,end)});
     futureCursor = next;
   }
-  const fetched = await Promise.all(ranges.map(async range => {
-    try {
-      const url = new URL("https://biquote.io/api/calendar");
-      url.searchParams.set("from", new Date(range.from).toISOString());
-      url.searchParams.set("to", new Date(range.to).toISOString());
-      url.searchParams.set("limit", "500");
-      const result = await fetchJson(url.toString(), 8000);
-      if (!Array.isArray(result)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
-      return result as AnyRecord[];
-    } catch (error) {
-      console.warn("Calendar month unavailable", new Date(range.from).toISOString(), messageOf(error));
-      return [];
-    }
-  }));
+  const fetched: AnyRecord[][] = [];
+  const failedMonths: string[] = [];
+  const emptyMonths: string[] = [];
+  // Keep concurrency low to avoid provider throttling and missing whole months.
+  for (let offset = 0; offset < ranges.length; offset += 4) {
+    const batch = ranges.slice(offset, offset + 4);
+    const results = await Promise.all(batch.map(async range => {
+      try {
+        const url = new URL("https://biquote.io/api/calendar");
+        url.searchParams.set("from", new Date(range.from).toISOString());
+        url.searchParams.set("to", new Date(range.to).toISOString());
+        url.searchParams.set("limit", "500");
+        const result = await fetchJson(url.toString(), 15000);
+        if (!Array.isArray(result)) throw new Error("Format kalender ekonomi dari penyedia tidak dikenali");
+        if (result.length === 0) emptyMonths.push(new Date(range.from).toISOString().slice(0, 7) + ": penyedia mengembalikan 0 event");
+        return { rows: result as AnyRecord[] };
+      } catch (error) {
+        const month = new Date(range.from).toISOString().slice(0, 7);
+        failedMonths.push(month + ": " + messageOf(error));
+        console.warn("Calendar month unavailable", month, messageOf(error));
+        return { rows: [] as AnyRecord[] };
+      }
+    }));
+    fetched.push(...results.map(result => result.rows));
+  }
   const unique = new Map<string, AnyRecord>();
   for (const batch of fetched) for (const event of batch) {
     const stamp = eventTimestamp(event?.time??event?.timestamp??event?.datetime??event?.date);
     const name = String(event?.name??event?.title??event?.event??"").trim().toLowerCase();
     if (!Number.isFinite(stamp) || !name) continue;
     unique.set(String(event?.id??event?.eventId??name+"|"+stamp), event);
+  }
+  try {
+    const financeRows = await getFinanceCalendarEvents();
+    for (const event of financeRows) {
+      const stamp = eventTimestamp(event?.time);
+      const name = String(event?.name || "").trim().toLowerCase();
+      if (Number.isFinite(stamp) && name) unique.set(String(event.id), event);
+    }
+  } catch (error) {
+    console.warn("Finance Calendar fallback unavailable", messageOf(error));
+    failedMonths.push("Finance Calendar: " + messageOf(error));
   }
   const rows = [...unique.values()];
   if (!rows.length) throw new Error("Penyedia kalender tidak mengembalikan data");
@@ -160,15 +226,17 @@ async function getCalendar() {
     if (!Number.isFinite(stamp)) continue;
     const bucket=historyByCategory.get(category)||[];
     bucket.push({date:new Date(stamp).toISOString(),name:old.name??old.title??old.event??category,
-      actual:old.actual??old.actualValue??old.actual_value??null,
-      forecast:old.forecast??old.consensus??old.estimate??old.forecastValue??old.forecast_value??null,
+      actual:old.actual??old.actualValue??old.actual_value??old.actual_value_formatted??null,
+      forecast:old.forecast??old.consensus??old.estimate??old.forecastValue??old.forecast_value??old.consensus_value??null,
       previous:old.previous??old.previousValue??old.previous_value??null,
       revisedPrevious:old.revisedPrevious??old.revised_previous??old.revisedFrom??old.revised_from??null,
-      unit:old.unit??old.measureUnit??old.measure_unit??"",importance:old.importance??old.impact??"unknown",source:old.source??old.provider??"BiQuote"});
+      unit:old.unit??old.measureUnit??old.measure_unit??"",importance:old.importance??old.impact??"unknown",
+      currency:old.currency??old.country_currency??"",countryCode:old.countryCode??old.country_code??old.country??"",
+      source:old.source??old.provider??"BiQuote",sourceUrl:old.sourceUrl??old.source_url??old.url??null});
     historyByCategory.set(category,bucket);
   }
   for (const bucket of historyByCategory.values()) bucket.sort((a,b)=>Date.parse(a.date)-Date.parse(b.date));
-  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.map(item=>({...item,category}))).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date)).slice(0,2000);
+  const pastReleases = [...historyByCategory.entries()].flatMap(([category,items]) => items.map(item=>({...item,category}))).filter(isHighImpactCalendarEvent).sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
 
   // The calendar provider supplies the impact classification. Accept every HIGH-impact event,
   // regardless of event name or country, instead of maintaining a narrow hand-written whitelist.
@@ -181,10 +249,8 @@ async function getCalendar() {
     .filter(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => {
       if (!event || !Number.isFinite(timestamp) || timestamp < start || timestamp > end) return false;
       const eventName = String(event.name ?? event.title ?? event.event ?? "").trim();
-      const rawImpact = String(event.importance ?? event.impact ?? event.impactLevel ?? event.impact_level ?? "").trim().toLowerCase();
-      const isHighImpact = ["high", "high impact", "3", "3.0", "tinggi", "red"].includes(rawImpact) || Number(rawImpact) === 3;
-      // Only provider-labelled HIGH impact is included; no guessed impact labels or event-name whitelist.
-      return eventName.length > 0 && isHighImpact;
+      // Respect explicit provider impact levels; when the provider omits impact, recover only universally high-impact macro releases by their official event names.
+      return eventName.length > 0 && isHighImpactCalendarEvent(event);
     })
     .map(({ event, timestamp }: { event: AnyRecord; timestamp: number }) => ({
       ...event,
@@ -217,7 +283,27 @@ async function getCalendar() {
     // dipertahankan, termasuk retail sales, PMI, jobless claims, central banks,
     // housing, inventories, dan rilis penting negara lain.
     .sort((a: AnyRecord, b: AnyRecord) => Date.parse(a.time) - Date.parse(b.time));
-  return Object.assign(events, { pastReleases });
+  // Persist past releases, not only future agenda events. The previous writer
+  // mistakenly saved the upcoming calendar into the history table, leaving the
+  // News History archive empty for earlier months.
+  const archiveRows = pastReleases.map((event: AnyRecord) => {
+    const stamp = eventTimestamp(event.date);
+    const name = String(event.name || event.category || "Rilis ekonomi");
+    const stableId = String(event.id || name.toLowerCase().trim() + "|" + stamp);
+    return {
+      event_id: stableId, event_time: new Date(stamp).toISOString(), event_name: name,
+      country_code: String(event.countryCode || ""), currency: String(event.currency || ""),
+      impact: String(event.importance || "unknown"),
+      actual: event.actual == null ? null : String(event.actual),
+      forecast: event.forecast == null ? null : String(event.forecast),
+      previous: event.previous == null ? null : String(event.previous),
+      revised_previous: event.revisedPrevious == null ? null : String(event.revisedPrevious),
+      unit: String(event.unit || ""), source: String(event.source || "BiQuote"),
+      source_url: event.sourceUrl || null, category: String(event.category || categoryOf(name)),
+      raw_event: event, synced_at: new Date().toISOString(),
+    };
+  }).filter((row: AnyRecord) => Number.isFinite(Date.parse(row.event_time)));
+  return Object.assign(events, { pastReleases, calendarWarnings: [...failedMonths, ...emptyMonths], archiveRows });
 }
 function getOfficialScheduledEvents(): AnyRecord[] {
   // Jadwal yang sudah diumumkan oleh BLS, Federal Reserve, dan BEA.
@@ -276,8 +362,7 @@ function getOfficialScheduledEvents(): AnyRecord[] {
     {"id":"official-fomc-2027-06-09","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-06-09T18:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm","scheduleNote":"Jadwal rapat FOMC 2027; pernyataan 14.00 ET (01.00 WIB hari berikutnya); tentative."},
     {"id":"official-fomc-2027-07-28","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-07-28T18:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm","scheduleNote":"Jadwal rapat FOMC 2027; pernyataan 14.00 ET (01.00 WIB hari berikutnya); tentative."},
     {"id":"official-fomc-2027-09-15","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-09-15T18:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm","scheduleNote":"Jadwal rapat FOMC 2027; pernyataan 14.00 ET (01.00 WIB hari berikutnya); tentative."},
-    {"id":"official-fomc-2027-10-27","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-10-27T18:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm","scheduleNote":"Jadwal rapat FOMC 2027; pernyataan 14.00 ET (01.00 WIB hari berikutnya); tentative."},
-    {"id":"official-fomc-2027-12-08","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-12-08T19:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm","scheduleNote":"Jadwal rapat FOMC 2027; pernyataan 14.00 ET (02.00 WIB hari berikutnya); tentative."},
+    {"id":"official-fomc-2027-11-17","name":"US Federal Reserve Interest Rate Decision (FOMC) & Economic Projections","time":"2027-11-17T19:00:00.000Z","currency":"USD","countryCode":"US","source":"Federal Reserve","sourceUrl":"https://www.federalreserve.gov/newsevents/pressreleases/monetary20261112a.htm","scheduleNote":"Jadwal revisi tentatif Federal Reserve 12 November 2026; pernyataan 14.00 ET (02.00 WIB, 18 November)."} ,
   ];
   const now = Date.now();
   const end = Date.UTC(2027, 11, 31, 23, 59, 59, 999) - 7 * 60 * 60 * 1000;
@@ -695,8 +780,29 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
   
     let providerEvents: AnyRecord[] = [];
     let calendarError: string | null = null;
-    try { providerEvents = await getCalendar(); }
-    catch (error) { calendarError = messageOf(error); }
+    try {
+      providerEvents = await getCalendar();
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (supabaseUrl && serviceKey) {
+        const archiveRows = (providerEvents as any).archiveRows || [];
+        if (archiveRows.length) {
+          const save = await fetch(supabaseUrl + "/rest/v1/economic_calendar_releases?on_conflict=event_id", {
+            method: "POST",
+            headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, "Content-Type": "application/json", Prefer: "resolution=merge-duplicates,return=minimal" },
+            body: JSON.stringify(archiveRows), signal: AbortSignal.timeout(12000),
+          });
+          if (!save.ok) throw new Error("Penyimpanan arsip kalender gagal: HTTP " + save.status);
+        }
+        const historyUrl = supabaseUrl + "/rest/v1/economic_calendar_releases?select=event_id,event_time,event_name,country_code,currency,impact,actual,forecast,previous,revised_previous,unit,source,category&event_time=gte.2026-01-01T00:00:00Z&event_time=lt." + encodeURIComponent(new Date().toISOString()) + "&order=event_time.desc&limit=10000";
+        const historyResponse = await fetch(historyUrl, { headers: { apikey: serviceKey, Authorization: "Bearer " + serviceKey, Accept: "application/json" }, signal: AbortSignal.timeout(12000) });
+        if (!historyResponse.ok) throw new Error("Pembacaan arsip kalender gagal: HTTP " + historyResponse.status);
+        const stored = await historyResponse.json();
+        if (Array.isArray(stored) && stored.length) {
+          (providerEvents as any).pastReleases = stored.map((row: AnyRecord) => ({ date: row.event_time, name: row.event_name, actual: row.actual, forecast: row.forecast, previous: row.previous, revisedPrevious: row.revised_previous, unit: row.unit, importance: row.impact, source: row.source, category: row.category, countryCode: row.country_code, currency: row.currency }));
+        }
+      }
+    } catch (error) { calendarError = messageOf(error); }
     // Gabungkan feed ekonomi live dengan jadwal rilis resmi agar NFP/FOMC/CPI/PPI/GDP/PCE
     // yang sudah diumumkan tetap muncul walau feed agregator belum memuatnya.
     let events: AnyRecord[] = mergeCalendarEvents(providerEvents, getOfficialScheduledEvents());
@@ -725,6 +831,7 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
       quoteErrors,
       events,
       pastReleases: (providerEvents as any).pastReleases || [],
+      calendarWarnings: (providerEvents as any).calendarWarnings || [],
       calendarError,
       aiError,
       calendarSource: "BiQuote + jadwal resmi BLS, Federal Reserve, dan BEA",
@@ -734,7 +841,7 @@ Deno.serve(async (request: Request) => { /* RITELAI_CORS_WRAPPER_V1 */
         receivedSymbols: quotes.map((quote) => quote.key),
         calendarCount: events.length,
         calendarLimit: null,
-        calendarRange: "remaining-November-2026-through-2026-12-31-Asia/Jakarta",
+        calendarRange: "2026-01-01-through-2027-12-31-Asia/Jakarta",
         maximumUpcomingEvents: null,
         futureOnly: true,
         openAIConfigured: Boolean(Deno.env.get("OPENAI_API_KEY")),
