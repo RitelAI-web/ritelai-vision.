@@ -1280,7 +1280,8 @@ async function resetPassword(){
  if(!email.includes('@')||!email.split('@')[1]?.includes('.')){authMessage('Format email belum valid.',true);return;}
  try{
   authMessage('Mengirim tautan pemulihan...');
-  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
+  const recoveryRedirectUrl='https://ritelai-web.github.io/ritelai-vision./';
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:recoveryRedirectUrl});
   if(error)throw error;
   authMessage('Jika email terdaftar, tautan reset sudah dikirim. Buka email terbaru dari Supabase, lalu klik tautannya. Periksa folder Spam/Promosi juga.');
  }catch(e){console.error('resetPassword:',e);authMessage(e?.message||'Permintaan reset password gagal. Coba lagi nanti.',true);}
