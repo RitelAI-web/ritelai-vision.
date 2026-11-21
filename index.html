@@ -1277,7 +1277,7 @@ async function resetPassword(){
  if(!supabaseClient){authMessage('Koneksi akun belum siap.',true);return;}
  const email=document.getElementById('authEmail')?.value?.trim();
  if(!email){authMessage('Masukkan email akun terlebih dahulu.',true);return;}
- if(!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)){authMessage('Format email belum valid.',true);return;}
+ if(!email.includes('@')||!email.split('@')[1]?.includes('.')){authMessage('Format email belum valid.',true);return;}
  try{
   authMessage('Mengirim tautan pemulihan...');
   const {error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:window.location.origin+window.location.pathname});
