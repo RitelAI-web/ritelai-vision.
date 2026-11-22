@@ -1709,8 +1709,7 @@ window.calculateRitelRisk=function(){
  const n=id=>Number(document.getElementById(id)?.value),balance=n('riskBalance'),pct=n('riskPercent'),entry=n('riskEntry'),stop=n('riskStop'),value=n('riskPointValue'),out=document.getElementById('riskResult');
  if(!out)return;if(!(balance>0&&pct>0&&pct<=5&&entry>0&&stop>0&&entry!==stop&&value>0)){out.textContent='Periksa modal, risiko (maksimal 5%), entry, SL, dan nilai uang per perubahan harga.';return;}
  const amount=balance*pct/100,distance=Math.abs(entry-stop),units=amount/(distance*value);
- out.innerHTML='<b class="text-cyan-200">Risiko nominal: 
-</html>+amount.toFixed(2)+'</b><div class="mt-1">Jarak SL: '+distance.toPrecision(6)+' · Estimasi ukuran: '+units.toFixed(4)+' unit</div><p class="muted mt-2">Perhitungan memakai nilai per 1 unit perubahan harga yang kamu input. Konfirmasi contract size, tick value, lot step, spread, komisi, dan mata uang akun ke broker. Bukan rekomendasi ukuran lot.</p>';
+ out.innerHTML='<b class="text-cyan-200">Risiko nominal: '+amount.toFixed(2)+'</b><div class="mt-1">Jarak SL: '+distance.toPrecision(6)+' · Estimasi ukuran: '+units.toFixed(4)+' unit</div><p class="muted mt-2">Perhitungan memakai nilai per 1 unit perubahan harga yang kamu input. Konfirmasi contract size, tick value, lot step, spread, komisi, dan mata uang akun ke broker. Bukan rekomendasi ukuran lot.</p>';
 };
 window.runRitelBacktest=async function(){
  const out=document.getElementById('backtestResult'),symbol=document.getElementById('backtestSymbol')?.value||'XAUUSD';if(!out)return;
