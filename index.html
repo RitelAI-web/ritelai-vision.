@@ -451,6 +451,54 @@ table{border-color:var(--rv-border)}
  .panel.active>.glass,.panel.active>.grid>.glass{animation:none!important}
 }
 
+/* RitelAI animated identity + market radar visual. Decorative only; no market-data claims. */
+.rv-brand-mark{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(145deg,#0e7490,#0369a1 55%,#312e81);border:1px solid rgba(165,243,252,.32);box-shadow:0 0 0 4px rgba(34,211,238,.055),0 10px 28px rgba(8,145,178,.3),inset 0 1px 0 rgba(255,255,255,.22)}
+.rv-brand-mark:before{content:"";position:absolute;inset:-50%;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.28) 50%,transparent 60%);animation:rvLogoSweep 5.5s ease-in-out infinite;pointer-events:none}
+@keyframes rvLogoSweep{0%,58%,100%{transform:translateX(-65%) rotate(18deg)}82%{transform:translateX(65%) rotate(18deg)}}
+.rv-live-stage{
+ position:relative;isolation:isolate;overflow:hidden;
+ background:radial-gradient(ellipse at 82% 8%,rgba(8,145,178,.18),transparent 42%),linear-gradient(155deg,rgba(7,20,34,.98),rgba(5,12,23,.98));
+ border-color:rgba(103,232,249,.24)!important;
+ box-shadow:0 24px 60px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.055),0 0 40px rgba(8,145,178,.06);
+}
+.rv-live-stage:before,.rv-live-stage:after{content:"";position:absolute;pointer-events:none;border-radius:50%;filter:blur(1px)}
+.rv-live-stage:before{width:210px;height:210px;right:-100px;top:-115px;border:1px solid rgba(103,232,249,.17);box-shadow:0 0 0 22px rgba(34,211,238,.018),0 0 0 48px rgba(34,211,238,.014);animation:rvRadarOrbit 18s linear infinite}
+.rv-live-stage:after{width:180px;height:180px;left:-120px;bottom:-120px;background:rgba(37,99,235,.11);filter:blur(48px)}
+@keyframes rvRadarOrbit{to{transform:rotate(360deg)}}
+.rv-live-dot,.rv-mini-pulse{display:inline-block;width:7px;height:7px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.5);animation:rvDotPulse 2s ease-out infinite}
+@keyframes rvDotPulse{0%{box-shadow:0 0 0 0 rgba(52,211,153,.48)}70%,100%{box-shadow:0 0 0 8px rgba(52,211,153,0)}}
+.rv-demo-chip{font-size:8px;letter-spacing:.12em;color:#a5f3fc;border:1px solid rgba(103,232,249,.2);border-radius:999px;padding:5px 8px;background:rgba(8,145,178,.1)}
+.rv-signal-orb{width:34px;height:34px;position:relative;border:1px solid rgba(103,232,249,.28);border-radius:50%;display:grid;place-items:center;box-shadow:0 0 24px rgba(34,211,238,.1)}
+.rv-signal-orb:before,.rv-signal-orb:after{content:"";position:absolute;inset:5px;border:1px solid rgba(103,232,249,.24);border-radius:50%;animation:rvOrbWave 3.2s ease-out infinite}
+.rv-signal-orb:after{animation-delay:1.6s}
+.rv-signal-orb span{position:absolute;width:4px;height:4px;border-radius:50%;background:#67e8f9}
+@keyframes rvOrbWave{0%{transform:scale(.6);opacity:.8}100%{transform:scale(1.7);opacity:0}}
+.rv-chart-wrap{height:auto;min-height:185px;position:relative;border-radius:15px;overflow:hidden;background:linear-gradient(180deg,rgba(7,20,34,.35),rgba(5,13,24,.05))}
+.rv-chart-grid{position:absolute;inset:8px 0 4px;background-image:linear-gradient(rgba(100,145,170,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(100,145,170,.08) 1px,transparent 1px);background-size:100% 38px,42px 100%;mask-image:linear-gradient(90deg,transparent,black 12%,black 88%,transparent)}
+.rv-market-svg{position:relative;z-index:1;overflow:visible;filter:drop-shadow(0 6px 15px rgba(8,145,178,.12))}
+.rv-chart-line{stroke-dasharray:650;stroke-dashoffset:650;animation:rvLineReveal 3.2s cubic-bezier(.22,.7,.25,1) .25s forwards,rvLineGlow 4s ease-in-out 3.5s infinite alternate}
+@keyframes rvLineReveal{to{stroke-dashoffset:0}}
+@keyframes rvLineGlow{from{opacity:.72}to{opacity:1}}
+.rv-chart-area{opacity:0;animation:rvAreaReveal 2s ease 1.2s forwards}
+@keyframes rvAreaReveal{to{opacity:1}}
+.rv-chart-point{transform-box:fill-box;transform-origin:center;animation:rvPointBeat 2.1s ease-in-out infinite}
+@keyframes rvPointBeat{0%,100%{transform:scale(.8);opacity:.75}50%{transform:scale(1.35);opacity:1}}
+.rv-candle-set{transform-origin:center;animation:rvCandleDrift 7s ease-in-out infinite alternate}
+@keyframes rvCandleDrift{from{transform:translateY(2px)}to{transform:translateY(-3px)}}
+.rv-floating-label{position:absolute;z-index:2;font-size:8px;letter-spacing:.12em;color:#9db4c8;border:1px solid rgba(103,232,249,.16);border-radius:8px;background:rgba(5,14,25,.82);padding:6px 8px;box-shadow:0 8px 20px rgba(0,0,0,.22);backdrop-filter:blur(8px)}
+.rv-floating-label b{color:#a5f3fc;margin-left:5px}
+.rv-label-top{right:7px;top:12px;animation:rvLabelFloat 5s ease-in-out infinite}
+.rv-label-bottom{left:8px;bottom:8px;animation:rvLabelFloat 5s ease-in-out 1.2s infinite}
+@keyframes rvLabelFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.rv-mini-tile{display:flex;min-width:0;flex-direction:column;align-items:center;gap:4px;padding:10px 4px;border:1px solid rgba(103,232,249,.12);border-radius:12px;background:linear-gradient(145deg,rgba(13,31,48,.86),rgba(7,16,28,.86));}
+.rv-mini-tile i{font-size:15px;color:#67e8f9;filter:drop-shadow(0 0 7px rgba(34,211,238,.25))}
+.rv-mini-tile span{font-size:8px;letter-spacing:.13em;color:#7892aa}
+.rv-mini-tile b{font-size:10px;color:#e3f5fb}
+@media(max-width:640px){.rv-live-stage{padding:13px!important}.rv-chart-wrap{min-height:150px}.rv-market-svg{min-height:155px}.rv-stage-head{margin-top:13px}.rv-mini-tile{padding:9px 3px}}
+@media(prefers-reduced-motion:reduce){
+ .rv-brand-mark:before,.rv-live-stage:before,.rv-live-dot,.rv-mini-pulse,.rv-signal-orb:before,.rv-signal-orb:after,.rv-chart-line,.rv-chart-area,.rv-chart-point,.rv-candle-set,.rv-floating-label{animation:none!important}
+ .rv-chart-line{stroke-dashoffset:0!important}.rv-chart-area{opacity:1!important}
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
@@ -460,7 +508,15 @@ table{border-color:var(--rv-border)}
 <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-[#07111f]/95 backdrop-blur">
  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
   <div class="flex items-center gap-3">
-   <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center text-white"><i class="fa-solid fa-brain"></i></div>
+   <div class="rv-brand-mark w-10 h-10 rounded-xl flex items-center justify-center text-white" aria-label="Logo RitelAI">
+   <svg viewBox="0 0 48 48" role="img" aria-label="RitelAI monogram" class="w-8 h-8">
+    <defs><linearGradient id="rvLogoGradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#cffafe"/><stop offset=".48" stop-color="#67e8f9"/><stop offset="1" stop-color="#93c5fd"/></linearGradient></defs>
+    <path d="M8 34V14.5C8 11.5 10.5 9 13.5 9H27c7.2 0 12 4.2 12 10.2 0 4.2-2.4 7.4-6.3 9l6.1 10H28l-5.2-8.8h-5V38H8Z" fill="url(#rvLogoGradient)" opacity=".96"/>
+    <path d="M17.8 17h8.4c2.3 0 3.7 1 3.7 2.8 0 1.8-1.4 2.9-3.7 2.9h-8.4V17Z" fill="#082032"/>
+    <path d="M13 34.5 20 28l5 3.4 7-9.1" fill="none" stroke="#082032" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="32" cy="22.3" r="2.1" fill="#082032"/>
+   </svg>
+  </div>
    <div><div class="brandtitle font-extrabold tracking-tight">RitelAI <span class="text-cyan-300">Chart Vision</span></div><div class="text-[9px] tracking-[.2em] muted font-bold">MARKET INTELLIGENCE</div></div>
   </div>
   <div class="hidden md:flex items-center gap-2 text-[11px] muted"><span class="w-2 h-2 rounded-full bg-amber-400"></span> Supabase Auth · konfigurasi frontend terpasang</div>
@@ -492,15 +548,44 @@ table{border-color:var(--rv-border)}
     <p class="muted text-xs md:text-sm mt-3 max-w-xl leading-6">Satukan analisis chart, ringkasan teknikal, agenda ekonomi, dan jurnal hasil dalam satu workspace. Gunakan sebagai alat bantu keputusan—bukan jaminan profit.</p>
     <div class="flex flex-wrap gap-2 mt-4"><button class="btn primary" onclick="showTab('analyze',document.querySelector('[data-tab=analyze]'))"><i class="fa-solid fa-chart-line mr-1"></i>Mulai analisis</button><button class="btn border border-cyan-700/70 text-cyan-100" onclick="showTab('guide',document.querySelector('[data-tab=guide]'))"><i class="fa-solid fa-book-open mr-1"></i>Lihat panduan</button><button class="btn border border-slate-600 text-slate-200" onclick="openModal('plansModal')">Lihat paket</button></div>
    </div>
-   <div class="rounded-2xl border border-cyan-700/30 bg-[#071321]/70 p-4">
-    <div class="flex justify-between items-center text-[10px] muted"><span>MARKET SNAPSHOT WORKSPACE</span><i class="fa-solid fa-wave-square text-cyan-300"></i></div>
-    <svg viewBox="0 0 360 190" role="img" aria-label="Ilustrasi grafik pergerakan pasar" class="w-full mt-2">
-     <g stroke="#24415a" stroke-width="1"><path d="M12 30H348 M12 70H348 M12 110H348 M12 150H348"/></g>
-     <path d="M12 130 C35 120 45 138 65 108 S98 100 115 112 S145 70 165 85 S198 115 218 78 S245 68 262 83 S300 45 348 28" fill="none" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/>
-     <path d="M12 130 C35 120 45 138 65 108 S98 100 115 112 S145 70 165 85 S198 115 218 78 S245 68 262 83 S300 45 348 28 L348 170 L12 170Z" fill="#0891b2" opacity=".10"/>
-     <circle cx="348" cy="28" r="5" fill="#67e8f9"/><text x="14" y="184" fill="#7894ad" font-size="9">Ilustrasi visual · bukan harga live</text>
-    </svg>
-    <div class="grid grid-cols-3 gap-2 mt-1 text-center"><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-solid fa-chart-simple text-cyan-300"></i><div class="text-[9px] muted mt-1">Chart</div></div><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-regular fa-calendar text-cyan-300"></i><div class="text-[9px] muted mt-1">News</div></div><div class="rounded-lg bg-slate-900/80 p-2"><i class="fa-solid fa-shield-halved text-cyan-300"></i><div class="text-[9px] muted mt-1">Risk</div></div></div>
+   <div class="rv-live-stage rounded-2xl border border-cyan-700/30 p-4 md:p-5">
+    <div class="flex justify-between items-center gap-3 text-[10px] muted relative z-10">
+     <span class="flex items-center gap-2 tracking-[.16em] font-extrabold"><span class="rv-live-dot"></span> RITELAI MARKET RADAR</span>
+     <span class="rv-demo-chip">LIVE VISUAL · DEMO</span>
+    </div>
+    <div class="rv-stage-head flex items-end justify-between mt-4 relative z-10">
+     <div><div class="text-[9px] muted tracking-widest">MARKET MOMENTUM</div><div class="text-2xl md:text-3xl font-extrabold text-white tracking-tight">Read the <span class="text-cyan-300">Flow.</span></div></div>
+     <div class="rv-signal-orb"><span></span><span></span><span></span></div>
+    </div>
+    <div class="rv-chart-wrap mt-2 relative">
+     <div class="rv-chart-grid" aria-hidden="true"></div>
+     <svg viewBox="0 0 420 210" role="img" aria-label="Animasi ilustrasi candlestick dan aliran tren, bukan harga pasar live" class="rv-market-svg w-full">
+      <defs>
+       <linearGradient id="rvAreaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22d3ee" stop-opacity=".27"/><stop offset="1" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>
+       <linearGradient id="rvLineFill" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#38bdf8"/><stop offset=".55" stop-color="#67e8f9"/><stop offset="1" stop-color="#a5f3fc"/></linearGradient>
+       <filter id="rvLineGlow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g class="rv-candle-set">
+       <g stroke-linecap="round">
+        <path d="M35 91V143 M69 72V118 M103 88V139 M137 62V110 M171 79V132 M205 47V99 M239 64V116 M273 39V89 M307 51V104 M341 24V75 M375 18V59" stroke="#67e8f9" stroke-width="2"/>
+        <g fill="#0891b2"><rect x="29" y="105" width="12" height="24" rx="2"/><rect x="97" y="102" width="12" height="22" rx="2"/><rect x="165" y="91" width="12" height="25" rx="2"/><rect x="233" y="78" width="12" height="25" rx="2"/><rect x="301" y="64" width="12" height="23" rx="2"/><rect x="369" y="29" width="12" height="20" rx="2"/></g>
+        <g fill="#34d399"><rect x="63" y="83" width="12" height="21" rx="2"/><rect x="131" y="72" width="12" height="24" rx="2"/><rect x="199" y="60" width="12" height="24" rx="2"/><rect x="267" y="51" width="12" height="23" rx="2"/><rect x="335" y="34" width="12" height="22" rx="2"/></g>
+       </g>
+      </g>
+      <path class="rv-chart-area" d="M18 154 C48 147 53 112 82 119 S118 141 143 101 S181 117 207 84 S245 105 274 65 S310 80 339 47 S374 42 402 17 L402 190 L18 190Z" fill="url(#rvAreaFill)"/>
+      <path class="rv-chart-line" d="M18 154 C48 147 53 112 82 119 S118 141 143 101 S181 117 207 84 S245 105 274 65 S310 80 339 47 S374 42 402 17" fill="none" stroke="url(#rvLineFill)" stroke-width="3.5" stroke-linecap="round" filter="url(#rvLineGlow)"/>
+      <circle class="rv-chart-point" cx="402" cy="17" r="5" fill="#a5f3fc"/>
+      <path d="M18 180H402" stroke="#27435b" stroke-width="1" stroke-dasharray="3 7"/>
+     </svg>
+     <div class="rv-floating-label rv-label-top"><span class="rv-mini-pulse"></span> TREND FLOW <b>ACTIVE</b></div>
+     <div class="rv-floating-label rv-label-bottom">AI WORKSPACE <b>01 / 03</b></div>
+    </div>
+    <div class="grid grid-cols-3 gap-2 mt-3 relative z-10">
+     <div class="rv-mini-tile"><i class="fa-solid fa-chart-line"></i><span>CHART</span><b>Analyze</b></div>
+     <div class="rv-mini-tile"><i class="fa-regular fa-calendar"></i><span>NEWS</span><b>Monitor</b></div>
+     <div class="rv-mini-tile"><i class="fa-solid fa-shield-halved"></i><span>RISK</span><b>Control</b></div>
+    </div>
+    <p class="text-[9px] muted mt-3 relative z-10">Visual animasi dekoratif · bukan data harga atau sinyal live</p>
    </div>
   </div>
  </section>
