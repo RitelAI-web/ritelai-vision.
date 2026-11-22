@@ -551,6 +551,39 @@ hr{border-color:var(--rv-line)}
     </article>
    </div>
   </div>
+  <div class="glass rounded-2xl p-5 md:p-6 mt-5" id="ritelai-discipline-tools">
+   <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">RITELAI DISCIPLINE & TRADE PLANNER</div>
+   <h2 class="text-xl md:text-2xl font-extrabold mt-2">Alat bantu keputusan sebelum entry</h2>
+   <p class="muted text-xs mt-2">Dua alat tambahan untuk mengukur risk/reward dan memeriksa kesiapan rencana. Keduanya tidak memberi sinyal beli/jual.</p>
+   <div class="grid md:grid-cols-2 gap-3 mt-4">
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">07 · Risk/Reward & Target Planner</h3>
+     <p class="muted text-[11px] mt-1">Hitung rasio reward terhadap risiko dari harga entry, stop loss, dan target. Masukkan angka sesuai arah posisi.</p>
+     <div class="grid grid-cols-2 gap-2 mt-3">
+      <label class="text-[10px] muted">Arah posisi<select id="rrDirection" class="field w-full mt-1"><option value="long">BUY / LONG</option><option value="short">SELL / SHORT</option></select></label>
+      <label class="text-[10px] muted">Entry<input id="rrEntry" class="field w-full mt-1" type="number" step="any" placeholder="Harga entry"></label>
+      <label class="text-[10px] muted">Stop loss<input id="rrStop" class="field w-full mt-1" type="number" step="any" placeholder="Harga SL"></label>
+      <label class="text-[10px] muted">Target 1<input id="rrTarget1" class="field w-full mt-1" type="number" step="any" placeholder="Harga TP1"></label>
+      <label class="text-[10px] muted col-span-2">Target 2 (opsional)<input id="rrTarget2" class="field w-full mt-1" type="number" step="any" placeholder="Harga TP2"></label>
+     </div>
+     <button class="btn primary mt-3" onclick="calculateRitelRR()">Hitung risk/reward</button>
+     <div id="rrResult" class="mt-3 text-xs muted">Rasio risk/reward akan tampil setelah dihitung.</div>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">08 · Pre-Trade Discipline Checklist</h3>
+     <p class="muted text-[11px] mt-1">Periksa kondisi sebelum membuka posisi. Checklist ini membantu disiplin, bukan validasi bahwa trade pasti menguntungkan.</p>
+     <div class="space-y-2 mt-3 text-xs">
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Trend dan timeframe sudah diperiksa</span></label>
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Zona support/resistance atau supply/demand sudah ditandai</span></label>
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Kalender news berdampak tinggi sudah diperiksa</span></label>
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Stop loss dan ukuran risiko sudah ditentukan</span></label>
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Risk/reward minimal 1:1.5 atau sesuai aturan strategi</span></label>
+      <label class="flex items-start gap-2"><input class="mt-0.5" type="checkbox" data-trade-check><span>Saya tidak sedang revenge trade atau mengejar kerugian</span></label>
+     </div>
+     <div class="mt-3 rounded-lg bg-slate-900 p-3"><div class="flex justify-between text-xs"><span class="muted">Kesiapan rencana</span><b id="tradeCheckScore">0/6</b></div><div class="h-2 rounded-full bg-slate-700 mt-2 overflow-hidden"><div id="tradeCheckBar" class="h-full bg-cyan-400" style="width:0%"></div></div><p id="tradeCheckAdvice" class="text-xs mt-2 text-amber-200">Lengkapi pemeriksaan sebelum mempertimbangkan entry.</p></div>
+    </article>
+   </div>
+  </div>
   <div class="glass rounded-2xl p-5 md:p-6 mt-5" id="learning-academy">
    <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">RITELAI LEARNING ACADEMY · PEMULA HINGGA MENENGAH</div>
    <h2 class="text-xl md:text-2xl font-extrabold mt-2">Akademi Trading: Belajar dari Nol</h2>
@@ -1719,6 +1752,25 @@ window.runRitelBacktest=async function(){
  const m=data||{};out.innerHTML='<b class="text-cyan-200">Backtest selesai · '+symbol+'</b><div class="grid grid-cols-2 gap-2 mt-2"><div>Jumlah candle: '+(m.candle_count??'—')+'</div><div>Trade: '+(m.trades??m.total_trades??'—')+'</div><div>Win rate: '+(m.win_rate??'—')+'</div><div>Net return: '+(m.net_return??m.total_return??'—')+'</div></div><p class="muted text-[10px] mt-2">Arsip harian diperbarui: '+(backfill.stored??'—')+' candle. Periode: '+(m.sample_start||'—')+' s/d '+(m.sample_end||'—')+'. Hasil bergantung data dan asumsi simulasi.</p>';
  }catch(e){out.textContent='Backtest belum dapat dijalankan: '+(e.message||e);}
 };
+window.calculateRitelRR=function(){
+ const n=id=>Number(document.getElementById(id)?.value),dir=document.getElementById('rrDirection')?.value||'long';
+ const entry=n('rrEntry'),stop=n('rrStop'),t1=n('rrTarget1'),t2=n('rrTarget2'),out=document.getElementById('rrResult');
+ if(!out)return;
+ if(![entry,stop,t1].every(Number.isFinite)||entry<=0||stop<=0||t1<=0||entry===stop){out.textContent='Isi entry, stop loss, dan target 1 dengan harga valid.';return;}
+ const risk=dir==='long'?entry-stop:stop-entry, reward1=dir==='long'?t1-entry:entry-t1;
+ if(risk<=0||reward1<=0){out.textContent='Periksa arah posisi: SL harus berada di sisi rugi dan TP di sisi untung.';return;}
+ const rr1=reward1/risk;
+ let html='<b class="text-cyan-200">TP1: 1:'+rr1.toFixed(2)+'</b><div class="mt-1">Risiko harga: '+risk.toPrecision(6)+' · Potensi reward TP1: '+reward1.toPrecision(6)+'</div>';
+ if(Number.isFinite(t2)&&t2>0){const reward2=dir==='long'?t2-entry:entry-t2;if(reward2>0)html+='<div>TP2: 1:'+(reward2/risk).toFixed(2)+' · Reward: '+reward2.toPrecision(6)+'</div>';else html+='<div class="text-amber-200">TP2 berada di sisi yang tidak sesuai arah posisi.</div>';}
+ html+='<p class="muted mt-2">'+(rr1>=1.5?'Rasio TP1 memenuhi patokan 1:1.5 yang umum dipakai sebagai filter.':'Rasio TP1 di bawah 1:1.5; evaluasi ulang setup dan biaya transaksi.')+' Rasio tidak memperhitungkan spread, komisi, slippage, atau gap.</p>';
+ out.innerHTML=html;
+};
+(function initRitelTradeChecklist(){
+ const checks=[...document.querySelectorAll('[data-trade-check]')],score=document.getElementById('tradeCheckScore'),bar=document.getElementById('tradeCheckBar'),advice=document.getElementById('tradeCheckAdvice');
+ if(!checks.length||!score||!bar||!advice)return;
+ const update=()=>{const count=checks.filter(x=>x.checked).length;score.textContent=count+'/'+checks.length;bar.style.width=(count/checks.length*100)+'%';advice.textContent=count===checks.length?'Semua pemeriksaan dicentang. Tetap patuhi batas risiko dan rencana keluar.':count>=4?'Sebagian besar siap. Tinjau item yang belum dicentang sebelum entry.':'Belum siap: lengkapi pemeriksaan penting terlebih dahulu.';};
+ checks.forEach(x=>x.addEventListener('change',update));update();
+})();
 window.answerRitelQuiz=function(ok){const el=document.getElementById('academyQuizResult');if(el)el.textContent=ok?'Benar. Support adalah area yang berpotensi menahan penurunan, sedangkan resistance berpotensi menahan kenaikan. Keduanya tetap bisa ditembus.':'Belum tepat. Perhatikan area harga yang beberapa kali menjadi titik pantulan atau penolakan.';};
 </script>
 </body>
