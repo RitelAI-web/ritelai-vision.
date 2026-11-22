@@ -499,6 +499,45 @@ table{border-color:var(--rv-border)}
  .rv-brand-mark:before,.rv-live-stage:before,.rv-live-dot,.rv-mini-pulse,.rv-signal-orb:before,.rv-signal-orb:after,.rv-chart-line,.rv-chart-area,.rv-chart-point,.rv-candle-set,.rv-floating-label{animation:none!important}
  .rv-chart-line{stroke-dashoffset:0!important}.rv-chart-area{opacity:1!important}
 }
+/* Make every hero candlestick visibly animate independently, not just drift as a group. */
+.rv-candle-set{transform:none!important}
+.rv-candle-bodies rect{
+ transform-box:fill-box;transform-origin:center;
+ animation:rvCandleTick 2.8s ease-in-out infinite;
+ will-change:transform,opacity;
+}
+.rv-candle-blue rect:nth-child(1){animation-delay:-.2s}
+.rv-candle-blue rect:nth-child(2){animation-delay:-1.1s}
+.rv-candle-blue rect:nth-child(3){animation-delay:-1.8s}
+.rv-candle-blue rect:nth-child(4){animation-delay:-.7s}
+.rv-candle-blue rect:nth-child(5){animation-delay:-2.3s}
+.rv-candle-blue rect:nth-child(6){animation-delay:-1.4s}
+.rv-candle-green rect:nth-child(1){animation-delay:-1.5s}
+.rv-candle-green rect:nth-child(2){animation-delay:-.4s}
+.rv-candle-green rect:nth-child(3){animation-delay:-2.1s}
+.rv-candle-green rect:nth-child(4){animation-delay:-.9s}
+.rv-candle-green rect:nth-child(5){animation-delay:-2.6s}
+@keyframes rvCandleTick{
+ 0%,100%{transform:translateY(0) scaleY(.82);opacity:.76}
+ 22%{transform:translateY(-5px) scaleY(1.14);opacity:1}
+ 48%{transform:translateY(2px) scaleY(.92);opacity:.88}
+ 72%{transform:translateY(-2px) scaleY(1.08);opacity:1}
+}
+.rv-candle-scan{
+ opacity:0;animation:rvScanSweep 6.5s ease-in-out infinite;
+ filter:drop-shadow(0 0 4px #67e8f9);
+}
+@keyframes rvScanSweep{
+ 0%,12%{transform:translateX(0);opacity:0}
+ 22%{opacity:.48}
+ 75%{opacity:.25}
+ 88%,100%{transform:translateX(420px);opacity:0}
+}
+@media(prefers-reduced-motion:reduce){
+ .rv-candle-bodies rect,.rv-candle-scan{animation:none!important;transform:none!important}
+ .rv-candle-bodies rect{opacity:1!important}
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
@@ -568,12 +607,13 @@ table{border-color:var(--rv-border)}
       <g class="rv-candle-set">
        <g stroke-linecap="round">
         <path d="M35 91V143 M69 72V118 M103 88V139 M137 62V110 M171 79V132 M205 47V99 M239 64V116 M273 39V89 M307 51V104 M341 24V75 M375 18V59" stroke="#67e8f9" stroke-width="2"/>
-        <g fill="#0891b2"><rect x="29" y="105" width="12" height="24" rx="2"/><rect x="97" y="102" width="12" height="22" rx="2"/><rect x="165" y="91" width="12" height="25" rx="2"/><rect x="233" y="78" width="12" height="25" rx="2"/><rect x="301" y="64" width="12" height="23" rx="2"/><rect x="369" y="29" width="12" height="20" rx="2"/></g>
-        <g fill="#34d399"><rect x="63" y="83" width="12" height="21" rx="2"/><rect x="131" y="72" width="12" height="24" rx="2"/><rect x="199" y="60" width="12" height="24" rx="2"/><rect x="267" y="51" width="12" height="23" rx="2"/><rect x="335" y="34" width="12" height="22" rx="2"/></g>
+        <g class="rv-candle-bodies rv-candle-blue" fill="#0891b2"><rect x="29" y="105" width="12" height="24" rx="2"/><rect x="97" y="102" width="12" height="22" rx="2"/><rect x="165" y="91" width="12" height="25" rx="2"/><rect x="233" y="78" width="12" height="25" rx="2"/><rect x="301" y="64" width="12" height="23" rx="2"/><rect x="369" y="29" width="12" height="20" rx="2"/></g>
+        <g class="rv-candle-bodies rv-candle-green" fill="#34d399"><rect x="63" y="83" width="12" height="21" rx="2"/><rect x="131" y="72" width="12" height="24" rx="2"/><rect x="199" y="60" width="12" height="24" rx="2"/><rect x="267" y="51" width="12" height="23" rx="2"/><rect x="335" y="34" width="12" height="22" rx="2"/></g>
        </g>
       </g>
       <path class="rv-chart-area" d="M18 154 C48 147 53 112 82 119 S118 141 143 101 S181 117 207 84 S245 105 274 65 S310 80 339 47 S374 42 402 17 L402 190 L18 190Z" fill="url(#rvAreaFill)"/>
       <path class="rv-chart-line" d="M18 154 C48 147 53 112 82 119 S118 141 143 101 S181 117 207 84 S245 105 274 65 S310 80 339 47 S374 42 402 17" fill="none" stroke="url(#rvLineFill)" stroke-width="3.5" stroke-linecap="round" filter="url(#rvLineGlow)"/>
+      <path class="rv-candle-scan" d="M0 0V190" stroke="#a5f3fc" stroke-width="1.5" opacity=".0"/>
       <circle class="rv-chart-point" cx="402" cy="17" r="5" fill="#a5f3fc"/>
       <path d="M18 180H402" stroke="#27435b" stroke-width="1" stroke-dasharray="3 7"/>
      </svg>
