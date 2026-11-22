@@ -1364,6 +1364,15 @@ table{border-color:var(--rv-border)}
    <div class="glass rounded-2xl p-4"><h3 class="font-bold text-sm mb-3">Pengumuman pelanggan</h3><input id="announcementTitle" class="field mb-2" placeholder="Judul pengumuman"><textarea id="announcementBody" class="field mb-2" rows="3" placeholder="Isi pengumuman"></textarea><label class="flex items-center gap-2 text-xs muted mb-3"><input id="announcementPublish" type="checkbox"> Terbitkan langsung</label><button class="btn primary w-full" onclick="createAnnouncement()">Simpan pengumuman</button><div id="adminAnnouncements" class="space-y-2 mt-4"></div></div>
    <div class="glass rounded-2xl p-4"><div class="flex flex-wrap justify-between items-center gap-2 mb-3"><h3 class="font-bold text-sm">Daftar pelanggan terdaftar</h3><span id="admUsersTotal" class="pill">Memuat...</span></div><input id="adminUserSearch" class="field mb-3" type="search" placeholder="Cari nama, username, atau ID pengguna..." oninput="renderAdminUsers()"><div class="overflow-x-auto"><div id="adminUsers" class="space-y-2"><p class="muted text-xs">Memuat pengguna...</p></div></div><p id="adminUsersMeta" class="muted text-[10px] mt-2">Menampilkan profil yang diizinkan oleh kebijakan database.</p><div class="border-t border-slate-800 mt-4 pt-3"><h4 class="font-bold text-xs mb-2">Langganan terbaru</h4><div id="adminSubscriptions" class="space-y-2"></div></div></div>
   </div>
+  <div class="glass rounded-2xl p-4 mt-4" id="admin-ops-center">
+   <div class="flex flex-wrap items-center justify-between gap-2"><div><h3 class="font-bold text-sm">RitelAI · Performance &amp; Operations Center</h3><p class="muted text-[10px] mt-1">Ringkasan jurnal trading, kesehatan data market, dan aktivitas keamanan. Data mengikuti izin akun admin.</p></div><button class="btn primary" onclick="loadAdminOpsCenter()"><i class="fa-solid fa-rotate mr-1"></i>Perbarui</button></div>
+   <div class="grid sm:grid-cols-3 gap-3 mt-4">
+    <div class="rounded-xl border border-cyan-900/40 bg-slate-950/60 p-3"><div class="text-[10px] text-cyan-200 font-bold">TRADE PERFORMANCE · JURNAL</div><div class="grid grid-cols-2 gap-2 mt-3"><div><b id="opsClosedTrades" class="text-xl">—</b><div class="muted text-[9px]">Trade tertutup</div></div><div><b id="opsWinRate" class="text-xl">—</b><div class="muted text-[9px]">Win rate jurnal</div></div><div><b id="opsNetPnl" class="text-sm">—</b><div class="muted text-[9px]">Net P/L tercatat</div></div><div><b id="opsAnalysisCount" class="text-sm">—</b><div class="muted text-[9px]">Analisis tersimpan</div></div></div><p class="muted text-[9px] mt-2">Win rate dihitung dari trade_journal berstatus closed dengan P/L tercatat, bukan prediksi AI.</p></div>
+    <div class="rounded-xl border border-cyan-900/40 bg-slate-950/60 p-3"><div class="text-[10px] text-cyan-200 font-bold">MARKET DATA HEALTH</div><b id="opsMarketStatus" class="text-lg block mt-3">Memeriksa…</b><p id="opsMarketDetail" class="muted text-[10px] mt-1">Memeriksa timestamp OHLC terakhir.</p><div id="opsMarketSymbols" class="mt-3 space-y-1 text-[10px]"></div></div>
+    <div class="rounded-xl border border-cyan-900/40 bg-slate-950/60 p-3"><div class="text-[10px] text-cyan-200 font-bold">SECURITY &amp; BACKUP</div><b id="opsSecurityStatus" class="text-lg block mt-3">Memeriksa…</b><p id="opsSecurityDetail" class="muted text-[10px] mt-1">Memeriksa audit log dan kesiapan backup.</p><div id="opsAuditRows" class="mt-3 space-y-2"></div><div class="mt-3 rounded-lg border border-amber-700/30 bg-amber-950/20 p-2 text-[9px] text-amber-100">Backup otomatis/PITR tidak dapat diverifikasi dari browser. Pastikan backup terjadwal dan uji pemulihan di Supabase Dashboard.</div></div>
+   </div>
+   <p id="opsUpdatedAt" class="muted text-[9px] mt-3">Belum diperbarui.</p>
+  </div>
   <div class="glass rounded-2xl p-4 mt-4"><h3 class="font-bold text-sm">Status layanan &amp; integrasi</h3><p class="muted text-xs mt-2">Status berikut berasal dari inventaris backend. Aktif berarti fungsi terpasang di Supabase, bukan jaminan provider selalu merespons; validasi runtime tetap dilakukan saat permintaan berjalan.</p><div class="grid sm:grid-cols-3 gap-2 mt-3 text-xs"><div class="bg-slate-950/60 rounded-lg p-3">AI chart · quick-handler<br><b class="text-emerald-300">Edge Function aktif · v93</b><small class="muted block mt-1">Ketersediaan API key dan respons AI perlu diuji saat analisis.</small></div><div class="bg-slate-950/60 rounded-lg p-3">Market data · market-engine<br><b class="text-emerald-300">Edge Function aktif · v4</b><small class="muted block mt-1">OHLC memakai BiQuote; status harga live mengikuti tick dan timestamp.</small></div><div class="bg-slate-950/60 rounded-lg p-3">QRIS DANA<br><b class="text-amber-300">Verifikasi pembayaran manual</b><small class="muted block mt-1">Aktivasi paket tetap menunggu persetujuan admin.</small></div></div></div>
  </section>
  <section class="mt-5 grid md:grid-cols-3 gap-3">
@@ -2591,5 +2600,33 @@ window.answerRitelQuiz=function(ok){const el=document.getElementById('academyQui
 })();
 </script>
 
-</body>
+
+<script>
+async function loadAdminOpsCenter(){
+ const set=(id,value)=>{const el=document.getElementById(id);if(el)el.textContent=value};
+ const host=(id,value)=>{const el=document.getElementById(id);if(el)el.innerHTML=value};
+ try{
+  await adminCheck();
+  const [trades,analyses,bars,audit]=await Promise.all([
+   supabaseClient.from('trade_journal').select('status,pnl_amount,closed_at').eq('status','closed').not('pnl_amount','is',null).limit(1000),
+   supabaseClient.from('analysis_history').select('id',{count:'exact',head:true}),
+   supabaseClient.from('market_ohlc_bars').select('symbol,timeframe,fetched_at,open_time').order('fetched_at',{ascending:false}).limit(100),
+   supabaseClient.from('audit_logs').select('action,target_type,target_id,created_at').order('created_at',{ascending:false}).limit(8)
+  ]);
+  const errs=[trades,analyses,bars,audit].filter(x=>x.error);
+  const closed=trades.data||[],wins=closed.filter(x=>Number(x.pnl_amount)>0).length,losses=closed.filter(x=>Number(x.pnl_amount)<0).length,net=closed.reduce((s,x)=>s+Number(x.pnl_amount||0),0),decided=wins+losses;
+  set('opsClosedTrades',String(closed.length));set('opsWinRate',decided?((wins/decided)*100).toFixed(1)+'%':'—');set('opsNetPnl',net.toLocaleString('id-ID',{maximumFractionDigits:2}));set('opsAnalysisCount',analyses.error?'Tidak tersedia':String(analyses.count??'—'));
+  const rows=bars.data||[],bySymbol={};rows.forEach(x=>{if(!bySymbol[x.symbol])bySymbol[x.symbol]=x});
+  const latest=rows.length?Date.parse(rows[0].fetched_at||rows[0].open_time):NaN,age=Number.isFinite(latest)?Math.max(0,Date.now()-latest):Infinity;
+  const marketState=bars.error?'TIDAK TERSEDIA':!rows.length?'BELUM ADA DATA':age<=5*60*1000?'LIVE / BARU':age<=60*60*1000?'TERLAMBAT':'STALE';
+  set('opsMarketStatus',marketState);set('opsMarketDetail',bars.error?bars.error.message:rows.length?'OHLC terakhir diperbarui '+new Date(latest).toLocaleString('id-ID'):'Tidak ada candle tersimpan');
+  host('opsMarketSymbols',Object.keys(bySymbol).slice(0,8).map(sym=>{const x=bySymbol[sym],t=Date.parse(x.fetched_at||x.open_time);return '<div class="flex justify-between gap-2"><b>'+escapeHtml(sym)+'</b><span class="muted">'+(Number.isFinite(t)?new Date(t).toLocaleTimeString('id-ID'):'—')+'</span></div>'}).join('')||'<span class="muted">Belum ada simbol.</span>');
+  set('opsSecurityStatus',audit.error?'LOG TIDAK TERSEDIA':(audit.data||[]).length?'AUDIT LOG AKTIF':'BELUM ADA CATATAN');
+  set('opsSecurityDetail',audit.error?audit.error.message:'Menampilkan aktivitas audit terbaru. Backup belum diverifikasi otomatis.');
+  host('opsAuditRows',(audit.data||[]).map(x=>'<div class="border-t border-slate-800 pt-2"><b class="text-[10px]">'+escapeHtml(x.action||'Aktivitas')+'</b><div class="muted text-[9px]">'+escapeHtml(x.target_type||'')+' '+escapeHtml(x.target_id||'')+' · '+new Date(x.created_at).toLocaleString('id-ID')+'</div></div>').join('')||'<span class="muted text-[9px]">Belum ada audit log yang dapat dibaca.</span>');
+  if(errs.length)set('opsUpdatedAt','Sebagian data tidak dapat diakses: '+errs.map(x=>x.error.message).join(' · '));else set('opsUpdatedAt','Diperbarui '+new Date().toLocaleString('id-ID')+' · '+(losses)+' trade rugi tercatat.');
+ }catch(e){set('opsSecurityStatus','GAGAL MEMUAT');set('opsSecurityDetail',e.message||'Tidak dapat memuat ringkasan.');set('opsUpdatedAt','Periksa izin akses admin dan koneksi Supabase.');}
+}
+</script>
+\n</body>
 </html>
