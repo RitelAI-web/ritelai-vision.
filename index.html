@@ -726,6 +726,15 @@ async function loadMarketIntelligence(options={}){
   const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'watch_context',symbol:ritelMarketSymbol,timeframe}});
   if(error)throw new Error(data?.error||error.message||'Market feed belum merespons.');
   if(data?.error)throw new Error(data.error);
+  if(data?.status==='insufficient_data'){
+   ritelMarketContext=null;
+   ritelMarketStatus('Menunggu candle · '+(data.candle_count||0)+'/50',false);
+   const warn=document.getElementById('marketWarnings');if(warn){warn.textContent=data.warning||'Data candle belum mencukupi.';warn.classList.remove('hidden')}
+   const watch=document.getElementById('marketWatchStatus');if(watch)watch.textContent='Menunggu data';
+   const quotes=document.getElementById('marketQuotes');if(quotes)quotes.innerHTML='<div class="rounded-xl border border-amber-700/50 bg-amber-950/20 p-3 text-xs text-amber-100">'+(data.warning||'Candle belum mencukupi untuk analisis.')+'</div>';
+   ['watchTrend','watchVolatility','watchPrice','watchDemand','watchSupply','watchAtr'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent='—'});
+   return;
+  }
   ritelMarketContext=data;ritelUpdateMarketWatch(data);
   const rf=data.range_filter||{},rfDir=document.getElementById('rangeFilterDirection'),rfSig=document.getElementById('rangeFilterSignal'),rfVal=document.getElementById('rangeFilterValue'),rfNote=document.getElementById('rangeFilterNote');
   if(rfDir)rfDir.textContent=rf.direction||'N/A';
