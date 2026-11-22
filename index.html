@@ -1850,7 +1850,27 @@ window.runRitelBacktest=async function(){
  }catch(e){out.textContent='Backtest belum dapat dijalankan: '+(e.message||e);}
 };
 window.calculateRitelRR=function(){
- cons
+ const n=id=>Number(document.getElementById(id)?.value),dir=document.getElementById('rrDirection')?.value||'long';
+ const entry=n('rrEntry'),stop=n('rrStop'),t1=n('rrTarget1'),t2=n('rrTarget2'),out=document.getElementById('rrResult');
+ if(!out)return;
+ if(![entry,stop,t1].every(Number.isFinite)||entry<=0||stop<=0||t1<=0||entry===stop){out.textContent='Isi entry, stop loss, dan target 1 dengan harga valid.';return;}
+ const risk=dir==='long'?entry-stop:stop-entry, reward1=dir==='long'?t1-entry:entry-t1;
+ if(risk<=0||reward1<=0){out.textContent='Periksa arah posisi: SL harus berada di sisi rugi dan TP di sisi untung.';return;}
+ const rr1=reward1/risk;
+ let html='<b class="text-cyan-200">TP1: 1:'+rr1.toFixed(2)+'</b><div class="mt-1">Risiko harga: '+risk.toPrecision(6)+' · Potensi reward TP1: '+reward1.toPrecision(6)+'</div>';
+ if(Number.isFinite(t2)&&t2>0){const reward2=dir==='long'?t2-entry:entry-t2;if(reward2>0)html+='<div>TP2: 1:'+(reward2/risk).toFixed(2)+' · Reward: '+reward2.toPrecision(6)+'</div>';else html+='<div class="text-amber-200">TP2 berada di sisi yang tidak sesuai arah posisi.</div>';}
+ html+='<p class="muted mt-2">'+(rr1>=1.5?'Rasio TP1 memenuhi patokan 1:1.5 yang umum dipakai sebagai filter.':'Rasio TP1 di bawah 1:1.5; evaluasi ulang setup dan biaya transaksi.')+' Rasio tidak memperhitungkan spread, komisi, slippage, atau gap.</p>';
+ out.innerHTML=html;
+};
+(function initRitelTradeChecklist(){
+ const checks=[...document.querySelectorAll('[data-trade-check]')],score=document.getElementById('tradeCheckScore'),bar=document.getElementById('tradeCheckBar'),advice=document.getElementById('tradeCheckAdvice');
+ if(!checks.length||!score||!bar||!advice)return;
+ const update=()=>{const count=checks.filter(x=>x.checked).length;score.textContent=count+'/'+checks.length;bar.style.width=(count/checks.length*100)+'%';advice.textContent=count===checks.length?'Semua pemeriksaan dicentang. Tetap patuhi batas risiko dan rencana keluar.':count>=4?'Sebagian besar siap. Tinjau item yang belum dicentang sebelum entry.':'Belum siap: lengkapi pemeriksaan penting terlebih dahulu.';};
+ checks.forEach(x=>x.addEventListener('change',update));update();
+})();
+window.answerRitelQuiz=function(ok){const el=document.getElementById('academyQuizResult');if(el)el.textContent=ok?'Benar. Support adalah area yang berpotensi menahan penurunan, sedangkan resistance berpotensi menahan kenaikan. Keduanya tetap bisa ditembus.':'Belum tepat. Perhatikan area harga yang beberapa kali menjadi titik pantulan atau penolakan.';};
+</script>
+
 <script>
 (function initRitelPremiumExperience(){
  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1878,26 +1898,6 @@ window.calculateRitelRR=function(){
  },{threshold:.08,rootMargin:'0px 0px -35px 0px'});
  targets.forEach(el=>observer.observe(el));
 })();
-</script>
-t n=id=>Number(document.getElementById(id)?.value),dir=document.getElementById('rrDirection')?.value||'long';
- const entry=n('rrEntry'),stop=n('rrStop'),t1=n('rrTarget1'),t2=n('rrTarget2'),out=document.getElementById('rrResult');
- if(!out)return;
- if(![entry,stop,t1].every(Number.isFinite)||entry<=0||stop<=0||t1<=0||entry===stop){out.textContent='Isi entry, stop loss, dan target 1 dengan harga valid.';return;}
- const risk=dir==='long'?entry-stop:stop-entry, reward1=dir==='long'?t1-entry:entry-t1;
- if(risk<=0||reward1<=0){out.textContent='Periksa arah posisi: SL harus berada di sisi rugi dan TP di sisi untung.';return;}
- const rr1=reward1/risk;
- let html='<b class="text-cyan-200">TP1: 1:'+rr1.toFixed(2)+'</b><div class="mt-1">Risiko harga: '+risk.toPrecision(6)+' · Potensi reward TP1: '+reward1.toPrecision(6)+'</div>';
- if(Number.isFinite(t2)&&t2>0){const reward2=dir==='long'?t2-entry:entry-t2;if(reward2>0)html+='<div>TP2: 1:'+(reward2/risk).toFixed(2)+' · Reward: '+reward2.toPrecision(6)+'</div>';else html+='<div class="text-amber-200">TP2 berada di sisi yang tidak sesuai arah posisi.</div>';}
- html+='<p class="muted mt-2">'+(rr1>=1.5?'Rasio TP1 memenuhi patokan 1:1.5 yang umum dipakai sebagai filter.':'Rasio TP1 di bawah 1:1.5; evaluasi ulang setup dan biaya transaksi.')+' Rasio tidak memperhitungkan spread, komisi, slippage, atau gap.</p>';
- out.innerHTML=html;
-};
-(function initRitelTradeChecklist(){
- const checks=[...document.querySelectorAll('[data-trade-check]')],score=document.getElementById('tradeCheckScore'),bar=document.getElementById('tradeCheckBar'),advice=document.getElementById('tradeCheckAdvice');
- if(!checks.length||!score||!bar||!advice)return;
- const update=()=>{const count=checks.filter(x=>x.checked).length;score.textContent=count+'/'+checks.length;bar.style.width=(count/checks.length*100)+'%';advice.textContent=count===checks.length?'Semua pemeriksaan dicentang. Tetap patuhi batas risiko dan rencana keluar.':count>=4?'Sebagian besar siap. Tinjau item yang belum dicentang sebelum entry.':'Belum siap: lengkapi pemeriksaan penting terlebih dahulu.';};
- checks.forEach(x=>x.addEventListener('change',update));update();
-})();
-window.answerRitelQuiz=function(ok){const el=document.getElementById('academyQuizResult');if(el)el.textContent=ok?'Benar. Support adalah area yang berpotensi menahan penurunan, sedangkan resistance berpotensi menahan kenaikan. Keduanya tetap bisa ditembus.':'Belum tepat. Perhatikan area harga yang beberapa kali menjadi titik pantulan atau penolakan.';};
 </script>
 </body>
 </html>
