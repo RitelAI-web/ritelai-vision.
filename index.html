@@ -221,6 +221,42 @@ hr{border-color:var(--rv-line)}
  #launchPromoBanner p.text-amber-100\\/80{display:none!important}
 }
 
+
+/* RitelAI premium motion layer — lightweight CSS/SVG only; no external animation runtime. */
+@keyframes rvHeroGlow{0%,100%{opacity:.38;transform:translate3d(0,0,0) scale(1)}50%{opacity:.78;transform:translate3d(-10px,8px,0) scale(1.06)}}
+@keyframes rvChartDraw{to{stroke-dashoffset:0}}
+@keyframes rvChartPulse{0%,100%{opacity:.65;r:4}50%{opacity:1;r:7}}
+@keyframes rvHeroSweep{0%{transform:translateX(-120%) skewX(-16deg);opacity:0}18%{opacity:.22}75%{opacity:.08}100%{transform:translateX(160%) skewX(-16deg);opacity:0}}
+@keyframes rvFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+main>section:nth-of-type(3){
+ isolation:isolate;overflow:hidden;
+ background-image:radial-gradient(ellipse at 82% 18%,rgba(34,211,238,.12),transparent 38%),linear-gradient(125deg,rgba(8,145,178,.07),transparent 48%,rgba(79,70,229,.09))!important;
+ background-size:180% 180%;animation:rvHeroGlow 9s ease-in-out infinite;
+}
+main>section:nth-of-type(3):after{
+ content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+ background:linear-gradient(105deg,transparent 35%,rgba(103,232,249,.075) 50%,transparent 65%);
+ transform:translateX(-120%);animation:rvHeroSweep 8s ease-in-out infinite;
+}
+main>section:nth-of-type(3)>.grid{position:relative;z-index:1}
+main>section:nth-of-type(3) svg path[stroke="#22d3ee"]{
+ stroke-dasharray:520;stroke-dashoffset:520;animation:rvChartDraw 3.2s cubic-bezier(.22,.75,.25,1) .25s forwards;
+ filter:drop-shadow(0 0 5px rgba(34,211,238,.55));
+}
+main>section:nth-of-type(3) svg circle[fill="#67e8f9"]{
+ transform-box:fill-box;transform-origin:center;animation:rvChartPulse 2s ease-in-out 3.4s infinite;
+ filter:drop-shadow(0 0 7px rgba(103,232,249,.8));
+}
+main>section:nth-of-type(3) .rounded-2xl.border.border-cyan-700\/30{animation:rvFloat 6s ease-in-out infinite}
+main>section:nth-of-type(3) h2{ text-shadow:0 0 28px rgba(34,211,238,.12)}
+@media(prefers-reduced-motion:reduce){
+ main>section:nth-of-type(3),main>section:nth-of-type(3):after,
+ main>section:nth-of-type(3) svg path[stroke="#22d3ee"],
+ main>section:nth-of-type(3) svg circle[fill="#67e8f9"],
+ main>section:nth-of-type(3) .rounded-2xl.border.border-cyan-700\/30{animation:none!important;transform:none!important}
+ main>section:nth-of-type(3) svg path[stroke="#22d3ee"]{stroke-dashoffset:0}
+}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
