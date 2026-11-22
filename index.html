@@ -257,6 +257,41 @@ main>section:nth-of-type(3) h2{ text-shadow:0 0 28px rgba(34,211,238,.12)}
  main>section:nth-of-type(3) svg path[stroke="#22d3ee"]{stroke-dashoffset:0}
 }
 
+
+/* RitelAI Signature Experience — restrained premium motion and responsive feedback. */
+:root{--rv-ease:cubic-bezier(.2,.75,.25,1)}
+::selection{backgro
+<div id="rvScrollProgress" aria-hidden="true"></div>und:rgba(34,211,238,.28);color:#f0fdff}
+body{overflow-x:hidden}
+#rvScrollProgress{position:fixed;inset:0 auto auto 0;height:2px;width:0;z-index:100;background:linear-gradient(90deg,#22d3ee,#60a5fa,#a78bfa);box-shadow:0 0 12px rgba(34,211,238,.65);pointer-events:none;will-change:width}
+header.sticky{transition:background .25s ease,box-shadow .25s ease,border-color .25s ease}
+header.sticky.rv-scrolled{background:rgba(5,10,18,.96)!important;box-shadow:0 12px 36px rgba(0,0,0,.34);border-color:rgba(103,232,249,.18)!important}
+.glass,.panel>.glass,.panel>.grid>.glass,main>.grid.grid-cols-2.lg\:grid-cols-4>div{
+ transition:transform .28s var(--rv-ease),border-color .28s ease,box-shadow .28s ease,background .28s ease;
+}
+@media(hover:hover) and (pointer:fine){
+ .glass:hover{transform:translateY(-2px);box-shadow:0 22px 52px rgba(0,0,0,.28),0 0 0 1px rgba(103,232,249,.035)!important}
+ main>.grid.grid-cols-2.lg\:grid-cols-4>div:hover{box-shadow:0 14px 34px rgba(0,0,0,.24),0 0 22px rgba(34,211,238,.045)}
+}
+.btn{position:relative;isolation:isolate;overflow:hidden}
+.btn:after{content:"";position:absolute;inset:-1px auto -1px -55%;width:36%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent);transition:left .65s var(--rv-ease);pointer-events:none;z-index:-1}
+@media(hover:hover) and (pointer:fine){.btn:hover:after{left:125%}}
+.btn:active{filter:brightness(1.14)}
+.navbtn{transition:background .22s ease,color .22s ease,border-color .22s ease,transform .22s var(--rv-ease)}
+.navbtn:active{transform:scale(.975)}
+.field,button,a{outline-offset:3px}
+.rv-reveal{opacity:1;transform:none}
+.rv-motion-ready .rv-reveal{opacity:0;transform:translateY(16px);transition:opacity .65s var(--rv-ease),transform .65s var(--rv-ease)}
+.rv-motion-ready .rv-reveal.rv-visible{opacity:1;transform:translateY(0)}
+.rv-reveal.rv-delay-1{transition-delay:.08s}.rv-reveal.rv-delay-2{transition-delay:.16s}.rv-reveal.rv-delay-3{transition-delay:.24s}
+@media(max-width:640px){
+ .rv-motion-ready .rv-reveal{transform:translateY(10px);transition-duration:.42s}
+}
+@media(prefers-reduced-motion:reduce){
+ #rvScrollProgress{display:none!important}
+ .rv-motion-ready .rv-reveal,.rv-reveal{opacity:1!important;transform:none!important;transition:none!important}
+ .glass,.btn,.navbtn{transition:none!important}
+}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
@@ -1798,7 +1833,36 @@ window.runRitelBacktest=async function(){
  }catch(e){out.textContent='Backtest belum dapat dijalankan: '+(e.message||e);}
 };
 window.calculateRitelRR=function(){
- const n=id=>Number(document.getElementById(id)?.value),dir=document.getElementById('rrDirection')?.value||'long';
+ cons
+<script>
+(function initRitelPremiumExperience(){
+ const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const header=document.querySelector('header.sticky');
+ const progress=document.getElementById('rvScrollProgress');
+ let ticking=false;
+ const paintScroll=()=>{
+  const doc=document.documentElement;
+  const max=Math.max(1,doc.scrollHeight-window.innerHeight);
+  const pct=Math.min(100,Math.max(0,(window.scrollY/max)*100));
+  if(progress)progress.style.width=pct+'%';
+  if(header)header.classList.toggle('rv-scrolled',window.scrollY>12);
+  ticking=false;
+ };
+ window.addEventListener('scroll',()=>{if(!ticking){ticking=true;window.requestAnimationFrame(paintScroll)}},{passive:true});
+ window.addEventListener('resize',paintScroll,{passive:true});
+ paintScroll();
+ if(reduce)return;
+ const targets=[...document.querySelectorAll('main>section,main>.grid.grid-cols-2.lg\\:grid-cols-4,.panel>.glass,.panel>.grid>.glass')];
+ if(!targets.length||!('IntersectionObserver'in window))return;
+ targets.forEach((el,i)=>{el.classList.add('rv-reveal');if(i%4===1)el.classList.add('rv-delay-1');else if(i%4===2)el.classList.add('rv-delay-2');else if(i%4===3)el.classList.add('rv-delay-3')});
+ document.documentElement.classList.add('rv-motion-ready');
+ const observer=new IntersectionObserver(entries=>{
+  entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add('rv-visible');observer.unobserve(entry.target)}});
+ },{threshold:.08,rootMargin:'0px 0px -35px 0px'});
+ targets.forEach(el=>observer.observe(el));
+})();
+</script>
+t n=id=>Number(document.getElementById(id)?.value),dir=document.getElementById('rrDirection')?.value||'long';
  const entry=n('rrEntry'),stop=n('rrStop'),t1=n('rrTarget1'),t2=n('rrTarget2'),out=document.getElementById('rrResult');
  if(!out)return;
  if(![entry,stop,t1].every(Number.isFinite)||entry<=0||stop<=0||t1<=0||entry===stop){out.textContent='Isi entry, stop loss, dan target 1 dengan harga valid.';return;}
