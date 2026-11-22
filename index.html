@@ -507,6 +507,50 @@ hr{border-color:var(--rv-line)}
   </div>
   <div class="rounded-2xl border border-amber-800/60 bg-amber-950/20 p-4 mt-4"><div class="flex gap-2 items-center text-amber-200 font-bold text-sm"><i class="fa-solid fa-triangle-exclamation"></i> Pengingat risiko</div><p class="text-amber-100/80 text-xs mt-2 leading-5">RitelAI Chart Vision adalah alat bantu analisis, bukan penasihat investasi dan bukan layanan pengelolaan dana. Tidak ada target akurasi atau persentase kemenangan yang dijamin. Uji strategi dengan data historis dan akun DEMO sebelum mempertimbangkan risiko dana nyata.</p></div>
 
+  <div class="glass rounded-2xl p-5 md:p-6 mt-5" id="ritelai-next-tools">
+   <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">RITELAI INTELLIGENCE TOOLKIT</div>
+   <h2 class="text-xl md:text-2xl font-extrabold mt-2">Trading Intelligence · 6 fitur terpadu</h2>
+   <p class="muted text-xs mt-2">Alat bantu berbasis data dan input pengguna. Hasil historis dan indikator bukan jaminan hasil trading mendatang.</p>
+   <div class="grid md:grid-cols-2 gap-3 mt-4">
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <div class="flex items-center justify-between gap-2"><h3 class="font-bold text-sm">01 · Multi-Timeframe Confluence</h3><span class="pill">Live data</span></div>
+     <p class="muted text-[11px] mt-1">Bandingkan arah EMA20/EMA50 pada beberapa timeframe dari candle tertutup.</p>
+     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-3"><label class="text-[10px] muted">Aset<select id="mtfSymbol" class="field w-full mt-1"><option>XAUUSD</option><option>BTCUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>US30</option><option>ETHUSD</option><option>SOLUSD</option></select></label><label class="text-[10px] muted">Timeframe<select id="mtfFrames" class="field w-full mt-1"><option value="M1,M5,M15,H1,H4">M1 · M5 · M15 · H1 · H4</option><option value="M5,M15,H1,H4,D1">M5 · M15 · H1 · H4 · D1</option></select></label><button class="btn primary self-end" onclick="runRitelMTF()">Bandingkan</button></div>
+     <div id="mtfResults" class="mt-3 text-xs muted">Belum ada pemeriksaan. Data harus berhasil dimuat untuk semua timeframe.</div>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">02 · Smart Risk & Position Sizing</h3><p class="muted text-[11px] mt-1">Hitung risiko nominal dan ukuran unit berdasarkan jarak SL serta nilai per poin yang kamu masukkan.</p>
+     <div class="grid grid-cols-2 gap-2 mt-3">
+      <label class="text-[10px] muted">Modal akun ($)<input id="riskBalance" class="field w-full mt-1" type="number" min="0" step="any" value="1000"></label>
+      <label class="text-[10px] muted">Risiko (%)<input id="riskPercent" class="field w-full mt-1" type="number" min="0.01" max="5" step="0.01" value="1"></label>
+      <label class="text-[10px] muted">Harga entry<input id="riskEntry" class="field w-full mt-1" type="number" min="0" step="any" placeholder="Contoh 2000"></label>
+      <label class="text-[10px] muted">Harga stop loss<input id="riskStop" class="field w-full mt-1" type="number" min="0" step="any" placeholder="Contoh 1995"></label>
+      <label class="text-[10px] muted col-span-2">Nilai uang per 1 unit perubahan harga ($)<input id="riskPointValue" class="field w-full mt-1" type="number" min="0.000001" step="any" value="1"></label>
+     </div>
+     <button class="btn primary mt-3" onclick="calculateRitelRisk()">Hitung risiko</button><div id="riskResult" class="mt-3 text-xs muted">Masukkan parameter sesuai spesifikasi kontrak broker. Nilai default bukan spesifikasi instrumen.</div>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">03 · AI Trading Journal</h3><p class="muted text-[11px] mt-1">Jurnal tersimpan ke akun, dengan evaluasi posisi terbuka, P/L tercatat, dan batas rugi harian.</p>
+     <div class="grid grid-cols-2 gap-2 mt-3"><div class="rounded-lg bg-slate-900 p-3"><span class="muted text-[10px]">Posisi terbuka</span><b class="block text-lg" id="nextJournalOpen">—</b></div><div class="rounded-lg bg-slate-900 p-3"><span class="muted text-[10px]">P/L hari ini</span><b class="block text-lg" id="nextJournalPnl">—</b></div></div>
+     <button class="btn mt-3" onclick="showTab('journal',document.querySelector('[data-tab=journal]'));loadTradeJournal()">Buka Trading Journal</button>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">04 · Smart News Alert</h3><p class="muted text-[11px] mt-1">Gunakan kalender ekonomi dan notifikasi perangkat yang sudah tersedia. Pengiriman membutuhkan izin browser.</p>
+     <div class="flex flex-wrap gap-2 mt-3"><button class="btn primary" onclick="showTab('news',document.querySelector('[data-tab=news]'))">Buka News & Kalender</button><button class="btn" onclick="enableRitelAIPush()">Aktifkan notifikasi</button></div><p id="nextNewsHint" class="muted text-[10px] mt-2">Notifikasi hanya berjalan setelah izin diberikan dan layanan push tersedia.</p>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">05 · AI Backtesting</h3><p class="muted text-[11px] mt-1">Uji strategi EMA20/EMA50 pada arsip candle harian yang tersedia di server. Backtest tidak memakai data intraday atau candle yang belum tersimpan.</p>
+     <label class="text-[10px] muted block mt-3">Aset<select id="backtestSymbol" class="field w-full mt-1"><option>XAUUSD</option><option>BTCUSD</option><option>EURUSD</option><option>GBPUSD</option><option>USDJPY</option><option>US30</option><option>ETHUSD</option><option>SOLUSD</option></select></label>
+     <button class="btn primary mt-3" onclick="runRitelBacktest()">Jalankan backtest</button><div id="backtestResult" class="mt-3 text-xs muted">Menunggu pengujian.</div>
+    </article>
+    <article class="rounded-xl border border-cyan-800/50 bg-slate-950/50 p-4">
+     <h3 class="font-bold text-sm">06 · Interactive Trading Academy</h3><p class="muted text-[11px] mt-1">Materi visual 15 pelajaran tetap tersedia. Uji pemahaman dasar dengan kuis singkat berikut.</p>
+     <p class="text-xs mt-3 font-semibold">Jika harga beberapa kali tertahan di area yang sama, area tersebut dapat menjadi…</p>
+     <div class="grid grid-cols-1 gap-2 mt-2"><button class="btn text-left" onclick="answerRitelQuiz(false)">A. Random gap</button><button class="btn text-left" onclick="answerRitelQuiz(true)">B. Support atau resistance</button><button class="btn text-left" onclick="answerRitelQuiz(false)">C. Spread broker</button></div>
+     <p id="academyQuizResult" class="muted text-[11px] mt-2">Pilih jawaban untuk melihat pembahasan.</p><button class="btn mt-2" onclick="document.getElementById('learning-academy')?.scrollIntoView({behavior:'smooth'})">Lihat 15 pelajaran visual</button>
+    </article>
+   </div>
+  </div>
   <div class="glass rounded-2xl p-5 md:p-6 mt-5" id="learning-academy">
    <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">RITELAI LEARNING ACADEMY · PEMULA HINGGA MENENGAH</div>
    <h2 class="text-xl md:text-2xl font-extrabold mt-2">Akademi Trading: Belajar dari Nol</h2>
@@ -1650,5 +1694,32 @@ function saveJournalLossCap(){const v=Number(document.getElementById('journalDai
 })();
 </script>
 
+<script>
+window.runRitelMTF=async function(){
+ const host=document.getElementById('mtfResults'),symbol=document.getElementById('mtfSymbol')?.value||'XAUUSD',frames=(document.getElementById('mtfFrames')?.value||'M1,M5,M15,H1,H4').split(',');
+ if(!host)return;host.textContent='Mengambil candle tertutup…';
+ try{
+  if(!supabaseClient)throw new Error('Hubungkan akun terlebih dahulu.');
+  const results=await Promise.all(frames.map(async tf=>{const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'watch_context',symbol,timeframe:tf}});if(error||data?.error)throw new Error(tf+': '+(data?.error||error?.message||'feed gagal'));const fast=Number(data.ema20),slow=Number(data.ema50);if(!Number.isFinite(fast)||!Number.isFinite(slow))throw new Error(tf+': indikator belum tersedia');return {tf,trend:fast>slow?'Bullish':fast<slow?'Bearish':'Netral',price:Number(data.last_price),time:data.last_closed_bar_at};}));
+  const bullish=results.filter(x=>x.trend==='Bullish').length,bearish=results.filter(x=>x.trend==='Bearish').length,aligned=bullish===frames.length?'Bullish selaras':bearish===frames.length?'Bearish selaras':'Timeframe bercampur · tunggu konfirmasi';
+  host.innerHTML='<b class="block mb-2">'+aligned+'</b><div class="grid grid-cols-2 sm:grid-cols-3 gap-2">'+results.map(x=>'<div class="rounded-lg bg-slate-900 p-2"><b>'+x.tf+'</b><div class="'+(x.trend==='Bullish'?'text-emerald-300':x.trend==='Bearish'?'text-rose-300':'text-amber-300')+'">'+x.trend+'</div><div class="muted text-[10px]">Close: '+x.price+'</div></div>').join('')+'</div><p class="muted text-[10px] mt-2">EMA20 vs EMA50 dari candle terakhir yang dikembalikan feed. Bukan prediksi atau sinyal otomatis.</p>';
+ }catch(e){host.textContent='Perbandingan belum lengkap: '+(e.message||e);}
+};
+window.calculateRitelRisk=function(){
+ const n=id=>Number(document.getElementById(id)?.value),balance=n('riskBalance'),pct=n('riskPercent'),entry=n('riskEntry'),stop=n('riskStop'),value=n('riskPointValue'),out=document.getElementById('riskResult');
+ if(!out)return;if(!(balance>0&&pct>0&&pct<=5&&entry>0&&stop>0&&entry!==stop&&value>0)){out.textContent='Periksa modal, risiko (maksimal 5%), entry, SL, dan nilai uang per perubahan harga.';return;}
+ const amount=balance*pct/100,distance=Math.abs(entry-stop),units=amount/(distance*value);
+ out.innerHTML='<b class="text-cyan-200">Risiko nominal: 
+</html>+amount.toFixed(2)+'</b><div class="mt-1">Jarak SL: '+distance.toPrecision(6)+' · Estimasi ukuran: '+units.toFixed(4)+' unit</div><p class="muted mt-2">Perhitungan memakai nilai per 1 unit perubahan harga yang kamu input. Konfirmasi contract size, tick value, lot step, spread, komisi, dan mata uang akun ke broker. Bukan rekomendasi ukuran lot.</p>';
+};
+window.runRitelBacktest=async function(){
+ const out=document.getElementById('backtestResult'),symbol=document.getElementById('backtestSymbol')?.value||'XAUUSD';if(!out)return;
+ try{if(!supabaseClient)throw new Error('Login diperlukan.');out.textContent='Mengambil arsip candle harian dan menjalankan EMA20/EMA50…';
+ const {data,error}=await supabaseClient.functions.invoke('market-engine',{body:{action:'run_backtest',symbol}});if(error||data?.error)throw new Error(data?.error||error?.message||'Backtest gagal');
+ const m=data.metrics||data.result||data;out.innerHTML='<b class="text-cyan-200">Backtest selesai · '+symbol+'</b><div class="grid grid-cols-2 gap-2 mt-2"><div>Jumlah candle: '+(m.candle_count??'—')+'</div><div>Trade: '+(m.trades??m.total_trades??'—')+'</div><div>Win rate: '+(m.win_rate??'—')+'</div><div>Net return: '+(m.net_return??m.total_return??'—')+'</div></div><p class="muted text-[10px] mt-2">Periode historis: '+(m.sample_start||'—')+' s/d '+(m.sample_end||'—')+'. Hasil bergantung kelengkapan arsip harian dan asumsi simulasi.</p>';
+ }catch(e){out.textContent='Backtest belum dapat dijalankan: '+(e.message||e);}
+};
+window.answerRitelQuiz=function(ok){const el=document.getElementById('academyQuizResult');if(el)el.textContent=ok?'Benar. Support adalah area yang berpotensi menahan penurunan, sedangkan resistance berpotensi menahan kenaikan. Keduanya tetap bisa ditembus.':'Belum tepat. Perhatikan area harga yang beberapa kali menjadi titik pantulan atau penolakan.';};
+</script>
 </body>
 </html>
