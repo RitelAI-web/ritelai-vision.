@@ -43,7 +43,7 @@ Deno.serve(async(req)=>{
    if(!res.ok)throw Error("OHLC provider HTTP "+res.status);
    const payload=await res.json(),raw=Array.isArray(payload?.bars)?payload.bars:Array.isArray(payload)?payload:[];
    const bars=(raw as Bar[]).filter(b=>!b.isOpen&&Number.isFinite(Date.parse(b.openTime))&&[b.open,b.high,b.low,b.close].every(v=>Number.isFinite(Number(v))&&Number(v)>0)).sort((a,b)=>Date.parse(a.openTime)-Date.parse(b.openTime));
-   if(bars.length<60)return reply({error:"Candle tertutup belum cukup untuk membaca struktur pasar.",candle_count:bars.length},422);
+   if(bars.length<50){console.warn("market-engine: insufficient closed candles",{symbol,timeframe:interval,candle_count:bars.length});return reply({status:"insufficient_data",symbol,timeframe:interval,source:"BiQuote OHLC",candle_count:bars.length,last_price:bars.length?bars[bars.length-1].close:null,readiness:"WAIT_DATA",is_stale:false,warning:"Data feed baru menyediakan "+bars.length+" candle tertutup; minimal 50 diperlukan untuk membaca EMA20/EMA50. Belum ada analisis atau sinyal yang dapat dipercaya."});}
    const last=bars[bars.length-1],age=Date.now()-Date.parse(last.openTime),duration:Record<string,number>={"1m":60000,"5m":300000,"15m":900000,"30m":1800000,"1h":3600000,"4h":14400000,"1d":86400000};
    const isStale=!Number.isFinite(age)||age<0||age>duration[interval]*3;
    const recent=bars.slice(-160),ranges=recent.slice(1).map((b,i)=>Math.max(b.high-b.low,Math.abs(b.high-recent[i].close),Math.abs(b.low-recent[i].close)));
