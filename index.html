@@ -560,6 +560,26 @@ table{border-color:var(--rv-border)}
 .rv-wave-candle{animation:none!important;transform:none!important;transform-box:initial!important;will-change:auto!important}
 @media(prefers-reduced-motion:reduce){.rv-wave-candle{animation:none!important;transform:none!important}}
 
+/* Academy learning visuals: animated teaching diagrams, responsive and accessible. */
+.rv-academy-lab{background:radial-gradient(ellipse at 90% 0%,rgba(8,145,178,.12),transparent 44%),linear-gradient(145deg,rgba(7,18,31,.98),rgba(10,20,36,.96));box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 18px 45px rgba(0,0,0,.2)}
+.rv-lab-live{display:inline-flex;align-items:center;gap:7px;border:1px solid rgba(52,211,153,.24);background:rgba(16,185,129,.08);color:#a7f3d0;border-radius:999px;padding:6px 9px;font-size:9px;letter-spacing:.1em}
+.rv-lab-live i{width:6px;height:6px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.5);animation:rvLabPulse 1.8s infinite}
+@keyframes rvLabPulse{70%,100%{box-shadow:0 0 0 7px transparent}}
+.rv-learn-visual{min-width:0;border:1px solid rgba(103,232,249,.14);border-radius:14px;padding:12px;background:linear-gradient(145deg,rgba(15,31,48,.92),rgba(6,15,27,.96));overflow:hidden}
+.rv-learn-line{stroke-dasharray:460;stroke-dashoffset:460;animation:rvLearnDraw 4s ease-in-out infinite alternate}
+@keyframes rvLearnDraw{to{stroke-dashoffset:0}}
+.rv-learn-dot{animation:rvLearnPulse 2s ease-in-out infinite alternate}
+@keyframes rvLearnPulse{to{transform:translate(-10px,8px);opacity:.45}}
+.rv-learn-bounce{stroke-dasharray:420;stroke-dashoffset:420;animation:rvLearnDraw 4.8s ease-in-out infinite alternate}
+.rv-fvg-return{stroke-dasharray:100;stroke-dashoffset:100;animation:rvLearnDraw 3.6s ease-in-out 1s infinite alternate}
+.rv-sweep-point{animation:rvSweepPulse 1.8s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}
+@keyframes rvSweepPulse{to{transform:scale(1.8);opacity:.35}}
+#learning-academy details[open]{border-color:rgba(103,232,249,.3);box-shadow:0 10px 28px rgba(8,145,178,.06)}
+#learning-academy details summary{line-height:1.5}
+#learning-academy details summary::marker{color:#67e8f9}
+@media(max-width:640px){.rv-academy-lab{padding:12px!important}.rv-learn-visual{padding:10px}.rv-learn-visual svg{min-height:100px}}
+@media(prefers-reduced-motion:reduce){.rv-lab-live i,.rv-learn-line,.rv-learn-dot,.rv-learn-bounce,.rv-fvg-return,.rv-sweep-point{animation:none!important;stroke-dashoffset:0!important}}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
@@ -1006,7 +1026,57 @@ table{border-color:var(--rv-border)}
   <div class="glass rounded-2xl p-5 md:p-6 mt-5" id="learning-academy">
    <div class="text-[10px] tracking-[.2em] text-cyan-300 font-bold">RITELAI LEARNING ACADEMY · PEMULA HINGGA MENENGAH</div>
    <h2 class="text-xl md:text-2xl font-extrabold mt-2">Akademi Trading: Belajar dari Nol</h2>
-   <p class="muted text-xs mt-2 max-w-3xl">Materi disusun bertahap dari dasar chart, nama-nama candlestick, market structure, zona harga, hingga manajemen risiko. Buka setiap pelajaran untuk membaca penjelasan dan melihat diagram. Semua gambar adalah ilustrasi edukasi, bukan chart live atau sinyal transaksi.</p>
+   <p class="muted text-xs mt-2 max-w-3xl">Materi disusun bertahap dari dasar chart, nama-nama candlestick, market structure, zona harga, hingga manajemen risiko. Buka setiap pelajaran untuk membaca penjelasan dan melihat diagram. Semua gambar adalah ilustrasi edukasi, bukan chart live atau sinyal transaksi.</p> 
+   <div class="rv-academy-lab mt-5 rounded-2xl border border-cyan-700/40 p-4 md:p-5">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+     <div><div class="text-[10px] tracking-[.18em] text-cyan-300 font-extrabold">INTERACTIVE VISUAL LAB</div><h3 class="font-extrabold text-lg mt-1">Lihat bagaimana harga bergerak</h3><p class="muted text-xs mt-1">Animasi konsep berjalan otomatis agar pemula bisa melihat alur, bukan hanya menghafal istilah.</p></div>
+     <span class="rv-lab-live"><i></i> ANIMASI AKTIF</span>
+    </div>
+    <div class="grid sm:grid-cols-2 gap-3 mt-4">
+     <article class="rv-learn-visual">
+      <div class="flex items-center justify-between"><b>01 · Market Structure</b><span class="text-[9px] text-emerald-300">HH / HL</span></div>
+      <svg viewBox="0 0 300 112" role="img" aria-label="Animasi tren naik higher high dan higher low" class="w-full mt-2">
+       <path d="M8 95H292 M8 55H292 M8 15H292" stroke="#29445b" stroke-dasharray="3 5"/>
+       <path class="rv-learn-line rv-learn-up" d="M8 90 Q28 82 44 65 T80 73 T116 42 T152 55 T190 22 T226 37 T292 8" fill="none" stroke="#34d399" stroke-width="3" stroke-linecap="round"/>
+       <circle class="rv-learn-dot" cx="292" cy="8" r="4" fill="#a7f3d0"/>
+      </svg>
+      <p class="muted text-[10px] mt-1">Puncak dan lembah naik bertahap: HH = higher high, HL = higher low.</p>
+     </article>
+     <article class="rv-learn-visual">
+      <div class="flex items-center justify-between"><b>02 · Support / Resistance</b><span class="text-[9px] text-cyan-300">ZONA</span></div>
+      <svg viewBox="0 0 300 112" role="img" aria-label="Animasi harga memantul di antara support dan resistance" class="w-full mt-2">
+       <rect x="4" y="12" width="292" height="17" rx="4" fill="#fb7185" opacity=".18"/><rect x="4" y="84" width="292" height="17" rx="4" fill="#34d399" opacity=".18"/>
+       <path d="M4 20H296 M4 92H296" stroke-width="1.4" stroke-dasharray="4 4" stroke="#94a3b8"/>
+       <path class="rv-learn-bounce" d="M8 90 Q30 84 48 47 T88 23 Q112 20 130 52 T171 91 Q193 97 212 57 T252 21 Q273 17 292 45" fill="none" stroke="#67e8f9" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <p class="muted text-[10px] mt-1">Harga dapat bereaksi pada zona, tetapi support/resistance bisa ditembus.</p>
+     </article>
+     <article class="rv-learn-visual">
+      <div class="flex items-center justify-between"><b>03 · Fair Value Gap</b><span class="text-[9px] text-sky-300">IMBALANCE</span></div>
+      <svg viewBox="0 0 300 112" role="img" aria-label="Animasi ilustrasi harga meninggalkan dan kembali ke area FVG" class="w-full mt-2">
+       <rect x="110" y="42" width="92" height="28" rx="3" fill="#38bdf8" opacity=".18" stroke="#7dd3fc" stroke-dasharray="4 3"/>
+       <path d="M8 85 L70 85 L100 18 L132 18 L162 50 L200 50 L236 22 L292 22" fill="none" stroke="#34d399" stroke-width="3" stroke-linejoin="round"/>
+       <path class="rv-fvg-return" d="M274 22 Q238 22 224 44 T180 58" fill="none" stroke="#fbbf24" stroke-width="2.5" stroke-dasharray="5 4"/>
+       <text x="156" y="60" font-size="9" text-anchor="middle" fill="#bae6fd">FVG</text>
+      </svg>
+      <p class="muted text-[10px] mt-1">Impuls dapat meninggalkan imbalance; harga mungkin kembali menguji area, tidak wajib.</p>
+     </article>
+     <article class="rv-learn-visual">
+      <div class="flex items-center justify-between"><b>04 · Liquidity Sweep</b><span class="text-[9px] text-amber-300">SWEEP</span></div>
+      <svg viewBox="0 0 300 112" role="img" aria-label="Animasi harga menyapu equal highs lalu kembali" class="w-full mt-2">
+       <path d="M6 34H294" stroke="#fb7185" stroke-dasharray="5 4" stroke-width="1.5"/>
+       <path d="M8 88 L40 61 L72 78 L104 35 L136 63 L168 34 L200 10 L218 46 L242 68 L292 83" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+       <circle class="rv-sweep-point" cx="200" cy="10" r="4" fill="#fde68a"/>
+       <text x="12" y="26" font-size="9" fill="#fda4af">Equal highs</text>
+      </svg>
+      <p class="muted text-[10px] mt-1">Harga menembus high yang sejajar lalu kembali; sweep bukan jaminan reversal.</p>
+     </article>
+    </div>
+    <div class="mt-3 rounded-xl bg-slate-950/60 border border-slate-700/70 p-3">
+     <b class="text-xs text-cyan-200">Cara membaca animasi</b>
+     <p class="muted text-[11px] mt-1 leading-5">Ikuti garis dari kiri ke kanan. Perhatikan di mana swing terbentuk, di mana harga bereaksi, dan kapan penembusan gagal. Setelah itu buka pelajaran terkait untuk memahami istilah dan risikonya.</p>
+    </div>
+   </div>
    <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
     <div class="rounded-xl border border-cyan-800/50 bg-slate-950/60 p-3"><b class="text-cyan-300 text-lg">15</b><p class="muted text-[10px]">Pelajaran bertahap</p></div>
     <div class="rounded-xl border border-cyan-800/50 bg-slate-950/60 p-3"><b class="text-cyan-300 text-lg">10+</b><p class="muted text-[10px]">Pola candle dikenalkan</p></div>
@@ -1046,6 +1116,16 @@ table{border-color:var(--rv-border)}
 <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">13 · Entry, Stop Loss, Take Profit dan risk/reward</summary><p class="muted text-xs mt-2 leading-5">Tentukan skenario entry, alasan konfirmasi, invalidasi, Stop Loss (SL), dan Take Profit (TP) sebelum membuka posisi. Risk/reward membandingkan potensi rugi dengan potensi hasil. Jangan memperlebar SL hanya untuk menghindari cut loss. Tidak ada level yang menjamin hasil.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><b class="text-[11px] text-cyan-200">ILUSTRASI · RENCANA POSISI</b><div class="space-y-1 mt-2 text-[10px]"><div class="rounded bg-emerald-500/15 border border-emerald-400/40 p-2 text-emerald-200">TP · target keuntungan</div><div class="rounded bg-sky-500/15 border border-sky-400/40 p-2 text-sky-200">ENTRY · rencana masuk</div><div class="rounded bg-rose-500/15 border border-rose-400/40 p-2 text-rose-200">SL · batas invalidasi/kerugian</div></div><p class="muted text-[10px] mt-2">Contoh urutan BUY. Untuk SELL, susunan level berbalik.</p></div></details>
 <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">14 · Lot, pip, spread, leverage dan position sizing</summary><p class="muted text-xs mt-2 leading-5">Pip/tick dan nilai pergerakannya bergantung pada instrumen serta broker. Lot menentukan ukuran posisi; spread adalah selisih bid-ask. Leverage memperbesar eksposur dan risiko. Ukuran posisi sebaiknya dihitung dari batas nominal risiko, jarak SL, nilai kontrak, biaya, dan mata uang akun.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><b class="text-[11px] text-cyan-200">ILUSTRASI · BID / ASK & UKURAN POSISI</b><div class="grid grid-cols-2 gap-2 mt-2 text-center"><div class="rounded bg-rose-500/15 p-3"><b class="text-rose-200">BID</b><p class="muted text-[10px]">Harga jual</p></div><div class="rounded bg-emerald-500/15 p-3"><b class="text-emerald-200">ASK</b><p class="muted text-[10px]">Harga beli</p></div></div><div class="mt-2 rounded bg-slate-800 p-2 text-center text-[11px]">ASK − BID = SPREAD</div><p class="muted text-[10px] mt-2">Position sizing menghubungkan nominal risiko, jarak SL, dan nilai per poin/pip.</p></div></details>
 <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">15 · Psikologi, jurnal dan keamanan</summary><p class="muted text-xs mt-2 leading-5">Waspadai FOMO, revenge trading, dan overtrading. Catat alasan, chart sebelum/sesudah, risiko, hasil, dan evaluasi. Gunakan akun demo untuk latihan. Amankan akun dengan 2FA; jangan bagikan password, seed phrase, atau private key.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><b class="text-[11px] text-cyan-200">ILUSTRASI · JURNAL TRADING SEHAT</b><div class="grid grid-cols-2 gap-2 mt-2 text-[10px]"><div class="rounded bg-slate-800 p-2">🧭 Rencana sebelum entry</div><div class="rounded bg-slate-800 p-2">🛡️ Batas risiko</div><div class="rounded bg-slate-800 p-2">📝 Catat alasan & hasil</div><div class="rounded bg-slate-800 p-2">🔐 2FA & keamanan akun</div></div><p class="muted text-[10px] mt-2">Disiplin proses lebih penting daripada mengejar setiap pergerakan harga.</p></div></details></div></div>
+   <div class="mt-5">
+    <h3 class="font-bold text-sm mb-3">Materi tambahan · 16–20</h3>
+    <div class="space-y-2">
+     <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">16 · Volume, volatilitas dan sesi pasar</summary><p class="muted text-xs mt-2 leading-5">Volume menunjukkan aktivitas transaksi jika data tersedia; pada sebagian pasar spot FX, volume di chart dapat berupa tick volume dari penyedia, bukan volume terpusat seluruh pasar. Volatilitas menggambarkan besar-kecilnya perubahan harga dan dapat meningkat saat rilis data ekonomi. Kenali sesi Asia, London, dan New York beserta overlap-nya; jam berubah mengikuti daylight saving dan zona waktu broker.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><div class="grid grid-cols-3 gap-2 text-center"><div class="rounded-lg bg-slate-800 p-2"><b class="text-cyan-200 text-xs">ASIA</b><p class="muted text-[10px]">Aktivitas beragam</p></div><div class="rounded-lg bg-slate-800 p-2"><b class="text-emerald-200 text-xs">LONDON</b><p class="muted text-[10px]">Likuiditas dapat naik</p></div><div class="rounded-lg bg-slate-800 p-2"><b class="text-violet-200 text-xs">NEW YORK</b><p class="muted text-[10px]">Overlap London</p></div></div></div></details>
+     <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">17 · Kalender ekonomi dan fundamental</summary><p class="muted text-xs mt-2 leading-5">Pelajari dampak suku bunga bank sentral, inflasi CPI/PCE, tenaga kerja NFP, GDP, PMI, dan pidato pejabat. Bedakan previous, forecast, dan actual. Pergerakan sesudah rilis dipengaruhi selisih actual terhadap ekspektasi, revisi data, posisi pasar, dan panduan kebijakan. Hindari entry hanya karena satu angka terlihat lebih tinggi atau rendah.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><div class="grid grid-cols-3 gap-2 text-center text-[10px]"><div class="rounded bg-slate-800 p-2"><b class="text-slate-300">PREVIOUS</b><p class="muted">Data sebelumnya</p></div><div class="rounded bg-slate-800 p-2"><b class="text-cyan-200">FORECAST</b><p class="muted">Ekspektasi pasar</p></div><div class="rounded bg-slate-800 p-2"><b class="text-amber-200">ACTUAL</b><p class="muted">Hasil rilis</p></div></div></div></details>
+     <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">18 · Multi-timeframe, Fibonacci dan konfluensi</summary><p class="muted text-xs mt-2 leading-5">Mulai dari timeframe besar untuk konteks tren dan zona, lalu turun ke timeframe kecil untuk mencari struktur entry. Fibonacci retracement seperti 38.2%, 50%, dan 61.8% adalah area referensi, bukan level ajaib. Konfluensi berarti beberapa alasan independen bertemu di area yang sama, misalnya struktur, support, FVG, dan momentum. Terlalu banyak indikator yang saling mengulang tidak otomatis memperkuat sinyal.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><div class="flex items-center gap-2 text-[10px]"><span class="rounded bg-violet-500/20 p-2 text-violet-200">H4 · konteks</span><span class="text-cyan-300">→</span><span class="rounded bg-sky-500/20 p-2 text-sky-200">H1 · zona</span><span class="text-cyan-300">→</span><span class="rounded bg-emerald-500/20 p-2 text-emerald-200">M15 · setup</span></div><p class="muted text-[10px] mt-2">Contoh alur top-down; sesuaikan timeframe dengan strategi.</p></div></details>
+     <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">19 · Backtesting, forward testing dan trading plan</summary><p class="muted text-xs mt-2 leading-5">Tuliskan aturan strategi secara objektif: kondisi setup, entry, invalidasi, exit, ukuran risiko, instrumen, timeframe, dan kapan tidak trading. Backtest pada data historis dengan biaya transaksi dan hindari look-ahead bias. Pisahkan data pengembangan dan pengujian, lalu forward-test di demo untuk melihat slippage, spread, dan disiplin eksekusi. Catat jumlah sampel, win rate, average win/loss, expectancy, drawdown, dan profit factor; hasil lampau tidak menjamin hasil mendatang.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><div class="flex items-center justify-between gap-1 text-[10px] text-center"><span class="rounded bg-slate-800 p-2 flex-1">Aturan</span><span class="text-cyan-300">→</span><span class="rounded bg-slate-800 p-2 flex-1">Backtest</span><span class="text-cyan-300">→</span><span class="rounded bg-slate-800 p-2 flex-1">Demo</span><span class="text-cyan-300">→</span><span class="rounded bg-slate-800 p-2 flex-1">Evaluasi</span></div></div></details>
+     <details class="rounded-xl border border-slate-700 bg-slate-950/55 p-3"><summary class="font-semibold text-sm cursor-pointer">20 · Eksekusi, biaya dan perlindungan modal</summary><p class="muted text-xs mt-2 leading-5">Pahami market order, limit order, stop order, slippage, spread, komisi, swap/funding, gap, dan risiko likuidasi. Gunakan batas risiko per transaksi dan batas kerugian harian yang realistis. Jangan menambah posisi rugi tanpa aturan tertulis. Pastikan spesifikasi kontrak, ukuran lot, tick value, leverage, dan aturan margin sesuai broker atau exchange sebelum menghitung ukuran posisi.</p><div class="mt-3 rounded-xl border border-slate-700 bg-slate-900/80 p-3"><div class="grid grid-cols-2 gap-2 text-[10px]"><div class="rounded bg-emerald-500/10 border border-emerald-500/20 p-2 text-emerald-200">Risk per trade · ditentukan sebelum entry</div><div class="rounded bg-rose-500/10 border border-rose-500/20 p-2 text-rose-200">Daily loss limit · batas berhenti</div></div></div></details>
+    </div>
+   </div>
    <div class="rounded-xl border border-amber-800/60 bg-amber-950/20 p-4 mt-4"><b class="text-amber-200 text-sm">Cara belajar yang disarankan</b><ol class="list-decimal pl-5 mt-2 text-xs text-amber-100/85 space-y-1"><li>Mulai dari pelajaran 1 sampai 5 untuk memahami chart dan candle.</li><li>Lanjutkan struktur pasar, support/resistance, demand/supply, liquidity, dan FVG.</li><li>Latih menandai pola di chart historis; catat kapan pola gagal.</li><li>Gunakan akun demo/paper trading sebelum mempertaruhkan dana.</li><li>Pelajari position sizing dan batas risiko sebelum mencoba strategi.</li></ol></div>
    <p class="muted text-[10px] mt-3">Catatan: Pola teknikal bersifat probabilistik dan dapat gagal. Materi ini bukan nasihat keuangan, bukan rekomendasi BUY/SELL, dan tidak menjanjikan profit.</p>
   </div>
