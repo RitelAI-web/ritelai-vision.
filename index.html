@@ -556,6 +556,10 @@ table{border-color:var(--rv-border)}
  .rv-chart-line animate{display:none}
 }
 
+/* SVG-native motion: keeps the market wave animated on Android even when CSS motion is reduced. */
+.rv-wave-candle{animation:none!important;transform:none!important;transform-box:initial!important;will-change:auto!important}
+@media(prefers-reduced-motion:reduce){.rv-wave-candle{animation:none!important;transform:none!important}}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
@@ -623,47 +627,47 @@ table{border-color:var(--rv-border)}
        <filter id="rvLineGlow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
       </defs>
       <g class="rv-candle-set">
-       <g class="rv-wave-candle" style="--wave-delay:0.00s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="0" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 0;0 9;0 0;0 -9;0 0"/>
         <path d="M35 84V156" fill="none" stroke-width="2"/>
         <rect x="29" y="116" width="12" height="24" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:0.34s" fill="#34d399" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="1" fill="#34d399" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 5;0 8;0 -5;0 -8;0 5"/>
         <path d="M69 59V128" fill="none" stroke-width="2"/>
         <rect x="63" y="91" width="12" height="21" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:0.68s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="2" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 8;0 4;0 -8;0 -4;0 8"/>
         <path d="M103 81V151" fill="none" stroke-width="2"/>
         <rect x="97" y="113" width="12" height="22" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:1.02s" fill="#34d399" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="3" fill="#34d399" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 9;0 -1;0 -9;0 1;0 9"/>
         <path d="M137 54V126" fill="none" stroke-width="2"/>
         <rect x="131" y="86" width="12" height="24" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:1.36s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="4" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 7;0 -5;0 -7;0 5;0 7"/>
         <path d="M171 73V146" fill="none" stroke-width="2"/>
         <rect x="165" y="105" width="12" height="25" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:1.70s" fill="#34d399" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="5" fill="#34d399" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 3;0 -8;0 -3;0 8;0 3"/>
         <path d="M205 41V113" fill="none" stroke-width="2"/>
         <rect x="199" y="73" width="12" height="24" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:2.04s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="6" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 -1;0 -9;0 1;0 9;0 -1"/>
         <path d="M239 59V130" fill="none" stroke-width="2"/>
         <rect x="233" y="91" width="12" height="23" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:2.38s" fill="#34d399" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="7" fill="#34d399" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 -6;0 -7;0 6;0 7;0 -6"/>
         <path d="M273 32V103" fill="none" stroke-width="2"/>
         <rect x="267" y="64" width="12" height="23" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:2.72s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="8" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 -9;0 -3;0 9;0 3;0 -9"/>
         <path d="M307 46V117" fill="none" stroke-width="2"/>
         <rect x="301" y="78" width="12" height="23" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:3.06s" fill="#34d399" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="9" fill="#34d399" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 -9;0 2;0 9;0 -2;0 -9"/>
         <path d="M341 15V85" fill="none" stroke-width="2"/>
         <rect x="335" y="47" width="12" height="22" rx="2" stroke="none"/>
        </g>
-       <g class="rv-wave-candle" style="--wave-delay:3.40s" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round">
+       <g class="rv-wave-candle" data-wave-candle="10" fill="#0891b2" stroke="#67e8f9" stroke-linecap="round"><animateTransform attributeName="transform" attributeType="XML" type="translate" dur="3.8s" repeatCount="indefinite" calcMode="spline" keyTimes="0;0.25;0.5;0.75;1" keySplines=".42 0 .58 1;.42 0 .58 1;.42 0 .58 1;.42 0 .58 1" values="0 -6;0 6;0 6;0 -6;0 -6"/>
         <path d="M375 7V75" fill="none" stroke-width="2"/>
         <rect x="369" y="39" width="12" height="20" rx="2" stroke="none"/>
        </g>
