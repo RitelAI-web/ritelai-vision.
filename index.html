@@ -260,8 +260,7 @@ main>section:nth-of-type(3) h2{ text-shadow:0 0 28px rgba(34,211,238,.12)}
 
 /* RitelAI Signature Experience — restrained premium motion and responsive feedback. */
 :root{--rv-ease:cubic-bezier(.2,.75,.25,1)}
-::selection{backgro
-<div id="rvScrollProgress" aria-hidden="true"></div>und:rgba(34,211,238,.28);color:#f0fdff}
+::selection{background:rgba(34,211,238,.28);color:#f0fdff}
 body{overflow-x:hidden}
 #rvScrollProgress{position:fixed;inset:0 auto auto 0;height:2px;width:0;z-index:100;background:linear-gradient(90deg,#22d3ee,#60a5fa,#a78bfa);box-shadow:0 0 12px rgba(34,211,238,.65);pointer-events:none;will-change:width}
 header.sticky{transition:background .25s ease,box-shadow .25s ease,border-color .25s ease}
@@ -292,10 +291,28 @@ header.sticky.rv-scrolled{background:rgba(5,10,18,.96)!important;box-shadow:0 12
  .rv-motion-ready .rv-reveal,.rv-reveal{opacity:1!important;transform:none!important;transition:none!important}
  .glass,.btn,.navbtn{transition:none!important}
 }
+
+/* Final luxury polish: consistent surfaces, depth, and responsive motion. */
+:root{--rv-radius:20px;--rv-shadow:0 22px 60px rgba(0,0,0,.28)}
+main>section:not(#launchPromoBanner){border-color:rgba(103,232,249,.15)}
+main>section.relative.overflow-hidden.rounded-2xl{
+ background-image:radial-gradient(ellipse at 82% 12%,rgba(34,211,238,.12),transparent 42%),linear-gradient(125deg,rgba(15,34,55,.98),rgba(8,17,31,.98) 58%,rgba(17,24,49,.98));
+}
+.glass{border-radius:var(--rv-radius)!important}
+.pill{box-shadow:inset 0 1px 0 rgba(255,255,255,.045)}
+.nav-menu{border:1px solid rgba(148,163,184,.12);box-shadow:0 12px 32px rgba(0,0,0,.16)}
+.panel.active{animation:rvPanelEnter .32s var(--rv-ease) both}
+@keyframes rvPanelEnter{from{opacity:.65;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+.toast{animation:rvToastIn .28s var(--rv-ease) both}
+@keyframes rvToastIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid rgba(103,232,249,.9);outline-offset:3px}
+@media(prefers-reduced-motion:reduce){.panel.active,.toast{animation:none!important}}
+
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" defer></script>
 </head>
 <body class="min-h-screen">
+<div id="rvScrollProgress" aria-hidden="true"></div>
 <div class="min-h-screen">
 <header class="sticky top-0 z-40 border-b border-slate-800/80 bg-[#07111f]/95 backdrop-blur">
  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
