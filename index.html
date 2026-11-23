@@ -1716,9 +1716,9 @@ async function loadEconomicCalendar(force=false){
   if(data?.error)throw new Error(data.error);
   if(!Array.isArray(data?.events))throw new Error(data?.calendarError||'Format jadwal ekonomi tidak valid.');
   ritelCalendarEvents=data.events;ritelMacroPastReleases=ritelMergeOfficialReleases([...(Array.isArray(data.pastReleases)?data.pastReleases:[]),...(Array.isArray(data.events)?data.events.map(e=>({...e,date:e.date||e.time||e.event_time})):[])]);ritelCalendarLastLoad=Date.now();renderMacroReleaseArchive(ritelMacroPastReleases);if(ritelNewsCountdownTimer)clearInterval(ritelNewsCountdownTimer);ritelNewsCountdownTimer=setInterval(renderNextNewsReminder,1000);
-  const calendarWarnings=Array.isArray(data.calendarWarnings)?data.calendarWarnings:[];
-  if(status)status.textContent=(data.events.length||0)+' agenda tersedia'+(calendarWarnings.length?' · '+calendarWarnings.length+' bulan perlu sinkronisasi':'');
-  if((data.calendarError||calendarWarnings.length)&&host){const warn=document.createElement('p');warn.className='text-[10px] text-amber-200 mb-2';warn.textContent=(data.calendarError?'Feed kalender: '+data.calendarError+' · ':'')+(calendarWarnings.length?'Bulan yang gagal disinkronkan: '+calendarWarnings.join('; '):'');host.before(warn);}
+  // Keep provider diagnostics out of the customer-facing calendar UI.
+  // Calendar events, archive, reminders and sync flow remain unchanged.
+  if(status)status.textContent=(data.events.length||0)+' agenda tersedia';
   renderEconomicCalendar();
  }catch(e){host.innerHTML='<div class="rounded-xl border border-amber-800/50 bg-amber-950/20 p-4 text-xs text-amber-100">Kalender belum dapat dimuat: '+ritelEscape(e.message||'Kesalahan koneksi')+'. Tekan Muat ulang untuk mencoba lagi.</div>';if(status)status.textContent='Gagal memuat';}
  finally{ritelCalendarLoading=false;}
