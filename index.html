@@ -1897,13 +1897,16 @@ function renderRitelSelectedPlan(){
  document.querySelectorAll('[data-plan-price]').forEach(node=>{
   const original=Number(node.dataset.originalPrice||0),duration=Number(node.dataset.planDuration||30),code=String(node.dataset.planCode||'').toLowerCase();
   const promoOffer=['pro','elite'].includes(code),discounted=Math.round(original*.70);
-  node.innerHTML=promoOffer?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(original)+'</span><br><b class="text-emerald-300">'+ritelMoney(discounted)+'</b> <span class="muted">/ '+duration+' hari · '+(promoActive?'PROMO AKTIF':'PROMO 30%*')+'</span>':ritelMoney(original)+' <span class="muted">/ '+duration+' hari</span>';
+  const refill=code.startsWith('chart_refill_');
+  node.innerHTML=refill?ritelMoney(original)+' <span class="muted">· sekali bayar · tanpa kedaluwarsa</span>':(promoOffer?'<span style="text-decoration:line-through;opacity:.65">'+ritelMoney(original)+'</span><br><b class="text-emerald-300">'+ritelMoney(discounted)+'</b> <span class="muted">/ '+duration+' hari · '+(promoActive?'PROMO AKTIF':'PROMO 30%*')+'</span>':ritelMoney(original)+' <span class="muted">/ '+duration+' hari</span>');
  });
  const plan=selectedRitelPlan,info=document.getElementById('selectedPlanInfo');
  if(!plan||!info)return;
  const price=ritelPlanAmount(plan);info.classList.remove('hidden');
- const promoPending=!price.discount&&['pro','elite'].includes(String(plan.code||'').toLowerCase());
- info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">'+(price.discount?'<span style="text-decoration:line-through;opacity:.7">'+ritelMoney(price.original)+'</span> <b class="text-emerald-300">'+ritelMoney(price.total)+'</b> <span class="text-emerald-300">(hemat '+ritelMoney(price.discount)+')</span>':'Total pembayaran: '+ritelMoney(price.total))+' · '+Number(plan.duration_days||30)+' hari.</p>'+(promoPending?'<p class="text-amber-200 text-[10px] mt-1">Promo 30% hanya berlaku setelah kode RITELAI30 diverifikasi dan syarat pelanggan baru terpenuhi.</p>':'');
+ const code=String(plan.code||'').toLowerCase(),isRefill=code.startsWith('chart_refill_');
+ const promoPending=!price.discount&&['pro','elite'].includes(code);
+ const detail=isRefill?Number(plan.analysis_quota||0).toLocaleString('id-ID')+' tambahan analisis chart · sekali bayar · tidak kedaluwarsa selama akun aktif.':Number(plan.duration_days||30)+' hari masa aktif.';
+ info.innerHTML='<b>Paket dipilih: '+ritelEscape(plan.name)+'</b><p class="muted text-xs mt-1">Total pembayaran: <b class="text-cyan-200">'+ritelMoney(price.total)+'</b> · '+detail+'</p>'+(price.discount?'<p class="text-emerald-300 text-[10px] mt-1">Hemat '+ritelMoney(price.discount)+' dengan promo RITELAI30.</p>':'')+(promoPending?'<p class="text-amber-200 text-[10px] mt-1">Promo 30% hanya berlaku setelah kode RITELAI30 diverifikasi dan syarat pelanggan baru terpenuhi.</p>':'');
 }
 function ritelEscape(value){
  return String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1929,7 +1932,7 @@ async function loadPlans(){
    const featureHtml=features.slice(0,6).map(x=>'<li class="muted text-[10px]">• '+ritelEscape(typeof x==='string'?x:(x?.label||x?.name||''))+'</li>').join('');
    const isRefill=refillCodes.includes(String(p.code||'').toLowerCase());
    const quota=Number(p.analysis_quota||0)>0?Number(p.analysis_quota).toLocaleString('id-ID')+' analisis':'Akses sesuai ketentuan paket';
-   const durationLabel=isRefill?'kuota tambahan · tidak hangus':('/ '+Number(p.duration_days||30)+' hari');
+   const durationLabel=isRefill?'sekali bayar · tanpa kedaluwarsa':('/ '+Number(p.duration_days||30)+' hari');
    return '<article class="rounded-xl border '+(isRefill?'border-cyan-700/60 bg-cyan-950/15':'border-slate-700 bg-slate-950/50')+' p-3"><div class="flex items-start justify-between gap-3"><div><b class="text-sm">'+ritelEscape(p.name)+'</b><p class="text-xs cyan mt-1" data-plan-price data-plan-code="'+ritelEscape(p.code)+'" data-original-price="'+Number(p.price_idr)+'" data-plan-duration="'+Number(p.duration_days||30)+'">'+ritelMoney(p.price_idr)+' <span class="muted">'+durationLabel+'</span></p><p class="muted text-[10px] mt-1">'+quota+'</p></div><button type="button" class="btn primary shrink-0" data-plan-id="'+ritelEscape(p.id)+'">Pilih</button></div>'+(featureHtml?'<ul class="mt-2 space-y-1">'+featureHtml+'</ul>':'')+'</article>';
   }).join('');
   host.innerHTML=(plans.length?'<h3 class="text-xs font-bold tracking-wide text-slate-200 mb-2">PAKET LANGGANAN</h3><div class="space-y-2">'+renderCards(plans)+'</div>':'')+
