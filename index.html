@@ -744,17 +744,15 @@ table{border-color:var(--rv-border)}
 </header>
 <main class="max-w-7xl mx-auto p-4 md:p-6">
  <section id="launchPromoBanner" class="mb-5 relative overflow-hidden rounded-2xl border border-amber-400/40 bg-gradient-to-r from-[#10294a] via-[#211b3e] to-[#3b260d] p-4 md:p-5 shadow-lg shadow-amber-950/20">
-  <div aria-hidden="true" class="absolute -right-8 -top-12 h-40 w-40 rounded-full border border-amber-200/10 pointer-events-none"></div>
-  <div class="relative flex flex-col gap-4">
+  <div class="relative flex flex-col gap-3">
    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-    <div><div class="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] font-extrabold tracking-wider text-amber-200"><i class="fa-solid fa-gift"></i> PROMO SPESIAL RITELAI CHART VISION</div><h2 class="text-xl md:text-2xl font-extrabold text-white mt-2">Lebih banyak analisis, lebih lama aksesnya!</h2><p class="text-amber-100/80 text-xs md:text-sm mt-1">Promo Beli 2 Gratis 1 untuk Pro dan Beli 1 Gratis 1 untuk Elite.</p></div>
-    <button type="button" class="btn shrink-0 bg-amber-300 text-slate-950 hover:bg-amber-200" onclick="openModal('plansModal')"><i class="fa-solid fa-tags mr-1"></i> Langganan sekarang</button>
+    <div><div class="inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-[10px] font-extrabold tracking-wider text-amber-200"><i class="fa-solid fa-gift"></i> RITELAI CHART VISION</div><h2 class="text-xl md:text-2xl font-extrabold text-white mt-2">Belajar & analisis market dalam satu platform!</h2><p class="text-amber-100/80 text-xs md:text-sm mt-1">AI Chart Analysis · Market Live · News AI & Kalender Ekonomi · Akademi Trading · Riwayat Analisis</p></div>
+    <button type="button" class="btn shrink-0 bg-amber-300 text-slate-950 hover:bg-amber-200" onclick="openModal('plansModal')"><i class="fa-solid fa-tags mr-1"></i> Lihat paket</button>
    </div>
    <div class="grid md:grid-cols-2 gap-3">
-    <div class="rounded-xl border border-cyan-400/40 bg-slate-950/50 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-cyan-200">⭐ PAKET PRO · BELI 2 GRATIS 1</b><b class="text-white text-lg">Rp489.900</b></div><div class="text-[11px] text-slate-200 mt-1">90 hari · <b class="text-emerald-300">Hemat Rp259.800 (34,6%)</b></div><div class="text-sm font-extrabold text-cyan-100 mt-2">300 TOTAL ANALISIS</div><p class="text-[10px] text-slate-300">100 analisis setiap 30 hari × 3 periode · Bonus 50 upload chart</p></div>
-    <div class="rounded-xl border border-amber-300/40 bg-slate-950/50 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-amber-200">👑 PAKET ELITE · BELI 1 GRATIS 1</b><b class="text-white text-lg">Rp599.000</b></div><div class="text-[11px] text-slate-200 mt-1">60 hari · <b class="text-emerald-300">Hemat Rp599.000 (50%)</b></div><div class="text-sm font-extrabold text-amber-100 mt-2">1.000 TOTAL ANALISIS</div><p class="text-[10px] text-slate-300">500 analisis setiap 30 hari × 2 periode · Bonus 100 upload chart</p></div>
+    <div class="rounded-xl border border-cyan-400/40 bg-slate-950/50 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-cyan-200">⭐ PRO · BELI 2 GRATIS 1</b><b class="text-white text-lg">Rp489.900</b></div><p class="text-[11px] text-slate-200 mt-1">90 hari · 300 analisis (100/30 hari) · Bonus 50 upload chart</p></div>
+    <div class="rounded-xl border border-amber-300/40 bg-slate-950/50 p-3"><div class="flex flex-wrap items-center justify-between gap-2"><b class="text-amber-200">👑 ELITE · BELI 1 GRATIS 1</b><b class="text-white text-lg">Rp599.000</b></div><p class="text-[11px] text-slate-200 mt-1">60 hari · 1.000 analisis (500/30 hari) · Bonus 100 upload chart</p></div>
    </div>
-   <p class="text-[9px] text-slate-400">Total analisis mengikuti kuota per 30 hari selama masa aktif. Bonus upload chart adalah benefit tambahan paket.</p>
   </div>
  </section>
  <section class="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-3">
@@ -1993,27 +1991,6 @@ async function submitPaymentProof(){
   setStatus('Gagal mengirim bukti: '+(error?.message||'kesalahan tidak diketahui'),true);
  }finally{button.disabled=false;button.textContent='Kirim bukti untuk diverifikasi';}
 }
-async function applyRitelAIPromo(){
- const code=(document.getElementById('promoCodeInput')?.value||'').trim().toUpperCase(),status=document.getElementById('promoCodeStatus');if(!status)return;
- const fail=message=>{status.textContent=message;status.style.color='#fca5a5';appliedRitelAIPromo=null;if(selectedRitelPlan)renderRitelSelectedPlan();};
- if(code!=='RITELAI30'){fail('Kode promo tidak dikenali. Periksa kembali penulisannya.');return;}
- if(!selectedRitelPlan||!['pro','elite'].includes(String(selectedRitelPlan.code||'').toLowerCase())){fail('Pilih paket Pro atau Elite terlebih dahulu.');return;}
- if(!supabaseClient){fail('Koneksi belum siap. Muat ulang halaman lalu coba lagi.');return;}
- status.textContent='Memeriksa kelayakan promo...';status.style.color='#fcd34d';
- try{
-  const {data:{session},error:sessionError}=await supabaseClient.auth.getSession();if(sessionError)throw sessionError;
-  if(!session?.user){fail('Login terlebih dahulu untuk memeriksa promo pelanggan baru.');openModal('accountModal');return;}
-  const {data:proofs,error:proofError}=await supabaseClient.from('payment_proofs').select('id').eq('user_id',session.user.id).eq('promo_code','RITELAI30').limit(1);if(proofError)throw proofError;
-  if(proofs?.length){fail('Promo RITELAI30 sudah pernah digunakan atau sedang menunggu verifikasi pada akun ini.');return;}
-  const {data:subs,error:subError}=await supabaseClient.from('subscriptions').select('plan_id').eq('user_id',session.user.id);if(subError)throw subError;
-  const paidIds=(subs||[]).map(x=>x.plan_id).filter(Boolean);
-  if(paidIds.length){const {data:paidPlans,error:plansError}=await supabaseClient.from('plans').select('id,code').in('id',paidIds);if(plansError)throw plansError;if((paidPlans||[]).some(x=>!['free','gratis'].includes(String(x.code||'').toLowerCase()))){fail('Promo khusus pelanggan baru yang belum pernah memiliki paket berbayar.');return;}}
-  appliedRitelAIPromo='RITELAI30';renderRitelSelectedPlan();const price=ritelPlanAmount(selectedRitelPlan);
-  status.textContent='Promo berhasil diterapkan: hemat 30%. Bayar '+ritelMoney(price.total)+' (harga normal '+ritelMoney(price.original)+'). Promo dikunci saat bukti pembayaran dikirim dan diverifikasi admin.';status.style.color='#86efac';
-  const proofStatus=document.getElementById('proofUploadStatus');if(proofStatus)proofStatus.textContent='Promo 30% aktif. Pastikan nominal QRIS sesuai '+ritelMoney(price.total)+' sebelum mengunggah bukti.';
- }catch(error){console.error('applyRitelAIPromo:',error);fail('Promo belum dapat diverifikasi: '+(error?.message||'coba lagi nanti.'));}
-}
-
 function openModal(id){let m=document.getElementById(id);m.classList.remove('hidden');m.classList.add('flex');if(id==='plansModal')loadPlans()}
 function closeModal(id){let m=document.getElementById(id);m.classList.add('hidden');m.classList.remove('flex')}
 function toast(msg){let t=document.getElementById('toast');t.textContent=msg;t.classList.remove('hidden');setTimeout(()=>t.classList.add('hidden'),3500)}
